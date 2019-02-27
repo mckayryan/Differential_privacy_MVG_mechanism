@@ -24,63 +24,63 @@ def centered_covariance_query_sensitivity(n, m, c):
 
 '''
     Examples:
-        get_query_point_sensitivity(unit_of_change='singleton',
+        get_query_point_sensitivity(query_type='identity',
                                     query_scale=feature_scale,
-                                    data_shape=(train_size,features)
-        get_query_point_sensitivity(unit_of_change='tuple',
+                                    query_shape=(train_size,features)
+        get_query_point_sensitivity(query_type='covariance',
                                     query_scale=feature_scale,
-                                    data_shape=(train_size,features)
+                                    query_shape=(train_size,features)
 '''
 
 
-def get_query_point_sensitivity(query_scale, data_shape, unit_of_change):
-    if unit_of_change == 'singleton':
+def get_query_point_sensitivity(query_scale, query_shape, query_type):
+    if query_type == 'identity':
         # Global maximum of change for any
         # single point change in query f(X) = X
         result = abs(numpy.subtract(query_scale[0], query_scale[1]))
-    elif unit_of_change == 'tuple':
+    elif query_type == 'covariance':
         # Global maximum of change for a single point
         # change in query f(X) = (1/n)*transpose(X)X
-        result = centered_covariance_query_sensitivity(n=data_shape[0],
+        result = centered_covariance_query_sensitivity(n=query_shape[0],
                                                        m=1.0,
                                                        c=query_scale[1])
     else:
         print("get_query_point_sensitivity: \
-        required unit_of_change in ('singleton','tuple')")
+        required query_type in ('identity','covariance')")
         result = None
     return result
 
 
 '''
     Examples:
-        get_query_row_sensitivity(unit_of_change='singleton',
+        get_query_row_sensitivity(query_type='identity',
                                   query_scale=feature_scale,
-                                  data_shape=(train_size,features))
-        get_query_row_sensitivity(unit_of_change='tuple',
+                                  query_shape=(train_size,features))
+        get_query_row_sensitivity(query_type='covariance',
                                   query_scale=feature_scale,
-                                  data_shape=(train_size,features))
+                                  query_shape=(train_size,features))
 '''
 
 
-def get_query_row_sensitivity(query_scale, data_shape, unit_of_change):
-    if unit_of_change == 'singleton':
+def get_query_row_sensitivity(query_scale, query_shape, query_type):
+    if query_type == 'identity':
         # Global maximum of change for any data row / observation
         # change in query f(X) = X
         # Section 8.1.3 p30 of paper [1]
         sensitivity = get_query_point_sensitivity(query_scale,
-                                                  data_shape,
-                                                  'singleton')
-        result = pow(data_shape[1] * pow(sensitivity, 2),
+                                                  query_shape,
+                                                  'identity')
+        result = pow(query_shape[1] * pow(sensitivity, 2),
                      0.5)
-    elif unit_of_change == 'tuple':
+    elif query_type == 'covariance':
         # Global maximum of change for any data
         # row / observation change in query f(X) = n^-1 * transpose(X)X
-        result = centered_covariance_query_sensitivity(n=data_shape[0],
-                                                       m=data_shape[1],
+        result = centered_covariance_query_sensitivity(n=query_shape[0],
+                                                       m=query_shape[1],
                                                        c=query_scale[1])
     else:
         print("get_query_row_sensitivity: \
-        required unit_of_change in ('singleton','tuple')")
+        required query_type in ('identity','covariance')")
         result = None
     return result
 
@@ -89,24 +89,24 @@ def get_query_row_sensitivity(query_scale, data_shape, unit_of_change):
     Examples:
         get_query_gamma(feature_scale,
                         (train_size,features),
-                        'singleton')
+                        'identity')
         get_query_gamma(feature_scale,
                         (features,features),
-                        unit_of_change='tuple'))
+                        query_type='covariance'))
 '''
 
 
-def get_query_gamma(query_scale, query_shape, unit_of_change):
+def get_query_gamma(query_scale, query_shape, query_type):
     obs, features = query_shape
-    if unit_of_change == 'singleton':
+    if query_type == 'identity':
         # Defined as sup X ||f(X)||F, where ||f(X)||F is the
         # Frobenious norm of the query f(X)
         result = pow(obs * features * query_scale[1], 0.5)
-    elif unit_of_change == 'tuple':
+    elif query_type == 'covariance':
         # Defined as m * c^2 Section 4.4 example 1, p17 in [1]
         result = features*pow(query_scale[1], 2)
     else:
         print("get_query_gamma: \
-        required unit_of_change in ('singleton','tuple')")
+        required query_type in ('identity','covariance')")
         result = None
     return result

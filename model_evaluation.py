@@ -64,3 +64,33 @@ def record_result(results, column_names, new_data):
             pandas.DataFrame(new_data, columns=column_names)
         ])
     return new
+
+
+def bootstrap_metric(data,
+                     metric_function,
+                     alpha,
+                     repetitions,
+                     samples=None,
+                     result_precision=5):
+    '''
+        Calcuate metric with the following algorithm:
+            1. Take n='repetitions' samples from 'data' with
+               replacement of size 'samples'
+            2. Calculate metric for each sample and sort
+            3. Calculate and return lower and upper quartile of sample metrics
+
+    '''
+    if samples is None:
+        samples = len(data)
+
+    bootstrap_set = sorted([
+        metric_function(numpy.random.choice(data, samples))
+        for _ in xrange(repetitions)
+    ])
+    lower_quantile = int(repetitions*(alpha/2))
+    upper_quantile = int(repetitions*(1-(alpha/2)))
+
+    return numpy.round((
+        bootstrap_set[lower_quantile],
+        bootstrap_set[upper_quantile]
+    ), result_precision)
