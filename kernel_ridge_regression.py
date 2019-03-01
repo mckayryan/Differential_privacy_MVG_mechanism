@@ -8,6 +8,22 @@ from sklearn.model_selection import cross_val_score
 from sklearn.kernel_ridge import KernelRidge
 from scipy.stats import uniform
 
+import sklearn.metrics
+import sklearn.preprocessing
+
+def root_mean_squared_error(y_true, y_pred):
+    '''
+    Computation of evaluation metric RMSE
+    '''
+    return pow(sklearn.metrics.mean_squared_error(y_true, y_pred)/ len(y_true), 0.5)
+
+
+def rmse_scorer():
+    '''
+    Wrapper function to create sklearn 'scorer' for RMSE metric
+    '''
+    return sklearn.metrics.make_scorer(root_mean_squared_error, 
+                                       greater_is_better=False)
 
 def kernel_ridge_param_search(
         X, y,
@@ -72,24 +88,23 @@ def krr_private_cross_validate(train_X,
                                score_summary_function=None,
                                cv_folds=5):
 
-    train_selected = range(len(train_y))
+    train_selected = [ i for i in range(len(train_y))]
     fold_sample_size = int(len(train_y) / cv_folds)
 
     res = numpy.empty(cv_folds)
 
-    for fold in xrange(cv_folds):
+    for fold in range(cv_folds):
 
         fold_sample = [
             train_selected.pop(random.randrange(len(train_selected)))
-            for _ in xrange(fold_sample_size)]
+            for _ in range(fold_sample_size)]
 
         krr.fit(train_X[fold_sample],
                 train_y[fold_sample])
 
         y_hat = krr.predict(test_X[fold_sample])
-
-        res[fold] = scoring_function(y_true=test_y[fold_sample],
-                                     y_pred=y_hat)
+        
+        res[fold] = scoring_function(y_true=test_y[fold_sample], y_pred=y_hat)
 
     if score_summary_function is not None:
         summary_res = score_summary_function(res)
@@ -130,7 +145,7 @@ def krr_private_param_rand_search(train_X,
             scoring_function=scoring_function)
 
     best_alpha, best_gamma = \
-        min(param_selections.iteritems(), key=operator.itemgetter(1))[0]
+        min(param_selections.items(), key=operator.itemgetter(1))[0]
 
     return dict(
         best_alpha=best_alpha,
