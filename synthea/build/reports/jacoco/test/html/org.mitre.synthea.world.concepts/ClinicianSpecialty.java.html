@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ClinicianSpecialty.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.world.concepts</a> &gt; <span class="el_source">ClinicianSpecialty.java</span></div><h1>ClinicianSpecialty.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.world.concepts;
+
+/**
+ * ClinicianSpecialty is an enumeration of Clinical Specialties that a
+ * Clinician can possess. Each of the values (e.g. &quot;ADDICTION MEDICINE&quot;)
+ * corresponds to a column header in the primary care facilities file
+ * identified by the Synthea property:
+ * &lt;p/&gt;
+ * generate.providers.primarycare.default_file = &quot;providers/primary_care_facilities.csv&quot;
+ * &lt;p/&gt;The numeric value in each cell identifies how many of clinicians should be
+ * generated with each specialty. These specialties can then be used to select
+ * an appropriate clinician for any encounter.
+ */
+<span class="nc" id="L14">public class ClinicianSpecialty {</span>
+
+  public static final String ADDICTION_MEDICINE = &quot;ADDICTION MEDICINE&quot;;
+  public static final String ADVANCED_HEART_FAILURE_AND_TRANSPLANT_CARDIOLOGY 
+      = &quot;ADVANCED HEART FAILURE AND TRANSPLANT CARDIOLOGY&quot;;
+  public static final String ALLERGY_IMMUNOLOGY = &quot;ALLERGY/IMMUNOLOGY&quot;;
+  public static final String ANESTHESIOLOGY = &quot;ANESTHESIOLOGY&quot;;
+  public static final String ANESTHESIOLOGY_ASSISTANT = &quot;ANESTHESIOLOGY ASSISTANT&quot;;
+  public static final String AUDIOLOGIST = &quot;AUDIOLOGIST&quot;;
+  public static final String CARDIAC_ELECTROPHYSIOLOGY = &quot;CARDIAC ELECTROPHYSIOLOGY&quot;;
+  public static final String CARDIAC_SURGERY = &quot;CARDIAC SURGERY&quot;;
+  public static final String CARDIOLOGY = &quot;CARDIOVASCULAR DISEASE (CARDIOLOGY)&quot;;
+  public static final String CERTIFIED_NURSE_MIDWIFE = &quot;CERTIFIED NURSE MIDWIFE&quot;;
+  public static final String CERTIFIED_REGISTERED_NURSE_ANESTHETIST 
+      = &quot;CERTIFIED REGISTERED NURSE ANESTHETIST&quot;;
+  public static final String CHIROPRACTIC = &quot;CHIROPRACTIC&quot;;
+  public static final String CLINICAL_NURSE_SPECIALIST = &quot;CLINICAL NURSE SPECIALIST&quot;;
+  public static final String CLINICAL_PSYCHOLOGIST = &quot;CLINICAL PSYCHOLOGIST&quot;;
+  public static final String CLINICAL_SOCIAL_WORKER = &quot;CLINICAL SOCIAL WORKER&quot;;
+  public static final String PROCTOLOGY = &quot;COLORECTAL SURGERY (PROCTOLOGY)&quot;;
+  public static final String INTENSIVIST = &quot;CRITICAL CARE (INTENSIVISTS)&quot;;
+  public static final String DENTIST = &quot;DENTIST&quot;;
+  public static final String DERMATOLOGY = &quot;DERMATOLOGY&quot;;
+  public static final String DIAGNOSTIC_RADIOLOGY = &quot;DIAGNOSTIC RADIOLOGY&quot;;
+  public static final String EMERGENCY_MEDICINE = &quot;EMERGENCY MEDICINE&quot;;
+  public static final String ENDOCRINOLOGY = &quot;ENDOCRINOLOGY&quot;;
+  public static final String FAMILY_PRACTICE = &quot;FAMILY PRACTICE&quot;;
+  public static final String GASTROENTEROLOGY = &quot;GASTROENTEROLOGY&quot;;
+  public static final String GENERAL_PRACTICE = &quot;GENERAL PRACTICE&quot;;
+  public static final String GENERAL_SURGERY = &quot;GENERAL SURGERY&quot;;
+  public static final String GERIATRIC_MEDICINE = &quot;GERIATRIC MEDICINE&quot;;
+  public static final String GERIATRIC_PSYCHIATRY = &quot;GERIATRIC PSYCHIATRY&quot;;
+  public static final String GYNECOLOGICAL_ONCOLOGY = &quot;GYNECOLOGICAL ONCOLOGY&quot;;
+  public static final String HAND_SURGERY = &quot;HAND SURGERY&quot;;
+  public static final String HEMATOLOGY = &quot;HEMATOLOGY&quot;;
+  public static final String HEMATOLOGY_ONCOLOGY = &quot;HEMATOLOGY/ONCOLOGY&quot;;
+  public static final String HEMATOPOIETIC_CELL_TRANSPLANTATION_AND_CELLULAR_TH 
+      = &quot;HEMATOPOIETIC CELL TRANSPLANTATION AND CELLULAR TH&quot;;
+  public static final String HOSPICE_AND_PALLIATIVE_CARE = &quot;HOSPICE/PALLIATIVE CARE&quot;;
+  public static final String HOSPITALIST = &quot;HOSPITALIST&quot;;
+  public static final String INFECTIOUS_DISEASE = &quot;INFECTIOUS DISEASE&quot;;
+  public static final String INTERNAL_MEDICINE = &quot;INTERNAL MEDICINE&quot;;
+  public static final String INTERVENTIONAL_CARDIOLOGY = &quot;INTERVENTIONAL CARDIOLOGY&quot;;
+  public static final String INTERVENTIONAL_PAIN_MANAGEMENT = &quot;INTERVENTIONAL PAIN MANAGEMENT&quot;;
+  public static final String INTERVENTIONAL_RADIOLOGY = &quot;INTERVENTIONAL RADIOLOGY&quot;;
+  public static final String MAXILLOFACIAL_SURGERY = &quot;MAXILLOFACIAL SURGERY&quot;;
+  public static final String MEDICAL_ONCOLOGY = &quot;MEDICAL ONCOLOGY&quot;;
+  public static final String NEPHROLOGY = &quot;NEPHROLOGY&quot;;
+  public static final String NEUROLOGY = &quot;NEUROLOGY&quot;;
+  public static final String NEUROPSYCHIATRY = &quot;NEUROPSYCHIATRY&quot;;
+  public static final String NEUROSURGERY = &quot;NEUROSURGERY&quot;;
+  public static final String NUCLEAR_MEDICINE = &quot;NUCLEAR MEDICINE&quot;;
+  public static final String NURSE_PRACTITIONER = &quot;NURSE PRACTITIONER&quot;;
+  public static final String OBSTETRICS_GYNECOLOGY = &quot;OBSTETRICS/GYNECOLOGY&quot;;
+  public static final String OCCUPATIONAL_THERAPY = &quot;OCCUPATIONAL THERAPY&quot;;
+  public static final String OPHTHALMOLOGY = &quot;OPHTHALMOLOGY&quot;;
+  public static final String OPTOMETRY = &quot;OPTOMETRY&quot;;
+  public static final String ORAL_SURGERY = &quot;ORAL SURGERY&quot;;
+  public static final String ORTHOPEDIC_SURGERY = &quot;ORTHOPEDIC SURGERY&quot;;
+  public static final String OSTEOPATHIC_MANIPULATIVE_MEDICINE
+      = &quot;OSTEOPATHIC MANIPULATIVE MEDICINE&quot;;
+  public static final String OTOLARYNGOLOGY = &quot;OTOLARYNGOLOGY&quot;;
+  public static final String PAIN_MANAGEMENT = &quot;PAIN MANAGEMENT&quot;;
+  public static final String PATHOLOGY = &quot;PATHOLOGY&quot;;
+  public static final String PEDIATRIC_MEDICINE = &quot;PEDIATRIC MEDICINE&quot;;
+  public static final String PERIPHERAL_VASCULAR_DISEASE = &quot;PERIPHERAL VASCULAR DISEASE&quot;;
+  public static final String PHYSICAL_MEDICINE_AND_REHABILITATION
+      = &quot;PHYSICAL MEDICINE AND REHABILITATION&quot;;
+  public static final String PHYSICAL_THERAPY = &quot;PHYSICAL THERAPY&quot;;
+  public static final String PHYSICIAN_ASSISTANT = &quot;PHYSICIAN ASSISTANT&quot;;
+  public static final String PLASTIC_AND_RECONSTRUCTIVE_SURGERY 
+      = &quot;PLASTIC AND RECONSTRUCTIVE SURGERY&quot;;
+  public static final String PODIATRY = &quot;PODIATRY&quot;;
+  public static final String PREVENTATIVE_MEDICINE = &quot;PREVENTATIVE MEDICINE&quot;;
+  public static final String PSYCHIATRY = &quot;PSYCHIATRY&quot;;
+  public static final String PULMONARY_DISEASE = &quot;PULMONARY DISEASE&quot;;
+  public static final String RADIATION_ONCOLOGY = &quot;RADIATION ONCOLOGY&quot;;
+  public static final String REGISTERED_DIETITIAN_OR_NUTRITION_PROFESSIONAL 
+      = &quot;REGISTERED DIETITIAN OR NUTRITION PROFESSIONAL&quot;;
+  public static final String RHEUMATOLOGY = &quot;RHEUMATOLOGY&quot;;
+  public static final String SLEEP_MEDICINE = &quot;SLEEP MEDICINE&quot;;
+  public static final String SPEECH_LANGUAGE_PATHOLOGIST = &quot;SPEECH LANGUAGE PATHOLOGIST&quot;;
+  public static final String SPORTS_MEDICINE = &quot;SPORTS MEDICINE&quot;;
+  public static final String SURGICAL_ONCOLOGY = &quot;SURGICAL ONCOLOGY&quot;;
+  public static final String THORACIC_SURGERY = &quot;THORACIC SURGERY&quot;;
+  public static final String UNDEFINED = &quot;UNDEFINED PHYSICIAN TYPE (SPECIFY)&quot;;
+  public static final String UROLOGY = &quot;UROLOGY&quot;;
+  public static final String VASCULAR_SURGERY = &quot;VASCULAR SURGERY&quot;;
+
+  /**
+   * Get the complete list of all specialties defined in the system.
+   * @return List of Strings defined each clinical specialty.
+   */
+  public static String[] getSpecialties() {
+<span class="fc" id="L108">    String[] specialtyList = {&quot;ADDICTION MEDICINE&quot;, </span>
+      &quot;ADVANCED HEART FAILURE AND TRANSPLANT CARDIOLOGY&quot;, &quot;ALLERGY/IMMUNOLOGY&quot;, &quot;ANESTHESIOLOGY&quot;, 
+      &quot;ANESTHESIOLOGY ASSISTANT&quot;, &quot;AUDIOLOGIST&quot;,&quot;CARDIAC ELECTROPHYSIOLOGY&quot;,&quot;CARDIAC SURGERY&quot;,
+      &quot;CARDIOVASCULAR DISEASE (CARDIOLOGY)&quot;, &quot;CERTIFIED NURSE MIDWIFE&quot;,
+      &quot;CERTIFIED REGISTERED NURSE ANESTHETIST&quot;, &quot;CHIROPRACTIC&quot;, &quot;CLINICAL NURSE SPECIALIST&quot;,
+      &quot;CLINICAL PSYCHOLOGIST&quot;, &quot;CLINICAL SOCIAL WORKER&quot;, &quot;COLORECTAL SURGERY (PROCTOLOGY)&quot;,
+      &quot;CRITICAL CARE (INTENSIVISTS)&quot;, &quot;DENTIST&quot;, &quot;DERMATOLOGY&quot;, 
+      &quot;DIAGNOSTIC RADIOLOGY&quot;,&quot;EMERGENCY MEDICINE&quot;, &quot;ENDOCRINOLOGY&quot;, &quot;FAMILY PRACTICE&quot;,
+      &quot;GASTROENTEROLOGY&quot;, &quot;GENERAL PRACTICE&quot;, &quot;GENERAL SURGERY&quot;, &quot;GERIATRIC MEDICINE&quot;, 
+      &quot;GERIATRIC PSYCHIATRY&quot;, &quot;GYNECOLOGICAL ONCOLOGY&quot;, &quot;HAND SURGERY&quot;, &quot;HEMATOLOGY&quot;,
+      &quot;HEMATOLOGY/ONCOLOGY&quot;, &quot;HEMATOPOIETIC CELL TRANSPLANTATION AND CELLULAR TH&quot;,
+      &quot;HOSPICE/PALLIATIVE CARE&quot;, &quot;HOSPITALIST&quot;, &quot;INFECTIOUS DISEASE&quot;,&quot;INTERNAL MEDICINE&quot;,
+      &quot;INTERVENTIONAL CARDIOLOGY&quot;, &quot;INTERVENTIONAL PAIN MANAGEMENT&quot;, &quot;INTERVENTIONAL RADIOLOGY&quot;,
+      &quot;MAXILLOFACIAL SURGERY&quot;, &quot;MEDICAL ONCOLOGY&quot;, &quot;NEPHROLOGY&quot;, &quot;NEUROLOGY&quot;, &quot;NEUROPSYCHIATRY&quot;,
+      &quot;NEUROSURGERY&quot;, &quot;NUCLEAR MEDICINE&quot;, &quot;NURSE PRACTITIONER&quot;, &quot;OBSTETRICS/GYNECOLOGY&quot;,
+      &quot;OCCUPATIONAL THERAPY&quot;, &quot;OPHTHALMOLOGY&quot;, &quot;OPTOMETRY&quot;, &quot;ORAL SURGERY&quot;, &quot;ORTHOPEDIC SURGERY&quot;,
+      &quot;OSTEOPATHIC MANIPULATIVE MEDICINE&quot;, &quot;OTOLARYNGOLOGY&quot;, &quot;PAIN MANAGEMENT&quot;,
+      &quot;PATHOLOGY&quot;, &quot;PEDIATRIC MEDICINE&quot;, &quot;PERIPHERAL VASCULAR DISEASE&quot;,
+      &quot;PHYSICAL MEDICINE AND REHABILITATION&quot;,&quot;PHYSICAL THERAPY&quot;, &quot;PHYSICIAN ASSISTANT&quot;,
+      &quot;PLASTIC AND RECONSTRUCTIVE SURGERY&quot;, &quot;PODIATRY&quot;, &quot;PREVENTATIVE MEDICINE&quot;,&quot;PSYCHIATRY&quot;,
+      &quot;PULMONARY DISEASE&quot;, &quot;RADIATION ONCOLOGY&quot;, &quot;REGISTERED DIETITIAN OR NUTRITION PROFESSIONAL&quot;,
+      &quot;RHEUMATOLOGY&quot;, &quot;SLEEP MEDICINE&quot;, &quot;SPEECH LANGUAGE PATHOLOGIST&quot;, &quot;SPORTS MEDICINE&quot;,
+      &quot;SURGICAL ONCOLOGY&quot;, &quot;THORACIC SURGERY&quot;, &quot;UNDEFINED PHYSICIAN TYPE (SPECIFY)&quot;, 
+      &quot;UROLOGY&quot;, &quot;VASCULAR SURGERY&quot;};
+
+<span class="fc" id="L133">    return specialtyList;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

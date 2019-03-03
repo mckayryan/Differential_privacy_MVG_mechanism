@@ -1,0 +1,468 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Exporter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.export</a> &gt; <span class="el_source">Exporter.java</span></div><h1>Exporter.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.export;
+
+import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.parser.IParser;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.function.Predicate;
+
+import org.mitre.synthea.engine.Generator;
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.Utilities;
+import org.mitre.synthea.modules.DeathModule;
+import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.concepts.HealthRecord;
+import org.mitre.synthea.world.concepts.HealthRecord.Encounter;
+import org.mitre.synthea.world.concepts.HealthRecord.Observation;
+import org.mitre.synthea.world.concepts.HealthRecord.Report;
+
+<span class="nc" id="L28">public abstract class Exporter {</span>
+  /**
+   * Export a single patient, into all the formats supported. (Formats may be enabled or disabled by
+   * configuration)
+   *
+   * @param person   Patient to export
+   * @param stopTime Time at which the simulation stopped
+   */
+  public static void export(Person person, long stopTime) {
+<span class="fc" id="L37">    int yearsOfHistory = Integer.parseInt(Config.get(&quot;exporter.years_of_history&quot;));</span>
+<span class="pc bpc" id="L38" title="1 of 2 branches missed.">    if (yearsOfHistory &gt; 0) {</span>
+<span class="fc" id="L39">      person = filterForExport(person, yearsOfHistory, stopTime);</span>
+    }
+<span class="pc bpc" id="L41" title="1 of 2 branches missed.">    if (person.hasMultipleRecords) {</span>
+<span class="nc" id="L42">      int i = 0;</span>
+<span class="nc bnc" id="L43" title="All 2 branches missed.">      for (String key : person.records.keySet()) {</span>
+<span class="nc" id="L44">        person.record = person.records.get(key);</span>
+<span class="nc" id="L45">        exportRecord(person, Integer.toString(i), stopTime);</span>
+<span class="nc" id="L46">        i++;</span>
+<span class="nc" id="L47">      }</span>
+<span class="nc" id="L48">    } else {</span>
+<span class="fc" id="L49">      exportRecord(person, &quot;&quot;, stopTime);</span>
+    }
+<span class="fc" id="L51">  }</span>
+
+  /**
+   * Export a single patient record, into all the formats supported.
+   * (Formats may be enabled or disabled by configuration)
+   *
+   * @param person   Patient to export, with Patient.record being set.
+   * @param fileTag  An identifier to tag the file with.
+   * @param stopTime Time at which the simulation stopped
+   */
+  private static void exportRecord(Person person, String fileTag, long stopTime) {
+
+    // Defaults to STU3 output
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.fhir.export&quot;))) {</span>
+<span class="nc" id="L65">      File outDirectory = getOutputFolder(&quot;fhir&quot;, person);</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">      if (Boolean.parseBoolean(Config.get(&quot;exporter.fhir.bulk_data&quot;))) {</span>
+<span class="nc" id="L67">        org.hl7.fhir.dstu3.model.Bundle bundle = FhirStu3.convertToFHIR(person, stopTime);</span>
+<span class="nc" id="L68">        IParser parser = FhirContext.forDstu3().newJsonParser().setPrettyPrint(false);</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        for (org.hl7.fhir.dstu3.model.Bundle.BundleEntryComponent entry : bundle.getEntry()) {</span>
+<span class="nc" id="L70">          String filename = entry.getResource().getResourceType().toString() + &quot;.ndjson&quot;;</span>
+<span class="nc" id="L71">          Path outFilePath = outDirectory.toPath().resolve(filename);</span>
+<span class="nc" id="L72">          String entryJson = parser.encodeResourceToString(entry.getResource());</span>
+<span class="nc" id="L73">          appendToFile(outFilePath, entryJson);</span>
+<span class="nc" id="L74">        }</span>
+<span class="nc" id="L75">      } else {</span>
+<span class="nc" id="L76">        String bundleJson = FhirStu3.convertToFHIRJson(person, stopTime);</span>
+<span class="nc" id="L77">        Path outFilePath = outDirectory.toPath().resolve(filename(person, fileTag, &quot;json&quot;));</span>
+<span class="nc" id="L78">        writeNewFile(outFilePath, bundleJson);</span>
+      }
+    }
+<span class="pc bpc" id="L81" title="1 of 2 branches missed.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.fhir_dstu2.export&quot;))) {</span>
+<span class="nc" id="L82">      File outDirectory = getOutputFolder(&quot;fhir_dstu2&quot;, person);</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">      if (Boolean.parseBoolean(Config.get(&quot;exporter.fhir.bulk_data&quot;))) {</span>
+<span class="nc" id="L84">        ca.uhn.fhir.model.dstu2.resource.Bundle bundle = FhirDstu2.convertToFHIR(person, stopTime);</span>
+<span class="nc" id="L85">        IParser parser = FhirContext.forDstu2().newJsonParser().setPrettyPrint(false);</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">        for (ca.uhn.fhir.model.dstu2.resource.Bundle.Entry entry : bundle.getEntry()) {</span>
+<span class="nc" id="L87">          String filename = entry.getResource().getResourceName() + &quot;.ndjson&quot;;</span>
+<span class="nc" id="L88">          Path outFilePath = outDirectory.toPath().resolve(filename);</span>
+<span class="nc" id="L89">          String entryJson = parser.encodeResourceToString(entry.getResource());</span>
+<span class="nc" id="L90">          appendToFile(outFilePath, entryJson);</span>
+<span class="nc" id="L91">        }</span>
+<span class="nc" id="L92">      } else {</span>
+<span class="nc" id="L93">        String bundleJson = FhirDstu2.convertToFHIRJson(person, stopTime);</span>
+<span class="nc" id="L94">        Path outFilePath = outDirectory.toPath().resolve(filename(person, fileTag, &quot;json&quot;));</span>
+<span class="nc" id="L95">        writeNewFile(outFilePath, bundleJson);</span>
+      }
+    }
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.fhir_r4.export&quot;))) {</span>
+<span class="nc" id="L99">      File outDirectory = getOutputFolder(&quot;fhir_r4&quot;, person);</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">      if (Boolean.parseBoolean(Config.get(&quot;exporter.fhir.bulk_data&quot;))) {</span>
+<span class="nc" id="L101">        org.hl7.fhir.r4.model.Bundle bundle = FhirR4.convertToFHIR(person, stopTime);</span>
+<span class="nc" id="L102">        IParser parser = FhirContext.forR4().newJsonParser().setPrettyPrint(false);</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        for (org.hl7.fhir.r4.model.Bundle.BundleEntryComponent entry : bundle.getEntry()) {</span>
+<span class="nc" id="L104">          String filename = entry.getResource().getResourceType().toString() + &quot;.ndjson&quot;;</span>
+<span class="nc" id="L105">          Path outFilePath = outDirectory.toPath().resolve(filename);</span>
+<span class="nc" id="L106">          String entryJson = parser.encodeResourceToString(entry.getResource());</span>
+<span class="nc" id="L107">          appendToFile(outFilePath, entryJson);</span>
+<span class="nc" id="L108">        }</span>
+<span class="nc" id="L109">      } else {</span>
+<span class="nc" id="L110">        String bundleJson = FhirR4.convertToFHIRJson(person, stopTime);</span>
+<span class="nc" id="L111">        Path outFilePath = outDirectory.toPath().resolve(filename(person, fileTag, &quot;json&quot;));</span>
+<span class="nc" id="L112">        writeNewFile(outFilePath, bundleJson);</span>
+      }
+    }
+<span class="pc bpc" id="L115" title="1 of 2 branches missed.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.ccda.export&quot;))) {</span>
+<span class="nc" id="L116">      String ccdaXml = CCDAExporter.export(person, stopTime);</span>
+<span class="nc" id="L117">      File outDirectory = getOutputFolder(&quot;ccda&quot;, person);</span>
+<span class="nc" id="L118">      Path outFilePath = outDirectory.toPath().resolve(filename(person, fileTag, &quot;xml&quot;));</span>
+<span class="nc" id="L119">      writeNewFile(outFilePath, ccdaXml);</span>
+    }
+<span class="fc bfc" id="L121" title="All 2 branches covered.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.csv.export&quot;))) {</span>
+      try {
+<span class="fc" id="L123">        CSVExporter.getInstance().export(person, stopTime);</span>
+<span class="nc" id="L124">      } catch (IOException e) {</span>
+<span class="nc" id="L125">        e.printStackTrace();</span>
+<span class="fc" id="L126">      }</span>
+    }
+<span class="fc bfc" id="L128" title="All 2 branches covered.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.text.export&quot;))) {</span>
+      try {
+<span class="fc" id="L130">        TextExporter.exportAll(person, fileTag, stopTime);</span>
+<span class="nc" id="L131">      } catch (IOException e) {</span>
+<span class="nc" id="L132">        e.printStackTrace();</span>
+<span class="fc" id="L133">      }</span>
+    }
+<span class="fc bfc" id="L135" title="All 2 branches covered.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.text.per_encounter_export&quot;))) {</span>
+      try {
+<span class="fc" id="L137">        TextExporter.exportEncounter(person, stopTime);</span>
+<span class="nc" id="L138">      } catch (IOException e) {</span>
+<span class="nc" id="L139">        e.printStackTrace();</span>
+<span class="fc" id="L140">      }</span>
+    }
+<span class="fc bfc" id="L142" title="All 2 branches covered.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.cdw.export&quot;))) {</span>
+      try {
+<span class="fc" id="L144">        CDWExporter.getInstance().export(person, stopTime);</span>
+<span class="nc" id="L145">      } catch (IOException e) {</span>
+<span class="nc" id="L146">        e.printStackTrace();</span>
+<span class="fc" id="L147">      }</span>
+    }
+<span class="fc" id="L149">  }</span>
+
+  /**
+   * Write a new file with the given contents.
+   * @param file Path to the new file.
+   * @param contents The contents of the file.
+   */
+  private static void writeNewFile(Path file, String contents) {
+    try {
+<span class="nc" id="L158">      Files.write(file, Collections.singleton(contents), StandardOpenOption.CREATE_NEW);</span>
+<span class="nc" id="L159">    } catch (IOException e) {</span>
+<span class="nc" id="L160">      e.printStackTrace();</span>
+<span class="nc" id="L161">    }</span>
+<span class="nc" id="L162">  }</span>
+
+  /**
+   * Append contents to the end of a file.
+   * @param file Path to the new file.
+   * @param contents The contents of the file.
+   */
+  private static synchronized void appendToFile(Path file, String contents) {
+    try {
+<span class="nc bnc" id="L171" title="All 2 branches missed.">      if (Files.notExists(file)) {</span>
+<span class="nc" id="L172">        Files.createFile(file);</span>
+      }
+<span class="nc" id="L174">    } catch (Exception e) {</span>
+      // Ignore... multi-threaded race condition to create a file that didn't exist,
+      // but does now because one of the other exporter threads beat us to it.
+<span class="nc" id="L177">    }</span>
+    try {
+<span class="nc" id="L179">      Files.write(file, Collections.singleton(contents), StandardOpenOption.APPEND);</span>
+<span class="nc" id="L180">    } catch (IOException e) {</span>
+<span class="nc" id="L181">      e.printStackTrace();</span>
+<span class="nc" id="L182">    }</span>
+<span class="nc" id="L183">  }</span>
+
+  /**
+   * Run any exporters that require the full dataset to be generated prior to exporting.
+   * (E.g., an aggregate statistical exporter)
+   *
+   * @param generator Generator that generated the patients
+   */
+  public static void runPostCompletionExports(Generator generator) {
+    try {
+<span class="fc" id="L193">      HospitalExporterR4.export(generator.stop);</span>
+<span class="nc" id="L194">    } catch (Exception e) {</span>
+<span class="nc" id="L195">      e.printStackTrace();</span>
+<span class="fc" id="L196">    }</span>
+
+    try {
+<span class="fc" id="L199">      FhirPractitionerExporterR4.export(generator.stop);</span>
+<span class="nc" id="L200">    } catch (Exception e) {</span>
+<span class="nc" id="L201">      e.printStackTrace();</span>
+<span class="fc" id="L202">    }</span>
+
+    try {
+<span class="fc" id="L205">      HospitalExporterStu3.export(generator.stop);</span>
+<span class="nc" id="L206">    } catch (Exception e) {</span>
+<span class="nc" id="L207">      e.printStackTrace();</span>
+<span class="fc" id="L208">    }</span>
+
+    try {
+<span class="fc" id="L211">      FhirPractitionerExporterStu3.export(generator.stop);</span>
+<span class="nc" id="L212">    } catch (Exception e) {</span>
+<span class="nc" id="L213">      e.printStackTrace();</span>
+<span class="fc" id="L214">    }</span>
+
+    try {
+<span class="fc" id="L217">      HospitalExporterDstu2.export(generator.stop);</span>
+<span class="nc" id="L218">    } catch (Exception e) {</span>
+<span class="nc" id="L219">      e.printStackTrace();</span>
+<span class="fc" id="L220">    }</span>
+
+    try {
+<span class="fc" id="L223">      FhirPractitionerExporterDstu2.export(generator.stop);</span>
+<span class="nc" id="L224">    } catch (Exception e) {</span>
+<span class="nc" id="L225">      e.printStackTrace();</span>
+<span class="fc" id="L226">    }</span>
+
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.cost_access_outcomes_report&quot;))) {</span>
+<span class="nc" id="L229">      ReportExporter.export(generator);</span>
+    }
+
+<span class="pc bpc" id="L232" title="1 of 2 branches missed.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.prevalence_report&quot;))) {</span>
+      try {
+<span class="nc" id="L234">        PrevalenceReport.export(generator);</span>
+<span class="nc" id="L235">      } catch (Exception e) {</span>
+<span class="nc" id="L236">        System.err.println(&quot;Prevalence report generation failed!&quot;);</span>
+<span class="nc" id="L237">        e.printStackTrace();</span>
+<span class="nc" id="L238">      }</span>
+    }
+
+<span class="pc bpc" id="L241" title="1 of 2 branches missed.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.custom_report&quot;))) {</span>
+      try {
+<span class="nc" id="L243">        CustomSqlReport.export(generator);</span>
+<span class="nc" id="L244">      } catch (Exception e) {</span>
+<span class="nc" id="L245">        System.err.println(&quot;Custom report generation failed!&quot;);</span>
+<span class="nc" id="L246">        e.printStackTrace();</span>
+<span class="nc" id="L247">      }</span>
+    }
+
+<span class="pc bpc" id="L250" title="1 of 2 branches missed.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.cdw.export&quot;))) {</span>
+<span class="nc" id="L251">      CDWExporter.getInstance().writeFactTables();</span>
+    }
+
+<span class="fc bfc" id="L254" title="All 2 branches covered.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.csv.export&quot;))) {</span>
+      try {
+<span class="fc" id="L256">        CSVExporter.getInstance().exportOrganizationsAndProviders();</span>
+<span class="nc" id="L257">      } catch (IOException e) {</span>
+<span class="nc" id="L258">        e.printStackTrace();</span>
+<span class="fc" id="L259">      }</span>
+    }
+<span class="fc" id="L261">  }</span>
+
+  /**
+   * Filter the patient's history to only the last __ years
+   * but also include relevant history from before that. Exclude
+   * any history that occurs after the specified end_time -- typically
+   * this is the current time/System.currentTimeMillis().
+   *
+   * @param original    The Person to filter.
+   * @param yearsToKeep The last __ years to keep.
+   * @param endTime     The time the history ends.
+   * @return Modified Person with history expunged.
+   */
+  public static Person filterForExport(Person original, int yearsToKeep, long endTime) {
+    // TODO: clone the patient so that we export only the last _ years
+    // but the rest still exists, just in case
+<span class="fc" id="L277">    Person filtered = original; //.clone();</span>
+    //filtered.record = original.record.clone();
+
+<span class="pc bpc" id="L280" title="1 of 2 branches missed.">    if (filtered.hasMultipleRecords) {</span>
+<span class="nc bnc" id="L281" title="All 2 branches missed.">      for (String key : filtered.records.keySet()) {</span>
+<span class="nc" id="L282">        HealthRecord record = filtered.records.get(key);</span>
+<span class="nc" id="L283">        filterForExport(record, yearsToKeep, endTime);</span>
+<span class="nc" id="L284">      }</span>
+    } else {
+<span class="fc" id="L286">      filtered.record = filterForExport(filtered.record, yearsToKeep, endTime);</span>
+    }
+
+<span class="fc" id="L289">    return filtered;</span>
+  }
+
+  /**
+   * Filter the health record to only the last __ years
+   * but also include relevant history from before that. Exclude
+   * any history that occurs after the specified end_time -- typically
+   * this is the current time/System.currentTimeMillis().
+   *
+   * @param record    The record to filter.
+   * @param yearsToKeep The last __ years to keep.
+   * @param endTime     The time the history ends.
+   * @return Modified record with history expunged.
+   */
+  private static HealthRecord filterForExport(HealthRecord record, int yearsToKeep, long endTime) {
+
+<span class="fc" id="L305">    long cutoffDate = endTime - Utilities.convertTime(&quot;years&quot;, yearsToKeep);</span>
+<span class="pc bpc" id="L306" title="1 of 2 branches missed.">    Predicate&lt;HealthRecord.Entry&gt; notFutureDated = e -&gt; e.start &lt;= endTime;</span>
+
+<span class="fc bfc" id="L308" title="All 2 branches covered.">    for (Encounter encounter : record.encounters) {</span>
+<span class="fc" id="L309">      List&lt;HealthRecord.Entry&gt; claimItems = encounter.claim.items;</span>
+      // keep conditions if still active, regardless of start date
+<span class="fc" id="L311">      Predicate&lt;HealthRecord.Entry&gt; conditionActive = c -&gt; record.conditionActive(c.type);</span>
+      // or if the condition was active at any point since the cutoff date
+<span class="pc bpc" id="L313" title="2 of 4 branches missed.">      Predicate&lt;HealthRecord.Entry&gt; activeWithinCutoff = c -&gt; c.stop != 0L &amp;&amp; c.stop &gt; cutoffDate;</span>
+<span class="fc" id="L314">      Predicate&lt;HealthRecord.Entry&gt; keepCondition = conditionActive.or(activeWithinCutoff);</span>
+<span class="fc" id="L315">      filterEntries(encounter.conditions, claimItems, cutoffDate, endTime, keepCondition);</span>
+
+      // allergies are essentially the same as conditions
+<span class="fc" id="L318">      filterEntries(encounter.allergies, claimItems, cutoffDate, endTime, keepCondition);</span>
+
+      // some of the &quot;future death&quot; logic could potentially add a future-dated death certificate
+<span class="fc" id="L321">      Predicate&lt;Observation&gt; isCauseOfDeath =</span>
+<span class="fc" id="L322">          o -&gt; DeathModule.CAUSE_OF_DEATH_CODE.code.equals(o.type);</span>
+      // keep cause of death unless it's future dated
+<span class="fc" id="L324">      Predicate&lt;Observation&gt; keepObservation = isCauseOfDeath.and(notFutureDated);</span>
+<span class="fc" id="L325">      filterEntries(encounter.observations, claimItems, cutoffDate, endTime, keepObservation);</span>
+
+      // keep all death certificates, unless they are future-dated
+<span class="fc" id="L328">      Predicate&lt;Report&gt; isDeathCertificate = r -&gt; DeathModule.DEATH_CERTIFICATE.code.equals(r.type);</span>
+<span class="fc" id="L329">      Predicate&lt;Report&gt; keepReport = isDeathCertificate.and(notFutureDated);</span>
+<span class="fc" id="L330">      filterEntries(encounter.reports, claimItems, cutoffDate, endTime, keepReport);</span>
+
+<span class="fc" id="L332">      filterEntries(encounter.procedures, claimItems, cutoffDate, endTime, null);</span>
+
+      // keep medications if still active, regardless of start date
+<span class="fc" id="L335">      filterEntries(encounter.medications, claimItems, cutoffDate, endTime,</span>
+<span class="fc" id="L336">          med -&gt; record.medicationActive(med.type));</span>
+
+<span class="fc" id="L338">      filterEntries(encounter.immunizations, claimItems, cutoffDate, endTime, null);</span>
+
+      // keep careplans if they are still active, regardless of start date
+<span class="fc" id="L341">      filterEntries(encounter.careplans, claimItems, cutoffDate, endTime,</span>
+<span class="fc" id="L342">          cp -&gt; record.careplanActive(cp.type));</span>
+<span class="fc" id="L343">    }</span>
+
+    // if ANY of these are not empty, the encounter is not empty
+<span class="fc" id="L346">    Predicate&lt;Encounter&gt; encounterNotEmpty = e -&gt;</span>
+<span class="fc bfc" id="L347" title="All 4 branches covered.">        !e.conditions.isEmpty() || !e.allergies.isEmpty()</span>
+<span class="pc bpc" id="L348" title="1 of 4 branches missed.">            || !e.observations.isEmpty() || !e.reports.isEmpty()</span>
+<span class="pc bpc" id="L349" title="1 of 4 branches missed.">            || !e.procedures.isEmpty() || !e.medications.isEmpty()</span>
+<span class="pc bpc" id="L350" title="1 of 4 branches missed.">            || !e.immunizations.isEmpty() || !e.careplans.isEmpty();</span>
+
+<span class="fc" id="L352">    Predicate&lt;Encounter&gt; isDeathCertification =</span>
+<span class="pc bpc" id="L353" title="1 of 4 branches missed.">        e -&gt; !e.codes.isEmpty() &amp;&amp; DeathModule.DEATH_CERTIFICATION.equals(e.codes.get(0));</span>
+<span class="fc" id="L354">    Predicate&lt;Encounter&gt; keepEncounter =</span>
+<span class="fc" id="L355">        encounterNotEmpty.or(isDeathCertification.and(notFutureDated));</span>
+
+    // finally filter out any empty encounters
+<span class="fc" id="L358">    filterEntries(record.encounters, Collections.emptyList(), cutoffDate, endTime, keepEncounter);</span>
+
+<span class="fc" id="L360">    return record;</span>
+  }
+
+  /**
+   * Helper function to filter entries from a list. Entries are kept if their date range falls
+   * within the provided range or if `keepFunction` is provided, and returns `true` for the given
+   * entry.
+   *
+   * @param entries      List of `Entry`s to filter
+   * @param claimItems   List of ClaimItems, from which any removed items should also be removed.
+   * @param cutoffDate   Minimum date, entries older than this may be discarded
+   * @param endTime      Maximum date, entries newer than this may be discarded
+   * @param keepFunction Keep function, if this function returns `true` for an entry then it will
+   *                     be kept
+   */
+  private static &lt;E extends HealthRecord.Entry&gt; void filterEntries(List&lt;E&gt; entries,
+      List&lt;HealthRecord.Entry&gt; claimItems, long cutoffDate,
+      long endTime, Predicate&lt;E&gt; keepFunction) {
+
+<span class="fc" id="L379">    Iterator&lt;E&gt; iterator = entries.iterator();</span>
+    // iterator allows us to use the remove() method
+<span class="fc bfc" id="L381" title="All 2 branches covered.">    while (iterator.hasNext()) {</span>
+<span class="fc" id="L382">      E entry = iterator.next();</span>
+      // if the entry is not within the keep time range,
+      // and the special keep function (if provided) doesn't say keep it
+      // remove it from the list
+<span class="fc bfc" id="L386" title="All 4 branches covered.">      if (!entryWithinTimeRange(entry, cutoffDate, endTime)</span>
+<span class="fc bfc" id="L387" title="All 2 branches covered.">          &amp;&amp; (keepFunction == null || !keepFunction.test(entry))) {</span>
+<span class="fc" id="L388">        iterator.remove();</span>
+
+<span class="fc bfc" id="L390" title="All 2 branches covered.">        claimItems.removeIf(ci -&gt; ci == entry);</span>
+        // compare with == because we only care if it's the actual same object
+      }
+<span class="fc" id="L393">    }</span>
+<span class="fc" id="L394">  }</span>
+
+  private static boolean entryWithinTimeRange(
+      HealthRecord.Entry e, long cutoffDate, long endTime) {
+
+<span class="pc bpc" id="L399" title="1 of 4 branches missed.">    if (e.start &gt; cutoffDate &amp;&amp; e.start &lt;= endTime) {</span>
+<span class="fc" id="L400">      return true; // trivial case, when we're within the last __ years</span>
+    }
+
+    // if the entry has a stop time, check if the effective date range overlapped the last __ years
+<span class="fc bfc" id="L404" title="All 4 branches covered.">    if (e.stop != 0L &amp;&amp; e.stop &gt; cutoffDate) {</span>
+
+<span class="pc bpc" id="L406" title="1 of 2 branches missed.">      if (e.stop &gt; endTime) {</span>
+        // If any entries have an end date in the future but are within the cutoffDate,
+        // remove the end date but keep the entry (since it's still active).
+<span class="nc" id="L409">        e.stop = 0L;</span>
+      }
+
+<span class="fc" id="L412">      return true;</span>
+    }
+
+<span class="fc" id="L415">    return false;</span>
+  }
+
+  /**
+   * Get the folder where the patient record should be stored.
+   * See the configuration settings &quot;exporter.subfolders_by_id_substring&quot; and
+   * &quot;exporter.baseDirectory&quot;.
+   *
+   * @param folderName The base folder to use.
+   * @param person     The person being exported.
+   * @return Either the base folder provided, or a subdirectory, depending on configuration
+   *     settings.
+   */
+  public static File getOutputFolder(String folderName, Person person) {
+<span class="fc" id="L429">    List&lt;String&gt; folders = new ArrayList&lt;&gt;();</span>
+
+<span class="fc" id="L431">    folders.add(folderName);</span>
+
+<span class="fc bfc" id="L433" title="All 2 branches covered.">    if (person != null</span>
+<span class="pc bpc" id="L434" title="1 of 2 branches missed.">        &amp;&amp; Boolean.parseBoolean(Config.get(&quot;exporter.subfolders_by_id_substring&quot;))) {</span>
+<span class="nc" id="L435">      String id = (String) person.attributes.get(Person.ID);</span>
+
+<span class="nc" id="L437">      folders.add(id.substring(0, 2));</span>
+<span class="nc" id="L438">      folders.add(id.substring(0, 3));</span>
+    }
+
+<span class="fc" id="L441">    String baseDirectory = Config.get(&quot;exporter.baseDirectory&quot;);</span>
+
+<span class="fc" id="L443">    File f = Paths.get(baseDirectory, folders.toArray(new String[0])).toFile();</span>
+<span class="fc" id="L444">    f.mkdirs();</span>
+
+<span class="fc" id="L446">    return f;</span>
+  }
+
+  /**
+   * Get the filename to used to export the patient record.
+   * See the configuration setting &quot;exporter.use_uuid_filenames&quot;.
+   *
+   * @param person    The person being exported.
+   * @param tag       A tag to add to the filename before the extension.
+   * @param extension The file extension to use.
+   * @return The filename only (not a path).
+   */
+  public static String filename(Person person, String tag, String extension) {
+<span class="pc bpc" id="L459" title="1 of 2 branches missed.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.use_uuid_filenames&quot;))) {</span>
+<span class="nc" id="L460">      return person.attributes.get(Person.ID) + tag + &quot;.&quot; + extension;</span>
+    } else {
+      // ensure unique filenames for now
+<span class="fc" id="L463">      return person.attributes.get(Person.NAME).toString().replace(' ', '_') + &quot;_&quot;</span>
+<span class="fc" id="L464">          + person.attributes.get(Person.ID) + tag + &quot;.&quot; + extension;</span>
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

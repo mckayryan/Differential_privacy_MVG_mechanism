@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TransitionMetrics.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.helpers</a> &gt; <span class="el_source">TransitionMetrics.java</span></div><h1>TransitionMetrics.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.helpers;
+
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Table;
+import com.google.common.collect.Tables;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.commons.lang3.time.DurationFormatUtils;
+import org.mitre.synthea.engine.Module;
+import org.mitre.synthea.engine.State;
+import org.mitre.synthea.world.agents.Person;
+
+/**
+ * Class to track state and transition metrics from the modules.
+ * At the end of the simulation this class can print out debugging statistics
+ * for each module/state:
+ * - How many people hit that state
+ * - What states they transitioned to
+ * - How long they were in that state (ex, Guard, Delay)
+ */
+<span class="fc" id="L28">public class TransitionMetrics {</span>
+  /**
+   * Internal table of (Module,State) -&gt; Metric. 
+   * Note that a table may not be the most appropriate data structure,
+   * but it's a lot cleaner than a Map of Module -&gt; Map of State -&gt; Metric.
+   */
+<span class="fc" id="L34">  private Table&lt;String, String, Metric&gt; metrics = </span>
+<span class="fc" id="L35">      Tables.synchronizedTable(HashBasedTable.create());</span>
+
+  /**
+   * List of all modules. This reference held here so we don't have to get it multiple times.
+   */
+<span class="fc" id="L40">  private static final List&lt;Module&gt; ALL_MODULES = Module.getModules();</span>
+
+  /**
+   * Record all appropriate state transition information from the given person.
+   * 
+   * @param person
+   *          Person that went through the modules
+   * @param simulationEnd
+   *          Date the simulation ended
+   */
+  public void recordStats(Person person, long simulationEnd) {
+<span class="fc" id="L51">    recordStats(person, simulationEnd, ALL_MODULES);</span>
+<span class="fc" id="L52">  }</span>
+  
+  /**
+   * Record all appropriate state transition information from the given person.
+   * 
+   * @param person
+   *          Person that went through the modules
+   * @param simulationEnd
+   *          Date the simulation ended
+   * @param modules
+   *          The collection of modules to record stats for
+   */
+  public void recordStats(Person person, long simulationEnd, Collection&lt;Module&gt; modules) {
+<span class="fc bfc" id="L65" title="All 2 branches covered.">    for (Module m : modules) {</span>
+<span class="fc bfc" id="L66" title="All 2 branches covered.">      if (!m.getClass().equals(Module.class)) {</span>
+        // java module, not GMF. no states to show
+<span class="fc" id="L68">        continue;</span>
+      }
+
+<span class="fc" id="L71">      List&lt;State&gt; history = (List&lt;State&gt;) person.attributes.get(m.name);</span>
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">      if (history == null) {</span>
+<span class="nc" id="L73">        continue;</span>
+      }
+
+      // count basic &quot;counter&quot; stats for this state
+<span class="fc" id="L77">      history.forEach(s -&gt; countStateStats(s, getMetric(m.name, s.name), simulationEnd));</span>
+
+      // count this person only once for each distinct state they hit
+<span class="fc" id="L80">      history.stream().map(s -&gt; s.name).distinct()</span>
+<span class="fc" id="L81">          .forEach(sName -&gt; getMetric(m.name, sName).population.incrementAndGet());</span>
+
+<span class="fc" id="L83">      getMetric(m.name, history.get(0).name).current.incrementAndGet();</span>
+
+      // loop over the states backward (0 = current, n = initial)
+      // and track from-&gt;to stats in pair
+<span class="pc bpc" id="L87" title="1 of 2 branches missed.">      if (history.size() &gt;= 2) {</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">        for (int fromIndex = history.size() - 1; fromIndex &gt; 0; fromIndex--) {</span>
+<span class="fc" id="L89">          int toIndex = fromIndex - 1;</span>
+
+<span class="fc" id="L91">          State from = history.get(fromIndex);</span>
+<span class="fc" id="L92">          State to = history.get(toIndex);</span>
+
+<span class="fc" id="L94">          getMetric(m.name, from.name).incrementDestination(to.name);</span>
+        }
+      }
+<span class="fc" id="L97">    }</span>
+<span class="fc" id="L98">  }</span>
+
+  /**
+   * Get the Metric object for the given State in the given Module.
+   * 
+   * @param moduleName Name of the module
+   * @param stateName Name of the state
+   * @return Metric object
+   */
+  public Metric getMetric(String moduleName, String stateName) {
+<span class="fc" id="L108">    Metric metric = metrics.get(moduleName, stateName);</span>
+
+<span class="fc bfc" id="L110" title="All 2 branches covered.">    if (metric == null) {</span>
+<span class="fc" id="L111">      synchronized (metrics) {</span>
+<span class="fc" id="L112">        metric = metrics.get(moduleName, stateName);</span>
+<span class="pc bpc" id="L113" title="1 of 2 branches missed.">        if (metric == null) {</span>
+<span class="fc" id="L114">          metric = new Metric();</span>
+<span class="fc" id="L115">          metrics.put(moduleName, stateName, metric);</span>
+        }
+<span class="fc" id="L117">      }</span>
+    }
+
+<span class="fc" id="L120">    return metric;</span>
+  }
+
+  private void countStateStats(State state, Metric stateStats, long endDate) {
+<span class="fc" id="L124">    stateStats.entered.incrementAndGet();</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">    long exitTime = (state.exited == null) ? endDate : state.exited; </span>
+    // if they were in the last state when they died or time expired
+<span class="fc" id="L127">    long startTime = state.entered;</span>
+    // note: the ruby module has a hack for
+    // &quot;when the lifecycle module kills people before the initial state&quot;
+    // but i dont think that will break anything here if it happens
+
+<span class="fc" id="L132">    stateStats.duration.addAndGet(exitTime - startTime);</span>
+<span class="fc" id="L133">  }</span>
+
+  /**
+   * Print the statistics that have been gathered.
+   * 
+   * @param totalPopulation
+   *          The total population that was simulated.
+   */
+  public void printStats(int totalPopulation) {
+<span class="fc" id="L142">    printStats(totalPopulation, ALL_MODULES);</span>
+<span class="fc" id="L143">  }</span>
+  
+  /**
+   * Print the statistics that have been gathered.
+   * 
+   * @param totalPopulation
+   *          The total population that was simulated.
+   * @param modules
+   *          The collection of modules to display stats for
+   */
+  public void printStats(int totalPopulation, Collection&lt;Module&gt; modules) {
+<span class="fc bfc" id="L154" title="All 2 branches covered.">    for (Module m : modules) {</span>
+<span class="fc bfc" id="L155" title="All 2 branches covered.">      if (!m.getClass().equals(Module.class)) {</span>
+        // java module, not GMF. no states to show
+<span class="fc" id="L157">        continue;</span>
+      }
+<span class="fc" id="L159">      System.out.println(m.name.toUpperCase());</span>
+
+<span class="fc" id="L161">      Map&lt;String, Metric&gt; moduleMetrics = metrics.row(m.name);</span>
+
+<span class="fc bfc" id="L163" title="All 2 branches covered.">      for (String stateName : moduleMetrics.keySet()) {</span>
+<span class="fc" id="L164">        Metric stats = getMetric(m.name, stateName);</span>
+<span class="fc" id="L165">        int entered = stats.entered.get();</span>
+<span class="fc" id="L166">        int population = stats.population.get();</span>
+<span class="fc" id="L167">        long duration = stats.duration.get();</span>
+<span class="fc" id="L168">        int current = stats.current.get();</span>
+        
+        
+<span class="fc" id="L171">        System.out.println(stateName + &quot;:&quot;);</span>
+<span class="fc" id="L172">        System.out.println(&quot; Total times entered: &quot; + stats.entered);</span>
+<span class="fc" id="L173">        System.out.println(&quot; Population that ever hit this state: &quot; + stats.population + &quot; (&quot;</span>
+<span class="fc" id="L174">            + decimal(population, totalPopulation) + &quot;%)&quot;);</span>
+<span class="fc" id="L175">        System.out.println(&quot; Average # of hits per total population: &quot;</span>
+<span class="fc" id="L176">            + decimal(entered, totalPopulation));</span>
+<span class="fc" id="L177">        System.out.println(&quot; Average # of hits per person that ever hit state: &quot;</span>
+<span class="fc" id="L178">            + decimal(entered, population));</span>
+<span class="fc" id="L179">        System.out.println(&quot; Population currently in state: &quot; + stats.current + &quot; (&quot;</span>
+<span class="fc" id="L180">            + decimal(current, totalPopulation) + &quot;%)&quot;);</span>
+<span class="fc" id="L181">        State state = m.getState(stateName);</span>
+<span class="fc bfc" id="L182" title="All 4 branches covered.">        if (state instanceof State.Guard || state instanceof State.Delay) {</span>
+<span class="fc" id="L183">          System.out.println(&quot; Total duration: &quot; + durationOf(duration));</span>
+<span class="fc" id="L184">          System.out.println(&quot; Average duration per time entered: &quot;</span>
+<span class="fc" id="L185">              + durationOf(duration / entered));</span>
+<span class="fc" id="L186">          System.out.println(&quot; Average duration per person that ever entered state: &quot;</span>
+<span class="fc" id="L187">              + durationOf(duration / population));</span>
+<span class="fc bfc" id="L188" title="All 4 branches covered.">        } else if (state instanceof State.Encounter &amp;&amp; ((State.Encounter) state).isWellness()) {</span>
+<span class="fc" id="L189">          System.out.println(&quot; (duration metrics for wellness encounter omitted)&quot;);</span>
+        }
+
+<span class="fc bfc" id="L192" title="All 2 branches covered.">        if (!stats.destinations.isEmpty()) {</span>
+<span class="fc" id="L193">          System.out.println(&quot; Transitioned to:&quot;);</span>
+<span class="fc" id="L194">          long total = stats.destinations.values().stream().mapToLong(ai -&gt; ai.longValue()).sum();</span>
+<span class="fc" id="L195">          stats.destinations.forEach((toState, count) -&gt; </span>
+<span class="fc" id="L196">                System.out.println(&quot; --&gt; &quot; + toState + &quot; : &quot; + count + &quot; = &quot; </span>
+<span class="fc" id="L197">                                    + decimal(count.get(), total) + &quot;%&quot;));</span>
+        }
+<span class="fc" id="L199">        System.out.println();</span>
+<span class="fc" id="L200">      }</span>
+
+<span class="fc" id="L202">      List&lt;String&gt; unreached = new ArrayList&lt;&gt;(m.getStateNames());</span>
+      // moduleMetrics only includes states actually hit
+<span class="fc" id="L204">      unreached.removeAll(moduleMetrics.keySet()); </span>
+<span class="fc" id="L205">      unreached.forEach(state -&gt; System.out.println(state + &quot;: \n Never reached \n\n&quot;));</span>
+
+<span class="fc" id="L207">      System.out.println();</span>
+<span class="fc" id="L208">      System.out.println();</span>
+<span class="fc" id="L209">    }</span>
+<span class="fc" id="L210">  }</span>
+
+  /**
+   * Helper function to convert a # of milliseconds into a human-readable string. Results are not
+   * necessarily precise, and are intended for general understanding only. The resulting format is
+   * not specified and may change at any time.
+   * Ex. duration(14*30*24*60*60*1000) may indicate a result of &quot;14 months&quot;, &quot;1 year and 2 months&quot;,
+   * &quot;1.17 years&quot;, etc.
+   * 
+   * @param time time duration in ms
+   * @return Human readable description of the time
+   */
+  public static String durationOf(long time) {
+    // this returns something like 15 days 15 hours 24 minutes 26 seconds
+<span class="fc" id="L224">    String result = DurationFormatUtils.formatDurationWords(time, true, true);</span>
+    
+    // if it starts with a large number of days, we can do a little better
+<span class="fc" id="L227">    String[] parts = result.split(&quot; &quot;);</span>
+    
+<span class="pc bpc" id="L229" title="1 of 4 branches missed.">    if (parts.length &gt; 1 &amp;&amp; parts[1].equals(&quot;days&quot;)) {</span>
+<span class="fc" id="L230">      long days = Long.parseLong(parts[0]);</span>
+      
+<span class="fc bfc" id="L232" title="All 2 branches covered.">      if (days &gt; 365) {</span>
+<span class="fc" id="L233">        long years = days / 365;</span>
+<span class="fc" id="L234">        long months = (days % 365) / 30;</span>
+<span class="fc" id="L235">        return years + &quot; years &quot; + months + &quot; months&quot;;</span>
+<span class="fc bfc" id="L236" title="All 2 branches covered.">      } else if (days &gt; 30) {</span>
+<span class="fc" id="L237">        long months = days / 30;</span>
+<span class="fc" id="L238">        days = days % 30;</span>
+<span class="fc" id="L239">        return months + &quot; months &quot; + days + &quot; days&quot;;</span>
+      }
+    }
+    
+<span class="fc" id="L243">    return result;</span>
+  }
+
+  /**
+   * Helper function to convert a numerator and denominator into a string with a single number and
+   * exactly 2 decimal places.
+   * 
+   * @param num
+   *          Numerator
+   * @param denom
+   *          Denominator
+   * @return num/denom rounded to 2 decimal places
+   */
+  private static String decimal(double num, double denom) {
+    // note that this is especially helpful because ints can be passed in without explicit casting
+    // and if you want to get a double from integer division you have to cast the input items
+<span class="fc" id="L259">    return String.format(&quot;%.2f&quot;, (100.0 * num / denom));</span>
+  }
+
+  /**
+   * Helper class to track the metrics of a single State.
+   */
+<span class="fc" id="L265">  public static class Metric {</span>
+    /**
+     * Number of times the state was entered.
+     */
+<span class="fc" id="L269">    public final AtomicInteger entered = new AtomicInteger(0); </span>
+    
+    /**
+     * Total length of time (ms) people were in this state.
+     */
+<span class="fc" id="L274">    public final AtomicLong duration = new AtomicLong(0L);</span>
+    
+    /**
+     * Number of people that ever his this state.
+     */
+<span class="fc" id="L279">    public final AtomicInteger population = new AtomicInteger(0);</span>
+    
+    /**
+     * Number of people that are &quot;currently&quot; in that state.
+     */
+<span class="fc" id="L284">    public final AtomicInteger current = new AtomicInteger(0);</span>
+    
+    /**
+     * Tracker for what states this state transitions to.
+     * Key: state that this state transitioned to.
+     * Value: number of times
+     */
+<span class="fc" id="L291">    public final Map&lt;String, AtomicInteger&gt; destinations = new ConcurrentHashMap&lt;&gt;();</span>
+
+    /**
+     * Helper function to increment the count for a destination state.
+     * 
+     * @param destination Target state that was transitioned to
+     */
+    void incrementDestination(String destination) {
+      
+<span class="fc" id="L300">      AtomicInteger count = destinations.get(destination);</span>
+<span class="fc bfc" id="L301" title="All 2 branches covered.">      if (count == null) {</span>
+<span class="fc" id="L302">        synchronized (destinations) {</span>
+<span class="fc" id="L303">          count = destinations.get(destination);</span>
+<span class="pc bpc" id="L304" title="1 of 2 branches missed.">          if (count == null) {</span>
+<span class="fc" id="L305">            count = new AtomicInteger(0);</span>
+<span class="fc" id="L306">            destinations.put(destination, count);</span>
+          }
+<span class="fc" id="L308">        }</span>
+      }
+<span class="fc" id="L310">      count.incrementAndGet();</span>
+<span class="fc" id="L311">    }</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

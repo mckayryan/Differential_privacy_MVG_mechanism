@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.engine.EventListTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:15:49" hostname="ryan-B250M-HD3" time="0.015">
+  <properties/>
+  <testcase name="eventListBeforeType" classname="org.mitre.synthea.engine.EventListTest" time="0.014"/>
+  <testcase name="eventListBefore" classname="org.mitre.synthea.engine.EventListTest" time="0.0"/>
+  <testcase name="eventListAfterType" classname="org.mitre.synthea.engine.EventListTest" time="0.0"/>
+  <testcase name="eventListAfter" classname="org.mitre.synthea.engine.EventListTest" time="0.001"/>
+  <testcase name="eventListToString" classname="org.mitre.synthea.engine.EventListTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

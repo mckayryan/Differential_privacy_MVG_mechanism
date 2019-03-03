@@ -1,0 +1,476 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Person.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.world.agents</a> &gt; <span class="el_source">Person.java</span></div><h1>Person.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.world.agents;
+
+import java.io.Serializable;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.Period;
+import java.time.ZoneId;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.apache.sis.geometry.DirectPosition2D;
+import org.apache.sis.index.tree.QuadTreeData;
+import org.mitre.synthea.engine.Event;
+import org.mitre.synthea.engine.EventList;
+import org.mitre.synthea.engine.Module;
+import org.mitre.synthea.engine.State;
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.ConstantValueGenerator;
+import org.mitre.synthea.helpers.ValueGenerator;
+import org.mitre.synthea.world.concepts.HealthRecord;
+import org.mitre.synthea.world.concepts.HealthRecord.Code;
+import org.mitre.synthea.world.concepts.HealthRecord.Encounter;
+import org.mitre.synthea.world.concepts.HealthRecord.EncounterType;
+import org.mitre.synthea.world.concepts.VitalSign;
+
+public class Person implements Serializable, QuadTreeData {
+  private static final long serialVersionUID = 4322116644425686379L;
+
+  public static final String BIRTHDATE = &quot;birthdate&quot;;
+  public static final String FIRST_NAME = &quot;first_name&quot;;
+  public static final String LAST_NAME = &quot;last_name&quot;;
+  public static final String MAIDEN_NAME = &quot;maiden_name&quot;;
+  public static final String NAME_PREFIX = &quot;name_prefix&quot;;
+  public static final String NAME_SUFFIX = &quot;name_suffix&quot;;
+  public static final String NAME = &quot;name&quot;;
+  public static final String RACE = &quot;race&quot;;
+  public static final String ETHNICITY = &quot;ethnicity&quot;;
+  public static final String FIRST_LANGUAGE = &quot;first_language&quot;;
+  public static final String GENDER = &quot;gender&quot;;
+  public static final String MULTIPLE_BIRTH_STATUS = &quot;multiple_birth_status&quot;;
+  public static final String TELECOM = &quot;telecom&quot;;
+  public static final String ID = &quot;id&quot;;
+  public static final String ADDRESS = &quot;address&quot;;
+  public static final String CITY = &quot;city&quot;;
+  public static final String STATE = &quot;state&quot;;
+  public static final String ZIP = &quot;zip&quot;;
+  public static final String BIRTHPLACE = &quot;birthplace&quot;;
+  public static final String BIRTH_CITY = &quot;birth_city&quot;;
+  public static final String BIRTH_STATE = &quot;birth_state&quot;;
+  public static final String BIRTH_COUNTRY = &quot;birth_country&quot;;
+  public static final String COORDINATE = &quot;coordinate&quot;;
+  public static final String NAME_MOTHER = &quot;name_mother&quot;;
+  public static final String NAME_FATHER = &quot;name_father&quot;;
+  public static final String MARITAL_STATUS = &quot;marital_status&quot;;
+  public static final String SOCIOECONOMIC_SCORE = &quot;socioeconomic_score&quot;;
+  public static final String SOCIOECONOMIC_CATEGORY = &quot;socioeconomic_category&quot;;
+  public static final String INCOME = &quot;income&quot;;
+  public static final String INCOME_LEVEL = &quot;income_level&quot;;
+  public static final String EDUCATION = &quot;education&quot;;
+  public static final String EDUCATION_LEVEL = &quot;education_level&quot;;
+  public static final String OCCUPATION_LEVEL = &quot;occupation_level&quot;;
+  public static final String SMOKER = &quot;smoker&quot;;
+  public static final String ALCOHOLIC = &quot;alcoholic&quot;;
+  public static final String ADHERENCE = &quot;adherence&quot;;
+  public static final String IDENTIFIER_SSN = &quot;identifier_ssn&quot;;
+  public static final String IDENTIFIER_DRIVERS = &quot;identifier_drivers&quot;;
+  public static final String IDENTIFIER_PASSPORT = &quot;identifier_passport&quot;;
+  public static final String CAUSE_OF_DEATH = &quot;cause_of_death&quot;;
+  public static final String SEXUAL_ORIENTATION = &quot;sexual_orientation&quot;;
+  public static final String LOCATION = &quot;location&quot;;
+
+  public final Random random;
+  public final long seed;
+  public long populationSeed;
+  public Map&lt;String, Object&gt; attributes;
+  public Map&lt;VitalSign, ValueGenerator&gt; vitalSigns;
+  private Map&lt;String, Map&lt;String, Integer&gt;&gt; symptoms;
+  private Map&lt;String, Map&lt;String, Boolean&gt;&gt; symptomStatuses;
+  public EventList events;
+  /** the active health record. */
+  public HealthRecord record;
+  public Map&lt;String, HealthRecord&gt; records;
+  public boolean hasMultipleRecords;
+  /** history of the currently active module. */
+  public List&lt;State&gt; history;
+
+<span class="fc" id="L91">  public Person(long seed) {</span>
+<span class="fc" id="L92">    this.seed = seed; // keep track of seed so it can be exported later</span>
+<span class="fc" id="L93">    random = new Random(seed);</span>
+<span class="fc" id="L94">    attributes = new ConcurrentHashMap&lt;String, Object&gt;();</span>
+<span class="fc" id="L95">    vitalSigns = new ConcurrentHashMap&lt;VitalSign, ValueGenerator&gt;();</span>
+<span class="fc" id="L96">    symptoms = new ConcurrentHashMap&lt;String, Map&lt;String, Integer&gt;&gt;();</span>
+<span class="fc" id="L97">    symptomStatuses = new ConcurrentHashMap&lt;String, Map&lt;String, Boolean&gt;&gt;();</span>
+<span class="fc" id="L98">    events = new EventList();</span>
+<span class="fc" id="L99">    hasMultipleRecords =</span>
+<span class="fc" id="L100">        Boolean.parseBoolean(Config.get(&quot;exporter.split_records&quot;, &quot;false&quot;));</span>
+<span class="pc bpc" id="L101" title="1 of 2 branches missed.">    if (hasMultipleRecords) {</span>
+<span class="nc" id="L102">      records = new ConcurrentHashMap&lt;String, HealthRecord&gt;();</span>
+    }
+<span class="fc" id="L104">    record = new HealthRecord(this);</span>
+<span class="fc" id="L105">  }</span>
+
+  public double rand() {
+<span class="fc" id="L108">    return random.nextDouble();</span>
+  }
+
+  public double rand(double low, double high) {
+<span class="fc" id="L112">    return (low + ((high - low) * random.nextDouble()));</span>
+  }
+  
+  /**
+   * Helper function to get a random number based on an array of [min, max].
+   * This should be used primarily when pulling ranges from YML.
+   * 
+   * @param range array [min, max]
+   * @return random double between min and max
+   */
+  public double rand(double[] range) {
+<span class="pc bpc" id="L123" title="2 of 4 branches missed.">    if (range == null || range.length != 2) {</span>
+<span class="nc" id="L124">      throw new IllegalArgumentException(&quot;input range must be of length 2 -- got &quot;</span>
+<span class="nc" id="L125">          + Arrays.toString(range));</span>
+    }
+    
+<span class="pc bpc" id="L128" title="1 of 2 branches missed.">    if (range[0] &gt; range[1]) {</span>
+<span class="nc" id="L129">      throw new IllegalArgumentException(&quot;range must be of the form {low, high} -- got &quot;</span>
+<span class="nc" id="L130">          + Arrays.toString(range));</span>
+    }
+    
+<span class="fc" id="L133">    return rand(range[0], range[1]);</span>
+  }
+
+  /**
+   * Return one of the options randomly with uniform distribution.
+   * @param choices The options to be returned.
+   * @return One of the options randomly selected.
+   */
+  public String rand(String[] choices) {
+<span class="fc" id="L142">    return choices[random.nextInt(choices.length)];</span>
+  }
+
+  /**
+   * Helper function to get a random number based on an integer array of [min, max].
+   * This should be used primarily when pulling ranges from YML.
+   * 
+   * @param range array [min, max]
+   * @return random double between min and max
+   */
+  public double rand(int[] range) {
+<span class="pc bpc" id="L153" title="2 of 4 branches missed.">    if (range == null || range.length != 2) {</span>
+<span class="nc" id="L154">      throw new IllegalArgumentException(&quot;input range must be of length 2 -- got &quot;</span>
+<span class="nc" id="L155">          + Arrays.toString(range));</span>
+    }
+    
+<span class="pc bpc" id="L158" title="1 of 2 branches missed.">    if (range[0] &gt; range[1]) {</span>
+<span class="nc" id="L159">      throw new IllegalArgumentException(&quot;range must be of the form {low, high} -- got &quot;</span>
+<span class="nc" id="L160">          + Arrays.toString(range));</span>
+    }
+    
+<span class="fc" id="L163">    return rand(range[0], range[1]);</span>
+  }
+
+  public int randInt() {
+<span class="nc" id="L167">    return random.nextInt();</span>
+  }
+
+  public int randInt(int bound) {
+<span class="fc" id="L171">    return random.nextInt(bound);</span>
+  }
+
+  public Period age(long time) {
+<span class="fc" id="L175">    Period age = Period.ZERO;</span>
+
+<span class="fc bfc" id="L177" title="All 2 branches covered.">    if (attributes.containsKey(BIRTHDATE)) {</span>
+<span class="fc" id="L178">      LocalDate now = Instant.ofEpochMilli(time).atZone(ZoneId.systemDefault()).toLocalDate();</span>
+<span class="fc" id="L179">      LocalDate birthdate = Instant.ofEpochMilli((long) attributes.get(BIRTHDATE))</span>
+<span class="fc" id="L180">          .atZone(ZoneId.systemDefault()).toLocalDate();</span>
+<span class="fc" id="L181">      age = Period.between(birthdate, now);</span>
+    }
+<span class="fc" id="L183">    return age;</span>
+  }
+
+  /**
+   * Return the persons age in months at a given time.
+   * @param time The time when their age should be calculated.
+   * @return age in months. Can never be less than zero,
+   *     even if given a time before they were born.
+   */
+  public int ageInMonths(long time) {
+<span class="fc" id="L193">    int months = (int) age(time).toTotalMonths();</span>
+<span class="pc bpc" id="L194" title="1 of 2 branches missed.">    if (months &lt; 0) {</span>
+<span class="nc" id="L195">      months = 0;</span>
+    }
+<span class="fc" id="L197">    return months;</span>
+  }
+
+  /**
+   * Return the persons age in years at a given time.
+   * @param time The time when their age should be calculated.
+   * @return age in years. Can never be less than zero,
+   *     even if given a time before they were born.
+   */
+  public int ageInYears(long time) {
+<span class="fc" id="L207">    int years = age(time).getYears();</span>
+<span class="fc bfc" id="L208" title="All 2 branches covered.">    if (years &lt; 0) {</span>
+<span class="fc" id="L209">      years = 0;</span>
+    }
+<span class="fc" id="L211">    return years;</span>
+  }
+
+  public boolean alive(long time) {
+<span class="fc bfc" id="L215" title="All 4 branches covered.">    return (events.event(Event.BIRTH) != null &amp;&amp; events.before(time, Event.DEATH).isEmpty());</span>
+  }
+
+  public void setSymptom(String cause, String type, int value, Boolean addressed) {
+<span class="fc bfc" id="L219" title="All 2 branches covered.">    if (!symptoms.containsKey(type)) {</span>
+<span class="fc" id="L220">      symptoms.put(type, new ConcurrentHashMap&lt;String, Integer&gt;());</span>
+<span class="fc" id="L221">      symptomStatuses.put(type, new ConcurrentHashMap&lt;String, Boolean&gt;());</span>
+    }
+<span class="fc" id="L223">    symptoms.get(type).put(cause, value);</span>
+<span class="fc" id="L224">    symptomStatuses.get(type).put(cause, addressed);</span>
+<span class="fc" id="L225">  }</span>
+
+  public int getSymptom(String type) {
+<span class="fc" id="L228">    int max = 0;</span>
+<span class="pc bpc" id="L229" title="2 of 4 branches missed.">    if (symptoms.containsKey(type) &amp;&amp; symptomStatuses.containsKey(type)) {</span>
+<span class="fc" id="L230">      Map&lt;String, Integer&gt; typedSymptoms = symptoms.get(type);</span>
+<span class="fc bfc" id="L231" title="All 2 branches covered.">      for (String cause : typedSymptoms.keySet()) {</span>
+<span class="fc bfc" id="L232" title="All 4 branches covered.">        if (typedSymptoms.get(cause) &gt; max &amp;&amp; !symptomStatuses.get(type).get(cause)) {</span>
+<span class="fc" id="L233">          max = typedSymptoms.get(cause);</span>
+        }
+<span class="fc" id="L235">      }</span>
+    }
+<span class="fc" id="L237">    return max;</span>
+  }
+
+  //Mark the largest valued symptom as addressed.
+  public void addressLargestSymptom() {
+<span class="fc" id="L242">    String highestType = &quot;&quot;;</span>
+<span class="fc" id="L243">    String highestCause = &quot;&quot;;</span>
+<span class="fc" id="L244">    int maxValue = 0;</span>
+<span class="fc bfc" id="L245" title="All 2 branches covered.">    for (String type : symptoms.keySet()) {</span>
+<span class="pc bpc" id="L246" title="2 of 4 branches missed.">      if (symptoms.containsKey(type) &amp;&amp; symptomStatuses.containsKey(type)) {</span>
+<span class="fc" id="L247">        Map&lt;String, Integer&gt; typedSymptoms = symptoms.get(type);</span>
+<span class="fc bfc" id="L248" title="All 2 branches covered.">        for (String cause : typedSymptoms.keySet()) {</span>
+<span class="fc bfc" id="L249" title="All 4 branches covered.">          if (typedSymptoms.get(cause) &gt; maxValue &amp;&amp; !symptomStatuses.get(type).get(cause)) {</span>
+<span class="fc" id="L250">            maxValue = typedSymptoms.get(cause);</span>
+<span class="fc" id="L251">            highestCause = cause;</span>
+<span class="fc" id="L252">            highestType = type;</span>
+          }
+<span class="fc" id="L254">        }</span>
+      }
+<span class="fc" id="L256">    }</span>
+<span class="fc" id="L257">    symptomStatuses.get(highestType).put(highestCause, true);</span>
+<span class="fc" id="L258">  }</span>
+
+  public Double getVitalSign(VitalSign vitalSign, long time) {
+<span class="fc" id="L261">    ValueGenerator valueGenerator = vitalSigns.get(vitalSign);</span>
+<span class="fc bfc" id="L262" title="All 2 branches covered.">    if (valueGenerator == null) {</span>
+<span class="fc" id="L263">      throw new NullPointerException(&quot;Vital sign '&quot; + vitalSign + &quot;' not set. Valid vital signs: &quot; + vitalSigns.keySet());</span>
+    }
+<span class="fc" id="L265">    return valueGenerator.getValue(time);</span>
+  }
+
+  public void setVitalSign(VitalSign vitalSign, ValueGenerator valueGenerator) {
+<span class="fc" id="L269">    vitalSigns.put(vitalSign, valueGenerator);</span>
+<span class="fc" id="L270">  }</span>
+
+  /**
+   * Convenience function to set a vital sign to a constant value
+   */
+  public void setVitalSign(VitalSign vitalSign, double value) {
+<span class="fc" id="L276">    setVitalSign(vitalSign, new ConstantValueGenerator(this, value));</span>
+<span class="fc" id="L277">  }</span>
+
+  public void recordDeath(long time, Code cause, String ruleName) {
+<span class="fc" id="L280">    events.create(time, Event.DEATH, ruleName, true);</span>
+<span class="pc bpc" id="L281" title="1 of 4 branches missed.">    if (record.death == null || record.death &gt; time) {</span>
+      // it's possible for a person to have a death date in the future
+      // (ex, a condition with some life expectancy sets a future death date)
+      // but then the patient dies sooner because of something else
+<span class="fc" id="L285">      record.death = time;</span>
+<span class="fc bfc" id="L286" title="All 2 branches covered.">      if (cause == null) {</span>
+<span class="fc" id="L287">        attributes.remove(CAUSE_OF_DEATH);</span>
+      } else {
+<span class="fc" id="L289">        attributes.put(CAUSE_OF_DEATH, cause);</span>
+      }
+    }
+<span class="fc" id="L292">  }</span>
+
+  /**
+   * The total number of all unaddressed symptom severities.
+   * @return total : sum of all the symptom severities. This number drives care-seeking behaviors.
+   */
+  public int symptomTotal() {
+<span class="fc" id="L299">    int total = 0;</span>
+<span class="fc bfc" id="L300" title="All 2 branches covered.">    for (String type : symptoms.keySet()) {</span>
+<span class="fc" id="L301">      total += getSymptom(type);</span>
+<span class="fc" id="L302">    }</span>
+<span class="fc" id="L303">    return total;</span>
+  }
+
+  public void resetSymptoms() {
+<span class="nc" id="L307">    symptoms.clear();</span>
+<span class="nc" id="L308">  }</span>
+
+  public boolean hadPriorState(String name) {
+<span class="fc" id="L311">    return hadPriorState(name, null, null);</span>
+  }
+
+  public boolean hadPriorState(String name, String since, Long within) {
+<span class="pc bpc" id="L315" title="1 of 2 branches missed.">    if (history == null) {</span>
+<span class="nc" id="L316">      return false;</span>
+    }
+<span class="fc bfc" id="L318" title="All 2 branches covered.">    for (State state : history) {</span>
+<span class="fc bfc" id="L319" title="All 6 branches covered.">      if (within != null &amp;&amp; state.exited != null &amp;&amp; state.exited &lt;= within) {</span>
+<span class="fc" id="L320">        return false;</span>
+      }
+<span class="fc bfc" id="L322" title="All 4 branches covered.">      if (since != null &amp;&amp; state.name.equals(since)) {</span>
+<span class="fc" id="L323">        return false;</span>
+      }
+<span class="fc bfc" id="L325" title="All 2 branches covered.">      if (state.name.equals(name)) {</span>
+<span class="fc" id="L326">        return true;</span>
+      }
+<span class="fc" id="L328">    }</span>
+<span class="fc" id="L329">    return false;</span>
+  }
+
+  public Encounter encounterStart(long time, EncounterType type) {
+    // Set the record for the current provider as active
+<span class="fc" id="L334">    Provider provider = getProvider(type, time);</span>
+<span class="fc" id="L335">    record = getHealthRecord(provider);</span>
+    // Start the encounter
+<span class="fc" id="L337">    return record.encounterStart(time, type);</span>
+  }
+
+  public synchronized HealthRecord getHealthRecord(Provider provider) {
+<span class="fc" id="L341">    HealthRecord returnValue = this.record;</span>
+<span class="fc bfc" id="L342" title="All 2 branches covered.">    if (hasMultipleRecords) {</span>
+<span class="fc" id="L343">      String key = provider.uuid;</span>
+<span class="pc bpc" id="L344" title="1 of 2 branches missed.">      if (!records.containsKey(key)) {</span>
+<span class="fc" id="L345">        HealthRecord record = null;</span>
+<span class="pc bpc" id="L346" title="1 of 4 branches missed.">        if (this.record != null &amp;&amp; this.record.provider == null) {</span>
+<span class="fc" id="L347">          record = this.record;</span>
+        } else {
+<span class="fc" id="L349">          record = new HealthRecord(this);</span>
+        }
+<span class="fc" id="L351">        record.provider = provider;</span>
+<span class="fc" id="L352">        records.put(key, record);</span>
+      }
+<span class="fc" id="L354">      returnValue = records.get(key);      </span>
+    }
+<span class="fc" id="L356">    return returnValue;</span>
+  }
+
+  public static final String CURRENT_ENCOUNTERS = &quot;current-encounters&quot;;
+
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public Encounter getCurrentEncounter(Module module) {
+<span class="fc" id="L363">    Map&lt;String, Encounter&gt; moduleToCurrentEncounter = </span>
+<span class="fc" id="L364">        (Map&lt;String, Encounter&gt;) attributes.get(CURRENT_ENCOUNTERS);</span>
+
+<span class="fc bfc" id="L366" title="All 2 branches covered.">    if (moduleToCurrentEncounter == null) {</span>
+<span class="fc" id="L367">      moduleToCurrentEncounter = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L368">      attributes.put(CURRENT_ENCOUNTERS, moduleToCurrentEncounter);</span>
+    }
+
+<span class="fc" id="L371">    return moduleToCurrentEncounter.get(module.name);</span>
+  }
+
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public void setCurrentEncounter(Module module, Encounter encounter) {
+<span class="fc" id="L376">    Map&lt;String, Encounter&gt; moduleToCurrentEncounter = </span>
+<span class="fc" id="L377">        (Map&lt;String, Encounter&gt;) attributes.get(CURRENT_ENCOUNTERS);</span>
+
+<span class="fc bfc" id="L379" title="All 2 branches covered.">    if (moduleToCurrentEncounter == null) {</span>
+<span class="fc" id="L380">      moduleToCurrentEncounter = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L381">      attributes.put(CURRENT_ENCOUNTERS, moduleToCurrentEncounter);</span>
+    }
+<span class="fc bfc" id="L383" title="All 2 branches covered.">    if (encounter == null) {</span>
+<span class="fc" id="L384">      moduleToCurrentEncounter.remove(module.name);</span>
+    } else {
+<span class="fc" id="L386">      moduleToCurrentEncounter.put(module.name, encounter);</span>
+    }
+<span class="fc" id="L388">  }</span>
+
+  // Providers API -----------------------------------------------------------
+  public static final String CURRENTPROVIDER = &quot;currentProvider&quot;;
+  public static final String PREFERREDYPROVIDER = &quot;preferredProvider&quot;;
+
+  public Provider getProvider(EncounterType type, long time) {
+<span class="fc" id="L395">    String key = PREFERREDYPROVIDER + type;</span>
+<span class="fc bfc" id="L396" title="All 2 branches covered.">    if (!attributes.containsKey(key)) {</span>
+<span class="fc" id="L397">      setProvider(type, time);</span>
+    }
+<span class="fc" id="L399">    return (Provider) attributes.get(key);</span>
+  }
+  
+  public void setProvider(EncounterType type, Provider provider) {
+<span class="fc" id="L403">    String key = PREFERREDYPROVIDER + type;</span>
+<span class="fc" id="L404">    attributes.put(key, provider);</span>
+<span class="fc" id="L405">  }</span>
+
+  public void setProvider(EncounterType type, long time) {
+<span class="fc" id="L408">    Provider provider = Provider.findClosestService(this, type, time);</span>
+<span class="fc" id="L409">    setProvider(type, provider);</span>
+<span class="fc" id="L410">  }</span>
+
+  @SuppressWarnings({ &quot;unchecked&quot;, &quot;rawtypes&quot; })
+  public void addCurrentProvider(String context, Provider provider) {
+<span class="fc" id="L414">    Map&lt;String, Provider&gt; currentProviders = (Map) attributes.get(CURRENTPROVIDER);</span>
+<span class="fc bfc" id="L415" title="All 2 branches covered.">    if (currentProviders == null) {</span>
+<span class="fc" id="L416">      currentProviders = new HashMap&lt;String, Provider&gt;();</span>
+<span class="fc" id="L417">      currentProviders.put(context, provider);</span>
+    }
+<span class="fc" id="L419">    attributes.put(CURRENTPROVIDER, currentProviders);</span>
+<span class="fc" id="L420">  }</span>
+
+  @SuppressWarnings({ &quot;unchecked&quot;, &quot;rawtypes&quot; })
+  public void removeCurrentProvider(String module) {
+<span class="fc" id="L424">    Map&lt;String, Provider&gt; currentProviders = (Map) attributes.get(CURRENTPROVIDER);</span>
+<span class="pc bpc" id="L425" title="1 of 2 branches missed.">    if (currentProviders != null) {</span>
+<span class="fc" id="L426">      currentProviders.remove(module);</span>
+    }
+<span class="fc" id="L428">  }</span>
+
+  @SuppressWarnings({ &quot;unchecked&quot;, &quot;rawtypes&quot; })
+  public Provider getCurrentProvider(String module) {
+<span class="fc" id="L432">    Map&lt;String, Provider&gt; currentProviders = (Map) attributes.get(CURRENTPROVIDER);</span>
+<span class="fc bfc" id="L433" title="All 2 branches covered.">    if (currentProviders == null) {</span>
+<span class="fc" id="L434">      return null;</span>
+    } else {
+<span class="fc" id="L436">      return currentProviders.get(module);</span>
+    }
+  }
+
+  /*
+   * (non-Javadoc)
+   * @see org.apache.sis.index.tree.QuadTreeData#getX()
+   */
+  @Override
+  public double getX() {
+<span class="nc" id="L446">    return getLatLon().getX();</span>
+  }
+
+  /*
+   * (non-Javadoc)
+   * @see org.apache.sis.index.tree.QuadTreeData#getY()
+   */
+  @Override
+  public double getY() {
+<span class="nc" id="L455">    return getLatLon().getY();</span>
+  }
+
+  /*
+   * (non-Javadoc)
+   * @see org.apache.sis.index.tree.QuadTreeData#getLatLon()
+   */
+  @Override
+  public DirectPosition2D getLatLon() {
+<span class="fc" id="L464">    return (DirectPosition2D) attributes.get(Person.COORDINATE);</span>
+  }
+
+  /*
+   * (non-Javadoc)
+   * @see org.apache.sis.index.tree.QuadTreeData#getFileName()
+   */
+  @Override
+  public String getFileName() {
+<span class="nc" id="L473">    return null;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

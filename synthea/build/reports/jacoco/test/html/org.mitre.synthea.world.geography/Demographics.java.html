@@ -1,0 +1,496 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Demographics.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.world.geography</a> &gt; <span class="el_source">Demographics.java</span></div><h1>Demographics.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.world.geography;
+
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Table;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.RandomCollection;
+import org.mitre.synthea.helpers.SimpleCSV;
+import org.mitre.synthea.helpers.Utilities;
+
+/**
+ * Demographics class holds the information from the towns.json and associated county config files.
+ * This data is used to build up a synthetic population matching these real-world statistics. A
+ * single instance of Demographics represents a single city or town. The Ages, Gender, Race, Income,
+ * and Education properties are maps of frequency information. TODO: add ways to better wrap these
+ * maps so they are more accessible and useful. TODO: merge this with Location somehow. they
+ * probably don't need to be separate classes
+ */
+<span class="fc" id="L26">public class Demographics {</span>
+  public long population;
+  public String city;
+  public String state;
+  public String county;
+  public Map&lt;String, Double&gt; ages;
+  private RandomCollection&lt;String&gt; ageDistribution;
+  public Map&lt;String, Double&gt; gender;
+  private RandomCollection&lt;String&gt; genderDistribution;
+  public Map&lt;String, Double&gt; race;
+  private RandomCollection&lt;String&gt; raceDistribution;
+  public Map&lt;String, Double&gt; income;
+  private RandomCollection&lt;String&gt; incomeDistribution;
+  public Map&lt;String, Double&gt; education;
+  private RandomCollection&lt;String&gt; educationDistribution;
+
+  public int pickAge(Random random) {
+    // lazy-load in case this randomcollection isn't necessary
+<span class="fc bfc" id="L44" title="All 2 branches covered.">    if (ageDistribution == null) {</span>
+<span class="fc" id="L45">      ageDistribution = buildRandomCollectionFromMap(ages);</span>
+    }
+    /*
+     * Sample Age frequency: &quot;ages&quot;: { &quot;0..4&quot;: 0.03810425832699584, &quot;5..9&quot;: 0.04199539968180355,
+     * [truncated] &quot;75..79&quot;: 0.04838265689371212, &quot;80..84&quot;: 0.037026496153182195, &quot;85..110&quot;:
+     * 0.040978290790498896 }
+     */
+
+<span class="fc" id="L53">    String pickedRange = ageDistribution.next(random);</span>
+
+<span class="fc" id="L55">    String[] range = pickedRange.split(&quot;\\.\\.&quot;);</span>
+    // TODO this seems like it would benefit from better caching
+<span class="fc" id="L57">    int low = Integer.parseInt(range[0]);</span>
+<span class="fc" id="L58">    int high = Integer.parseInt(range[1]);</span>
+
+    // nextInt is normally exclusive of the top value,
+    // so add 1 to make it inclusive
+<span class="fc" id="L62">    return random.nextInt((high - low) + 1) + low;</span>
+  }
+
+  public String pickGender(Random random) {
+    // lazy-load in case this randomcollection isn't necessary
+<span class="fc bfc" id="L67" title="All 2 branches covered.">    if (genderDistribution == null) {</span>
+<span class="fc" id="L68">      genderDistribution = buildRandomCollectionFromMap(gender);</span>
+    }
+
+    /*
+     * Sample Gender frequency: &quot;gender&quot;: { &quot;male&quot;: 0.47638487773697935, &quot;female&quot;:
+     * 0.5236151222630206 },
+     */
+<span class="fc" id="L75">    return genderDistribution.next(random);</span>
+  }
+
+  public String pickRace(Random random) {
+    // lazy-load in case this randomcollection isn't necessary
+<span class="fc bfc" id="L80" title="All 2 branches covered.">    if (raceDistribution == null) {</span>
+<span class="fc" id="L81">      raceDistribution = buildRandomCollectionFromMap(race);</span>
+    }
+
+    /*
+     * Sample Race frequency: &quot;race&quot;: { &quot;white&quot;: 0.932754172245991, &quot;hispanic&quot;:
+     * 0.028409064399789113, &quot;black&quot;: 0.026762094497814148, &quot;asian&quot;: 0.014094889727666761, &quot;native&quot;:
+     * 0.008015564565419232, &quot;other&quot;: 0.001 },
+     */
+
+<span class="fc" id="L90">    return raceDistribution.next(random);</span>
+  }
+
+  public String ethnicityFromRace(String race, Random random) {
+    // https://en.wikipedia.org/wiki/Demographics_of_Massachusetts#Race.2C_ethnicity.2C_and_ancestry
+<span class="fc bfc" id="L95" title="All 2 branches covered.">    if (race.equals(&quot;white&quot;)) {</span>
+<span class="fc" id="L96">      RandomCollection&lt;String&gt; whiteEthnicities = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L97">      whiteEthnicities.add(22.8, &quot;irish&quot;);</span>
+<span class="fc" id="L98">      whiteEthnicities.add(13.9, &quot;italian&quot;);</span>
+<span class="fc" id="L99">      whiteEthnicities.add(10.7, &quot;english&quot;);</span>
+<span class="fc" id="L100">      whiteEthnicities.add(7.8, &quot;french&quot;);</span>
+<span class="fc" id="L101">      whiteEthnicities.add(6.4, &quot;german&quot;);</span>
+<span class="fc" id="L102">      whiteEthnicities.add(5.0, &quot;polish&quot;);</span>
+<span class="fc" id="L103">      whiteEthnicities.add(4.7, &quot;portuguese&quot;);</span>
+<span class="fc" id="L104">      whiteEthnicities.add(4.4, &quot;american&quot;);</span>
+<span class="fc" id="L105">      whiteEthnicities.add(3.8, &quot;french_canadian&quot;);</span>
+<span class="fc" id="L106">      whiteEthnicities.add(2.4, &quot;scottish&quot;);</span>
+<span class="fc" id="L107">      whiteEthnicities.add(1.9, &quot;russian&quot;);</span>
+<span class="fc" id="L108">      whiteEthnicities.add(1.8, &quot;swedish&quot;);</span>
+<span class="fc" id="L109">      whiteEthnicities.add(1.2, &quot;greek&quot;);</span>
+<span class="fc" id="L110">      return whiteEthnicities.next(random);</span>
+<span class="fc bfc" id="L111" title="All 2 branches covered.">    } else if (race.equals(&quot;hispanic&quot;)) {</span>
+<span class="fc" id="L112">      RandomCollection&lt;String&gt; hispanicEthnicities = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L113">      hispanicEthnicities.add(4.1, &quot;puerto_rican&quot;);</span>
+<span class="fc" id="L114">      hispanicEthnicities.add(1, &quot;mexican&quot;);</span>
+<span class="fc" id="L115">      hispanicEthnicities.add(1, &quot;central_american&quot;);</span>
+<span class="fc" id="L116">      hispanicEthnicities.add(1, &quot;south_american&quot;);</span>
+<span class="fc" id="L117">      return hispanicEthnicities.next(random);</span>
+<span class="fc bfc" id="L118" title="All 2 branches covered.">    } else if (race.equals(&quot;black&quot;)) {</span>
+<span class="fc" id="L119">      RandomCollection&lt;String&gt; blackEthnicities = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L120">      blackEthnicities.add(1.8, &quot;african&quot;);</span>
+<span class="fc" id="L121">      blackEthnicities.add(1.8, &quot;dominican&quot;);</span>
+<span class="fc" id="L122">      blackEthnicities.add(1.8, &quot;west_indian&quot;);</span>
+<span class="fc" id="L123">      return blackEthnicities.next(random);</span>
+<span class="fc bfc" id="L124" title="All 2 branches covered.">    } else if (race.equals(&quot;asian&quot;)) {</span>
+<span class="fc" id="L125">      RandomCollection&lt;String&gt; asianEthnicities = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L126">      asianEthnicities.add(2.0, &quot;chinese&quot;);</span>
+<span class="fc" id="L127">      asianEthnicities.add(1.1, &quot;asian_indian&quot;);</span>
+<span class="fc" id="L128">      return asianEthnicities.next(random);</span>
+<span class="fc bfc" id="L129" title="All 2 branches covered.">    } else if (race.equals(&quot;native&quot;)) {</span>
+<span class="fc" id="L130">      return &quot;american_indian&quot;;</span>
+    } else { // race.equals(&quot;other&quot;)
+<span class="fc" id="L132">      return &quot;arab&quot;;</span>
+    }
+  }
+
+  public String languageFromEthnicity(String ethnicity, Random random) {
+    // https://apps.mla.org/map_data -&gt; search by State MA
+    // or see
+    // https://apps.mla.org/map_data_results&amp;SRVY_YEAR=2010&amp;geo=state&amp;state_id=25&amp;county_id=
+    // &amp;mode=geographic&amp;lang_id=&amp;zip=&amp;place_id=&amp;cty_id=&amp;region_id=&amp;division_id=&amp;ll=&amp;ea=y&amp;order=
+    // &amp;a=y&amp;pc=1
+    //
+    // these are &quot;manufactured&quot; #s and not based on real citations
+    // vietnamese and cambodian removed because our ethnicity/heritage info isn't that granular
+    // these numbers are intended to produce the above numbers overall but correlated by ethnicity
+    // ex, only people of chinese ethnicity speak chinese
+    // these are &quot;manufactured&quot; #s and not based on real citations
+<span class="fc bfc" id="L148" title="All 2 branches covered.">    if (ethnicity.equals(&quot;irish&quot;)) {</span>
+<span class="fc" id="L149">      return &quot;english&quot;;</span>
+<span class="fc bfc" id="L150" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;english&quot;)) {</span>
+<span class="fc" id="L151">      return &quot;english&quot;;</span>
+<span class="fc bfc" id="L152" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;american&quot;)) {</span>
+<span class="fc" id="L153">      return &quot;english&quot;;</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;scottish&quot;)) {</span>
+<span class="fc" id="L155">      return &quot;english&quot;;</span>
+<span class="fc bfc" id="L156" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;italian&quot;)) {</span>
+<span class="fc" id="L157">      RandomCollection&lt;String&gt; italianLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L158">      italianLanguages.add(95.0, &quot;english&quot;);</span>
+<span class="fc" id="L159">      italianLanguages.add(5.0, &quot;italian&quot;);</span>
+<span class="fc" id="L160">      return italianLanguages.next(random);</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;french&quot;)) {</span>
+<span class="fc" id="L162">      RandomCollection&lt;String&gt; frenchLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L163">      frenchLanguages.add(99.0, &quot;english&quot;);</span>
+<span class="fc" id="L164">      frenchLanguages.add(1.0, &quot;french&quot;);</span>
+<span class="fc" id="L165">      return frenchLanguages.next(random);</span>
+<span class="fc bfc" id="L166" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;french_canadian&quot;)) {</span>
+<span class="fc" id="L167">      RandomCollection&lt;String&gt; frenchCanadianLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L168">      frenchCanadianLanguages.add(99.0, &quot;english&quot;);</span>
+<span class="fc" id="L169">      frenchCanadianLanguages.add(1.0, &quot;french&quot;);</span>
+<span class="fc" id="L170">      return frenchCanadianLanguages.next(random);</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;german&quot;)) {</span>
+<span class="fc" id="L172">      RandomCollection&lt;String&gt; germanLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L173">      germanLanguages.add(96.0, &quot;english&quot;);</span>
+<span class="fc" id="L174">      germanLanguages.add(4.0, &quot;german&quot;);</span>
+<span class="fc" id="L175">      return germanLanguages.next(random);</span>
+<span class="fc bfc" id="L176" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;polish&quot;)) {</span>
+<span class="fc" id="L177">      return &quot;english&quot;;</span>
+<span class="fc bfc" id="L178" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;portuguese&quot;)) {</span>
+<span class="fc" id="L179">      RandomCollection&lt;String&gt; portugueseLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L180">      portugueseLanguages.add(37.0, &quot;english&quot;);</span>
+<span class="fc" id="L181">      portugueseLanguages.add(63.0, &quot;portuguese&quot;);</span>
+<span class="fc" id="L182">      return portugueseLanguages.next(random);</span>
+<span class="fc bfc" id="L183" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;russian&quot;)) {</span>
+<span class="fc" id="L184">      RandomCollection&lt;String&gt; russianLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L185">      russianLanguages.add(62.0, &quot;english&quot;);</span>
+<span class="fc" id="L186">      russianLanguages.add(38.0, &quot;russian&quot;);</span>
+<span class="fc" id="L187">      return russianLanguages.next(random);</span>
+<span class="fc bfc" id="L188" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;swedish&quot;)) {</span>
+<span class="fc" id="L189">      return &quot;english&quot;;</span>
+<span class="fc bfc" id="L190" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;greek&quot;)) {</span>
+<span class="fc" id="L191">      RandomCollection&lt;String&gt; greekLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L192">      greekLanguages.add(66.0, &quot;english&quot;);</span>
+<span class="fc" id="L193">      greekLanguages.add(34.0, &quot;greek&quot;);</span>
+<span class="fc" id="L194">      return greekLanguages.next(random);</span>
+<span class="fc bfc" id="L195" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;puerto_rican&quot;)) {</span>
+<span class="fc" id="L196">      RandomCollection&lt;String&gt; puertoRicanLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L197">      puertoRicanLanguages.add(30.0, &quot;english&quot;);</span>
+<span class="fc" id="L198">      puertoRicanLanguages.add(70.0, &quot;spanish&quot;);</span>
+<span class="fc" id="L199">      return puertoRicanLanguages.next(random);</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;mexican&quot;)) {</span>
+<span class="fc" id="L201">      RandomCollection&lt;String&gt; mexicanLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L202">      mexicanLanguages.add(30.0, &quot;english&quot;);</span>
+<span class="fc" id="L203">      mexicanLanguages.add(70.0, &quot;spanish&quot;);</span>
+<span class="fc" id="L204">      return mexicanLanguages.next(random);</span>
+<span class="fc bfc" id="L205" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;central_american&quot;)) {</span>
+<span class="fc" id="L206">      RandomCollection&lt;String&gt; centralAmericanLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L207">      centralAmericanLanguages.add(30.0, &quot;english&quot;);</span>
+<span class="fc" id="L208">      centralAmericanLanguages.add(70.0, &quot;spanish&quot;);</span>
+<span class="fc" id="L209">      return centralAmericanLanguages.next(random);</span>
+<span class="fc bfc" id="L210" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;south_american&quot;)) {</span>
+<span class="fc" id="L211">      RandomCollection&lt;String&gt; southAmericanLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L212">      southAmericanLanguages.add(30.0, &quot;english&quot;);</span>
+<span class="fc" id="L213">      southAmericanLanguages.add(35.0, &quot;spanish&quot;);</span>
+<span class="fc" id="L214">      southAmericanLanguages.add(35.0, &quot;portuguese&quot;);</span>
+<span class="fc" id="L215">      return southAmericanLanguages.next(random);</span>
+<span class="fc bfc" id="L216" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;african&quot;)) {</span>
+<span class="fc" id="L217">      RandomCollection&lt;String&gt; africanLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L218">      africanLanguages.add(95.0, &quot;english&quot;);</span>
+<span class="fc" id="L219">      africanLanguages.add(5.0, &quot;french&quot;);</span>
+<span class="fc" id="L220">      return africanLanguages.next(random);</span>
+<span class="fc bfc" id="L221" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;dominican&quot;)) {</span>
+<span class="fc" id="L222">      RandomCollection&lt;String&gt; dominicanLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L223">      dominicanLanguages.add(30.0, &quot;english&quot;);</span>
+<span class="fc" id="L224">      dominicanLanguages.add(70.0, &quot;spanish&quot;);</span>
+<span class="fc" id="L225">      return dominicanLanguages.next(random);</span>
+<span class="fc bfc" id="L226" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;west_indian&quot;)) {</span>
+<span class="fc" id="L227">      RandomCollection&lt;String&gt; westIndianLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L228">      westIndianLanguages.add(25.0, &quot;english&quot;);</span>
+<span class="fc" id="L229">      westIndianLanguages.add(35.0, &quot;spanish&quot;);</span>
+<span class="fc" id="L230">      westIndianLanguages.add(50.0, &quot;french_creole&quot;);</span>
+<span class="fc" id="L231">      return westIndianLanguages.next(random);</span>
+<span class="fc bfc" id="L232" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;chinese&quot;)) {</span>
+<span class="fc" id="L233">      RandomCollection&lt;String&gt; chineseLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L234">      chineseLanguages.add(25.0, &quot;english&quot;);</span>
+<span class="fc" id="L235">      chineseLanguages.add(75.0, &quot;chinese&quot;);</span>
+<span class="fc" id="L236">      return chineseLanguages.next(random);</span>
+<span class="fc bfc" id="L237" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;asian_indian&quot;)) {</span>
+<span class="fc" id="L238">      RandomCollection&lt;String&gt; asianIndianLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L239">      asianIndianLanguages.add(75.0, &quot;english&quot;);</span>
+<span class="fc" id="L240">      asianIndianLanguages.add(25.0, &quot;hindi&quot;);</span>
+<span class="fc" id="L241">      return asianIndianLanguages.next(random);</span>
+<span class="fc bfc" id="L242" title="All 2 branches covered.">    } else if (ethnicity.equals(&quot;american_indian&quot;)) {</span>
+<span class="fc" id="L243">      return &quot;english&quot;;</span>
+<span class="pc bpc" id="L244" title="1 of 2 branches missed.">    } else if (ethnicity.equals(&quot;arab&quot;)) {</span>
+<span class="fc" id="L245">      RandomCollection&lt;String&gt; arabLanguages = new RandomCollection&lt;&gt;();</span>
+<span class="fc" id="L246">      arabLanguages.add(63.0, &quot;english&quot;);</span>
+<span class="fc" id="L247">      arabLanguages.add(37.0, &quot;arabic&quot;);</span>
+<span class="fc" id="L248">      return arabLanguages.next(random);</span>
+    } else { // in case of invalid ethnicity
+<span class="nc" id="L250">      return &quot;english&quot;;</span>
+    }
+  }
+
+  public int pickIncome(Random random) {
+    // lazy-load in case this randomcollection isn't necessary
+<span class="fc bfc" id="L256" title="All 2 branches covered.">    if (incomeDistribution == null) {</span>
+<span class="fc" id="L257">      Map&lt;String, Double&gt; tempIncome = new HashMap&lt;&gt;(income);</span>
+<span class="fc" id="L258">      tempIncome.remove(&quot;mean&quot;);</span>
+<span class="fc" id="L259">      tempIncome.remove(&quot;median&quot;);</span>
+<span class="fc" id="L260">      incomeDistribution = buildRandomCollectionFromMap(tempIncome);</span>
+    }
+
+    /*
+     * Sample Income frequency: &quot;income&quot;: { &quot;mean&quot;: 81908, &quot;median&quot;: 58933, &quot;00..10&quot;:
+     * 0.07200000000000001, &quot;10..15&quot;: 0.055, &quot;15..25&quot;: 0.099, &quot;25..35&quot;: 0.079, &quot;35..50&quot;: 0.115,
+     * &quot;50..75&quot;: 0.205, &quot;75..100&quot;: 0.115, &quot;100..150&quot;: 0.155, &quot;150..200&quot;: 0.052000000000000005,
+     * &quot;200..999&quot;: 0.054000000000000006 },
+     */
+
+<span class="fc" id="L270">    String pickedRange = incomeDistribution.next(random);</span>
+
+<span class="fc" id="L272">    String[] range = pickedRange.split(&quot;\\.\\.&quot;);</span>
+    // TODO this seems like it would benefit from better caching
+<span class="fc" id="L274">    int low = Integer.parseInt(range[0]) * 1000;</span>
+<span class="fc" id="L275">    int high = Integer.parseInt(range[1]) * 1000;</span>
+
+    // nextInt is normally exclusive of the top value,
+    // so add 1 to make it inclusive
+<span class="fc" id="L279">    return random.nextInt((high - low) + 1) + low;</span>
+  }
+
+  public double incomeLevel(int income) {
+    // simple linear formula just maps federal poverty level to 0.0 and 75,000 to 1.0
+    // 75,000 chosen based on
+    // https://www.princeton.edu/~deaton/downloads/
+    //   deaton_kahneman_high_income_improves_evaluation_August2010.pdf
+<span class="fc" id="L287">    double poverty = Double</span>
+<span class="fc" id="L288">        .parseDouble(Config.get(&quot;generate.demographics.socioeconomic.income.poverty&quot;, &quot;11000&quot;));</span>
+<span class="fc" id="L289">    double high = Double</span>
+<span class="fc" id="L290">        .parseDouble(Config.get(&quot;generate.demographics.socioeconomic.income.high&quot;, &quot;75000&quot;));</span>
+
+<span class="fc bfc" id="L292" title="All 2 branches covered.">    if (income &gt;= high) {</span>
+<span class="fc" id="L293">      return 1.0;</span>
+<span class="fc bfc" id="L294" title="All 2 branches covered.">    } else if (income &lt;= poverty) {</span>
+<span class="fc" id="L295">      return 0.0;</span>
+    } else {
+<span class="fc" id="L297">      return ((double) income - poverty) / (high - poverty);</span>
+    }
+  }
+
+  public String pickEducation(Random random) {
+    // lazy-load in case this randomcollection isn't necessary
+<span class="fc bfc" id="L303" title="All 2 branches covered.">    if (educationDistribution == null) {</span>
+<span class="fc" id="L304">      educationDistribution = buildRandomCollectionFromMap(education);</span>
+    }
+
+<span class="fc" id="L307">    return educationDistribution.next(random);</span>
+  }
+
+  public double educationLevel(String level, Random random) {
+<span class="fc" id="L311">    double lessThanHsMin = Double.parseDouble(</span>
+<span class="fc" id="L312">        Config.get(&quot;generate.demographics.socioeconomic.education.less_than_hs.min&quot;, &quot;0.0&quot;));</span>
+<span class="fc" id="L313">    double lessThanHsMax = Double.parseDouble(</span>
+<span class="fc" id="L314">        Config.get(&quot;generate.demographics.socioeconomic.education.less_than_hs.max&quot;, &quot;0.5&quot;));</span>
+<span class="fc" id="L315">    double hsDegreeMin = Double.parseDouble(</span>
+<span class="fc" id="L316">        Config.get(&quot;generate.demographics.socioeconomic.education.hs_degree.min&quot;, &quot;0.1&quot;));</span>
+<span class="fc" id="L317">    double hsDegreeMax = Double.parseDouble(</span>
+<span class="fc" id="L318">        Config.get(&quot;generate.demographics.socioeconomic.education.hs_degree.max&quot;, &quot;0.75&quot;));</span>
+<span class="fc" id="L319">    double someCollegeMin = Double.parseDouble(</span>
+<span class="fc" id="L320">        Config.get(&quot;generate.demographics.socioeconomic.education.some_college.min&quot;, &quot;0.3&quot;));</span>
+<span class="fc" id="L321">    double someCollegeMax = Double.parseDouble(</span>
+<span class="fc" id="L322">        Config.get(&quot;generate.demographics.socioeconomic.education.some_college.max&quot;, &quot;0.85&quot;));</span>
+<span class="fc" id="L323">    double bsDegreeMin = Double.parseDouble(</span>
+<span class="fc" id="L324">        Config.get(&quot;generate.demographics.socioeconomic.education.bs_degree.min&quot;, &quot;0.5&quot;));</span>
+<span class="fc" id="L325">    double bsDegreeMax = Double.parseDouble(</span>
+<span class="fc" id="L326">        Config.get(&quot;generate.demographics.socioeconomic.education.bs_degree.max&quot;, &quot;1.0&quot;));</span>
+
+<span class="pc bpc" id="L328" title="1 of 5 branches missed.">    switch (level) {</span>
+      case &quot;less_than_hs&quot;:
+<span class="fc" id="L330">        return rand(random, lessThanHsMin, lessThanHsMax);</span>
+      case &quot;hs_degree&quot;:
+<span class="fc" id="L332">        return rand(random, hsDegreeMin, hsDegreeMax);</span>
+      case &quot;some_college&quot;:
+<span class="fc" id="L334">        return rand(random, someCollegeMin, someCollegeMax);</span>
+      case &quot;bs_degree&quot;:
+<span class="fc" id="L336">        return rand(random, bsDegreeMin, bsDegreeMax);</span>
+      default:
+<span class="nc" id="L338">        return 0.0;</span>
+    }
+  }
+  
+  private static double rand(Random r, double low, double high) {
+<span class="fc" id="L343">    return (low + ((high - low) * r.nextDouble()));</span>
+  }
+
+  public double socioeconomicScore(double income, double education, double occupation) {
+<span class="fc" id="L347">    double incomeWeight = Double</span>
+<span class="fc" id="L348">        .parseDouble(Config.get(&quot;generate.demographics.socioeconomic.weights.income&quot;));</span>
+<span class="fc" id="L349">    double educationWeight = Double</span>
+<span class="fc" id="L350">        .parseDouble(Config.get(&quot;generate.demographics.socioeconomic.weights.education&quot;));</span>
+<span class="fc" id="L351">    double occupationWeight = Double</span>
+<span class="fc" id="L352">        .parseDouble(Config.get(&quot;generate.demographics.socioeconomic.weights.occupation&quot;));</span>
+
+<span class="fc" id="L354">    return (income * incomeWeight) + (education * educationWeight)</span>
+        + (occupation * occupationWeight);
+  }
+
+  public String socioeconomicCategory(double score) {
+<span class="fc" id="L359">    double highScore = Double</span>
+<span class="fc" id="L360">        .parseDouble(Config.get(&quot;generate.demographics.socioeconomic.score.high&quot;));</span>
+<span class="fc" id="L361">    double middleScore = Double</span>
+<span class="fc" id="L362">        .parseDouble(Config.get(&quot;generate.demographics.socioeconomic.score.middle&quot;));</span>
+
+<span class="fc bfc" id="L364" title="All 2 branches covered.">    if (score &gt;= highScore) {</span>
+<span class="fc" id="L365">      return &quot;High&quot;;</span>
+<span class="fc bfc" id="L366" title="All 2 branches covered.">    } else if (score &gt;= middleScore) {</span>
+<span class="fc" id="L367">      return &quot;Middle&quot;;</span>
+    } else {
+<span class="fc" id="L369">      return &quot;Low&quot;;</span>
+    }
+  }
+  
+  /**
+   * Get a Table of (State, City, Demographics), with the given restrictions on state and city.
+   * 
+   * @param state
+   *          The state that is desired. Other states will be excluded from the results.
+   * @return Table of (State, City, Demographics)
+   * @throws IOException
+   *           if any exception occurs in reading the demographics file
+   */
+  public static Table&lt;String, String, Demographics&gt; load(String state) 
+      throws IOException {
+<span class="fc" id="L384">    String filename = Config.get(&quot;generate.demographics.default_file&quot;);</span>
+<span class="fc" id="L385">    String csv = Utilities.readResource(filename);</span>
+    
+<span class="fc" id="L387">    List&lt;? extends Map&lt;String,String&gt;&gt; demographicsCsv = SimpleCSV.parse(csv);</span>
+    
+<span class="fc" id="L389">    Table&lt;String, String, Demographics&gt; table = HashBasedTable.create();</span>
+    
+<span class="fc bfc" id="L391" title="All 2 branches covered.">    for (Map&lt;String,String&gt; demographicsLine : demographicsCsv) {</span>
+<span class="fc" id="L392">      String currCity = demographicsLine.get(&quot;NAME&quot;);</span>
+<span class="fc" id="L393">      String currState = demographicsLine.get(&quot;STNAME&quot;);</span>
+      
+      // for now, only allow one state at a time
+<span class="pc bpc" id="L396" title="1 of 4 branches missed.">      if (state != null &amp;&amp; state.equalsIgnoreCase(currState)) {</span>
+<span class="fc" id="L397">        Demographics parsed = csvLineToDemographics(demographicsLine);</span>
+        
+<span class="fc" id="L399">        table.put(currState, currCity, parsed);</span>
+      }
+<span class="fc" id="L401">    }</span>
+    
+<span class="fc" id="L403">    return table;</span>
+  }
+  
+  /**
+   * The index of the entry in this list + 1 == the column header in the CSV for that age group.
+   * For example, age range 0-4 is stored in the CSV with column header &quot;1&quot;.
+   */
+<span class="fc" id="L410">  private static final List&lt;String&gt; CSV_AGE_GROUPS = Arrays.asList(</span>
+          &quot;0..4&quot;, &quot;5..9&quot;, &quot;10..14&quot;, &quot;15..19&quot;, &quot;20..24&quot;, &quot;25..29&quot;, 
+          &quot;30..34&quot;, &quot;35..39&quot;, &quot;40..44&quot;, &quot;45..49&quot;, &quot;50..54&quot;, 
+          &quot;55..59&quot;, &quot;60..64&quot;, &quot;65..69&quot;, &quot;70..74&quot;, &quot;75..79&quot;, &quot;80..84&quot;, &quot;85..110&quot;);
+  
+<span class="fc" id="L415">  private static final List&lt;String&gt; CSV_RACES = Arrays.asList(</span>
+      &quot;WHITE&quot;, &quot;HISPANIC&quot;, &quot;BLACK&quot;, &quot;ASIAN&quot;, &quot;NATIVE&quot;, &quot;OTHER&quot;);
+  
+<span class="fc" id="L418">  private static final List&lt;String&gt; CSV_INCOMES = Arrays.asList(</span>
+      &quot;00..10&quot;, &quot;10..15&quot;, &quot;15..25&quot;, &quot;25..35&quot;, &quot;35..50&quot;,
+      &quot;50..75&quot;, &quot;75..100&quot;, &quot;100..150&quot;, &quot;150..200&quot;, &quot;200..999&quot;);
+  
+<span class="fc" id="L422">  private static final List&lt;String&gt; CSV_EDUCATIONS = Arrays.asList(</span>
+      &quot;LESS_THAN_HS&quot;, &quot;HS_DEGREE&quot;, &quot;SOME_COLLEGE&quot;, &quot;BS_DEGREE&quot;);
+  
+  /**
+   * Map a single line of the demographics CSV file into a Demographics object.
+   * 
+   * @param line Line representing one city, parsed via SimpleCSV
+   * @return the Demographics for that city
+   */
+  public static Demographics csvLineToDemographics(Map&lt;String,String&gt; line) {
+<span class="fc" id="L432">    Demographics d = new Demographics();</span>
+    
+<span class="fc" id="L434">    d.population = Double.valueOf(line.get(&quot;POPESTIMATE2015&quot;)).longValue(); </span>
+    // some .0's seem to sneak in there and break Long.valueOf
+    
+<span class="fc" id="L437">    d.city = line.get(&quot;NAME&quot;);</span>
+<span class="fc" id="L438">    d.state = line.get(&quot;STNAME&quot;);</span>
+<span class="fc" id="L439">    d.county = line.get(&quot;CTYNAME&quot;);</span>
+    
+<span class="fc" id="L441">    d.ages = new HashMap&lt;String, Double&gt;();</span>
+    
+<span class="fc" id="L443">    int i = 1;</span>
+<span class="fc bfc" id="L444" title="All 2 branches covered.">    for (String ageGroup : CSV_AGE_GROUPS) {</span>
+<span class="fc" id="L445">      String csvHeader = Integer.toString(i++);</span>
+<span class="fc" id="L446">      double percentage = Double.parseDouble(line.get(csvHeader));</span>
+<span class="fc" id="L447">      d.ages.put(ageGroup, percentage);</span>
+<span class="fc" id="L448">    }</span>
+    
+<span class="fc" id="L450">    d.gender = new HashMap&lt;String, Double&gt;();</span>
+<span class="fc" id="L451">    d.gender.put(&quot;male&quot;, Double.parseDouble(line.get(&quot;TOT_MALE&quot;)));</span>
+<span class="fc" id="L452">    d.gender.put(&quot;female&quot;, Double.parseDouble(line.get(&quot;TOT_FEMALE&quot;)));</span>
+    
+<span class="fc" id="L454">    d.race = new HashMap&lt;String, Double&gt;();</span>
+<span class="fc bfc" id="L455" title="All 2 branches covered.">    for (String race : CSV_RACES) {</span>
+<span class="fc" id="L456">      double percentage = Double.parseDouble(line.get(race));</span>
+<span class="fc" id="L457">      d.race.put(race.toLowerCase(), percentage);</span>
+<span class="fc" id="L458">    }</span>
+    
+<span class="fc" id="L460">    d.income = new HashMap&lt;String, Double&gt;();</span>
+<span class="fc bfc" id="L461" title="All 2 branches covered.">    for (String income : CSV_INCOMES) {</span>
+<span class="fc" id="L462">      String incomeString = line.get(income);</span>
+<span class="fc bfc" id="L463" title="All 2 branches covered.">      if (incomeString.isEmpty()) {</span>
+<span class="fc" id="L464">        d.income.put(income, 0.01); // dummy value, has to be non-zero</span>
+      } else {
+<span class="fc" id="L466">        double percentage = Double.parseDouble(incomeString);</span>
+<span class="fc" id="L467">        d.income.put(income, percentage);</span>
+      }
+<span class="fc" id="L469">    }</span>
+    
+<span class="fc" id="L471">    d.education = new HashMap&lt;String, Double&gt;();</span>
+<span class="fc bfc" id="L472" title="All 2 branches covered.">    for (String education : CSV_EDUCATIONS) {</span>
+<span class="fc" id="L473">      String educationString = line.get(education);</span>
+<span class="fc bfc" id="L474" title="All 2 branches covered.">      if (educationString.isEmpty()) {</span>
+<span class="fc" id="L475">        d.education.put(education.toLowerCase(), 0.01); // dummy value, has to be non-zero</span>
+      } else {
+<span class="fc" id="L477">        double percentage = Double.parseDouble(educationString);</span>
+<span class="fc" id="L478">        d.education.put(education.toLowerCase(), percentage);</span>
+      }
+<span class="fc" id="L480">    }</span>
+    
+<span class="fc" id="L482">    return d;</span>
+  }
+
+  /**
+   * Helper function to convert a map of frequencies into a RandomCollection.
+   */
+  private static RandomCollection&lt;String&gt; buildRandomCollectionFromMap(Map&lt;String, Double&gt; map) {
+<span class="fc" id="L489">    RandomCollection&lt;String&gt; distribution = new RandomCollection&lt;&gt;();</span>
+<span class="fc bfc" id="L490" title="All 2 branches covered.">    for (Map.Entry&lt;String, Double&gt; e : map.entrySet()) {</span>
+<span class="fc" id="L491">      distribution.add(e.getValue(), e.getKey());</span>
+<span class="fc" id="L492">    }</span>
+<span class="fc" id="L493">    return distribution;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

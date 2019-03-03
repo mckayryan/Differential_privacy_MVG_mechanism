@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BirthStatistics.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.world.concepts</a> &gt; <span class="el_source">BirthStatistics.java</span></div><h1>BirthStatistics.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.world.concepts;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.mitre.synthea.export.Exporter;
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.SimpleCSV;
+import org.mitre.synthea.helpers.Utilities;
+import org.mitre.synthea.world.agents.Person;
+
+/**
+ * BirthStatistics determines when a mother will give birth, the sex of
+ * the baby, and the newborn height and weight.
+ */
+<span class="nc" id="L21">public class BirthStatistics {</span>
+  public static final String BIRTH_WEEK = &quot;pregnancy_birth_week&quot;;
+  public static final String BIRTH_DATE = &quot;pregnancy_birth_date&quot;;
+  public static final String BIRTH_WEIGHT = &quot;pregnancy_birth_weight&quot;;
+  public static final String BIRTH_HEIGHT = &quot;pregnancy_birth_height&quot;;
+  public static final String BIRTH_SEX = &quot;pregnancy_birth_sex&quot;;
+  
+  /** Default birth weight. */
+  public static final double DEFAULT_WEIGHT = 3.5; // kilograms (kg)
+  /** Default birth height. */
+  public static final double DEFAULT_HEIGHT = 51.0; // centimeters (cm)
+
+<span class="fc" id="L33">  private static final boolean LOG_OUTPUT = Boolean.parseBoolean(</span>
+<span class="fc" id="L34">      Config.get(&quot;generate.birthweights.logging&quot;, &quot;false&quot;));</span>
+<span class="fc" id="L35">  private static FileWriter OUTPUT = openFile();</span>
+
+  private static FileWriter openFile() {
+<span class="fc" id="L38">    FileWriter fw = null;</span>
+<span class="pc bpc" id="L39" title="1 of 2 branches missed.">    if (LOG_OUTPUT) {</span>
+      try {
+<span class="nc" id="L41">        File output = Exporter.getOutputFolder(&quot;&quot;, null);</span>
+<span class="nc" id="L42">        output.mkdirs();</span>
+<span class="nc" id="L43">        Path outputDirectory = output.toPath();</span>
+<span class="nc" id="L44">        File file = outputDirectory.resolve(&quot;birth_statistics.csv&quot;).toFile();</span>
+<span class="nc" id="L45">        fw = new FileWriter(file);</span>
+<span class="nc" id="L46">      } catch (IOException e) {</span>
+<span class="nc" id="L47">        System.err.println(&quot;Failed to open birth statistics report file!&quot;);</span>
+<span class="nc" id="L48">        e.printStackTrace();</span>
+<span class="nc" id="L49">      }</span>
+    }
+<span class="fc" id="L51">    return fw;</span>
+  }
+
+<span class="fc" id="L54">  private static List&lt;? extends Map&lt;String,String&gt;&gt; WEIGHT_DATA = loadData();</span>
+
+  private static List&lt;? extends Map&lt;String,String&gt;&gt; loadData() {
+<span class="fc" id="L57">    String filename = Config.get(&quot;generate.birthweights.default_file&quot;);</span>
+<span class="fc" id="L58">    List&lt;? extends Map&lt;String,String&gt;&gt; csv = null;</span>
+    try {
+<span class="fc" id="L60">      String resource = Utilities.readResource(filename);</span>
+<span class="fc" id="L61">      csv = SimpleCSV.parse(resource);</span>
+<span class="nc" id="L62">    } catch (Exception e) {</span>
+<span class="nc" id="L63">      System.err.println(&quot;Failed to load default birth weight file!&quot;);</span>
+<span class="nc" id="L64">      e.printStackTrace();</span>
+<span class="fc" id="L65">    }</span>
+<span class="fc" id="L66">    return csv;</span>
+  }
+
+  /**
+   * Clear birth statistics of mothers newborn. Call this method
+   * after the mother gives birth.
+   * @param mother The baby's mother.
+   */
+  public static void clearBirthStatistics(Person mother) {
+<span class="nc" id="L75">    mother.attributes.remove(BIRTH_DATE);</span>
+<span class="nc" id="L76">    mother.attributes.remove(BIRTH_HEIGHT);</span>
+<span class="nc" id="L77">    mother.attributes.remove(BIRTH_SEX);</span>
+<span class="nc" id="L78">    mother.attributes.remove(BIRTH_WEEK);</span>
+<span class="nc" id="L79">    mother.attributes.remove(BIRTH_WEIGHT);</span>
+<span class="nc" id="L80">  }</span>
+
+  /**
+   * Sets attributes on the mother on when her baby will be born,
+   * the baby sex, and the birth height and weight.
+   * &lt;p/&gt;
+   * These attributes will be overridden on subsequent pregnancies.
+   * @param mother The baby's mother.
+   * @param time The time.
+   */
+  public static void setBirthStatistics(Person mother, long time) {
+    // Ignore men, they cannot become pregnant.
+<span class="fc bfc" id="L92" title="All 2 branches covered.">    if (mother.attributes.get(Person.GENDER) == &quot;M&quot;) {</span>
+<span class="fc" id="L93">      return;</span>
+    }
+
+    // Ignore women who are not pregnant.
+<span class="pc bpc" id="L97" title="1 of 2 branches missed.">    if (!mother.attributes.containsKey(&quot;pregnant&quot;)</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">        || ((Boolean) mother.attributes.get(&quot;pregnant&quot;)) == false) {</span>
+<span class="fc" id="L99">      return;</span>
+    }
+
+    // Boy or Girl?
+<span class="fc" id="L103">    String babySex = null;</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">    if (mother.attributes.containsKey(BIRTH_SEX)) {</span>
+<span class="fc" id="L105">      babySex = (String) mother.attributes.get(BIRTH_SEX);</span>
+    } else {
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">      if (mother.random.nextBoolean()) {</span>
+<span class="fc" id="L108">        babySex = &quot;M&quot;;</span>
+      } else {
+<span class="nc" id="L110">        babySex = &quot;F&quot;;</span>
+      }
+    }
+<span class="fc" id="L113">    mother.attributes.put(BIRTH_SEX, babySex);</span>
+
+    // If there was no weight data, set some default values.
+<span class="pc bpc" id="L116" title="1 of 2 branches missed.">    if (WEIGHT_DATA == null) {</span>
+<span class="nc" id="L117">      mother.attributes.put(BIRTH_WEEK, 40);</span>
+<span class="nc" id="L118">      mother.attributes.put(BIRTH_HEIGHT, DEFAULT_HEIGHT);</span>
+<span class="nc" id="L119">      mother.attributes.put(BIRTH_WEIGHT, DEFAULT_WEIGHT);</span>
+<span class="nc" id="L120">      return;</span>
+    }
+
+    // Is the mother hispanic?
+<span class="fc" id="L124">    boolean hispanic = isHispanic(mother);</span>
+
+    // Set up some temporary variables...
+<span class="fc" id="L127">    double max = 0;</span>
+    boolean rhispanic;
+    String rsex;
+    double x;
+    
+    // Get the max weight of the rows...
+<span class="fc bfc" id="L133" title="All 2 branches covered.">    for (Map&lt;String, String&gt; row : WEIGHT_DATA) {</span>
+<span class="fc" id="L134">      rhispanic = Boolean.parseBoolean(row.get(&quot;hispanic_mother&quot;));</span>
+<span class="fc" id="L135">      rsex = row.get(&quot;baby_sex&quot;);</span>
+<span class="fc" id="L136">      x = Double.parseDouble(row.get(&quot;sum&quot;));</span>
+      
+<span class="fc bfc" id="L138" title="All 2 branches covered.">      if (rhispanic == hispanic</span>
+<span class="pc bpc" id="L139" title="1 of 4 branches missed.">          &amp;&amp; rsex.equals(babySex)</span>
+          &amp;&amp; x &gt; max) {
+<span class="fc" id="L141">        max = x;</span>
+      }
+<span class="fc" id="L143">    }</span>
+
+    // When will the baby be born?
+<span class="fc" id="L146">    Map&lt;String, String&gt; data = null;</span>
+<span class="fc" id="L147">    double roll = mother.rand(0, max);</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">    for (Map&lt;String, String&gt; row : WEIGHT_DATA) {</span>
+<span class="fc" id="L149">      rhispanic = Boolean.parseBoolean(row.get(&quot;hispanic_mother&quot;));</span>
+<span class="fc" id="L150">      rsex = row.get(&quot;baby_sex&quot;);</span>
+<span class="fc" id="L151">      x = Double.parseDouble(row.get(&quot;sum&quot;));</span>
+      
+<span class="fc bfc" id="L153" title="All 2 branches covered.">      if (rhispanic == hispanic</span>
+<span class="fc bfc" id="L154" title="All 6 branches covered.">          &amp;&amp; rsex.equals(babySex)</span>
+          &amp;&amp; (roll &lt; x) &amp;&amp; (data == null)) {
+<span class="fc" id="L156">        data = row;</span>
+      }
+<span class="fc" id="L158">    }</span>
+<span class="fc" id="L159">    long week = Long.parseLong(data.get(&quot;lmp_gestational_age&quot;));</span>
+<span class="fc" id="L160">    mother.attributes.put(BIRTH_WEEK, week);</span>
+<span class="fc" id="L161">    mother.attributes.put(BIRTH_DATE, (time + Utilities.convertTime(&quot;weeks&quot;, week)));</span>
+
+    // How much will the baby weigh?
+<span class="fc" id="L164">    max = Double.parseDouble(data.get(&quot;weight&quot;));</span>
+<span class="fc" id="L165">    roll = mother.rand(0, max);</span>
+<span class="fc" id="L166">    List&lt;String&gt; weights = new ArrayList&lt;String&gt;(data.keySet());</span>
+<span class="fc" id="L167">    weights.remove(&quot;hispanic_mother&quot;);</span>
+<span class="fc" id="L168">    weights.remove(&quot;baby_sex&quot;);</span>
+<span class="fc" id="L169">    weights.remove(&quot;lmp_gestational_age&quot;);</span>
+<span class="fc" id="L170">    weights.remove(&quot;weight&quot;);</span>
+<span class="fc" id="L171">    weights.remove(&quot;sum&quot;);</span>
+<span class="fc" id="L172">    weights.sort(null);</span>
+
+<span class="pc bpc" id="L174" title="1 of 2 branches missed.">    for (String weight : weights) {</span>
+<span class="fc" id="L175">      x = Double.parseDouble(data.get(weight));</span>
+<span class="fc" id="L176">      roll = roll - x;</span>
+<span class="fc" id="L177">      x = Double.parseDouble(weight) / 1000; // convert from grams to kilograms</span>
+<span class="fc" id="L178">      mother.attributes.put(BIRTH_WEIGHT, x);</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">      if (roll &lt; 0) {</span>
+<span class="fc" id="L180">        break;</span>
+      }
+<span class="fc" id="L182">    }</span>
+    
+    // How long will the baby be?
+<span class="fc" id="L185">    mother.attributes.put(BIRTH_HEIGHT, DEFAULT_HEIGHT);</span>
+
+    // Record the statistics
+<span class="pc bpc" id="L188" title="1 of 2 branches missed.">    if (LOG_OUTPUT) {</span>
+<span class="nc" id="L189">      synchronized (OUTPUT) {</span>
+        try {
+<span class="nc" id="L191">          OUTPUT.write(&quot;&quot; + hispanic);</span>
+<span class="nc" id="L192">          OUTPUT.write(',');</span>
+<span class="nc" id="L193">          OUTPUT.write(babySex);</span>
+<span class="nc" id="L194">          OUTPUT.write(',');</span>
+<span class="nc" id="L195">          OUTPUT.write(&quot;&quot; + (long) mother.attributes.get(BIRTH_WEEK));</span>
+<span class="nc" id="L196">          OUTPUT.write(',');</span>
+<span class="nc" id="L197">          OUTPUT.write(&quot;&quot; + (double) mother.attributes.get(BIRTH_WEIGHT));</span>
+<span class="nc" id="L198">          OUTPUT.write(System.lineSeparator());</span>
+<span class="nc" id="L199">          OUTPUT.flush();</span>
+<span class="nc" id="L200">        } catch (IOException e) {</span>
+<span class="nc" id="L201">          e.printStackTrace();</span>
+<span class="nc" id="L202">        }</span>
+<span class="nc" id="L203">      }</span>
+    }
+<span class="fc" id="L205">  }</span>
+
+  /**
+   * Check whether or not the mother is hispanic.
+   * @param mother The baby's mother.
+   * @return True if the mother is hispanic, otherwise false.
+   */
+  private static boolean isHispanic(Person mother) {
+<span class="fc" id="L213">    String race = (String) mother.attributes.get(Person.RACE);</span>
+<span class="fc" id="L214">    String ethnicity = (String) mother.attributes.get(Person.ETHNICITY);</span>
+<span class="fc bfc" id="L215" title="All 4 branches covered.">    return (race.equalsIgnoreCase(&quot;hispanic&quot;) || ethnicity.equalsIgnoreCase(&quot;hispanic&quot;));</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

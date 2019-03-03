@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta http-equiv="x-ua-compatible" content="IE=edge"/>
+<title>Test results - Class org.mitre.synthea.helpers.TransitionMetricsTest</title>
+<link href="../css/base-style.css" rel="stylesheet" type="text/css"/>
+<link href="../css/style.css" rel="stylesheet" type="text/css"/>
+<script src="../js/report.js" type="text/javascript"></script>
+</head>
+<body>
+<div id="content">
+<h1>Class org.mitre.synthea.helpers.TransitionMetricsTest</h1>
+<div class="breadcrumbs">
+<a href="../index.html">all</a> &gt; 
+<a href="../packages/org.mitre.synthea.helpers.html">org.mitre.synthea.helpers</a> &gt; TransitionMetricsTest</div>
+<div id="summary">
+<table>
+<tr>
+<td>
+<div class="summaryGroup">
+<table>
+<tr>
+<td>
+<div class="infoBox" id="tests">
+<div class="counter">2</div>
+<p>tests</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="failures">
+<div class="counter">0</div>
+<p>failures</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="ignored">
+<div class="counter">0</div>
+<p>ignored</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="duration">
+<div class="counter">0.030s</div>
+<p>duration</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</td>
+<td>
+<div class="infoBox success" id="successRate">
+<div class="percent">100%</div>
+<p>successful</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div id="tabs">
+<ul class="tabLinks">
+<li>
+<a href="#tab0">Tests</a>
+</li>
+<li>
+<a href="#tab1">Standard output</a>
+</li>
+</ul>
+<div id="tab0" class="tab">
+<h2>Tests</h2>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Duration</th>
+<th>Result</th>
+</tr>
+</thead>
+<tr>
+<td class="success">testDurationStrings</td>
+<td class="success">0s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">testExampleModule</td>
+<td class="success">0.030s</td>
+<td class="success">passed</td>
+</tr>
+</table>
+</div>
+<div id="tab1" class="tab">
+<h2>Standard output</h2>
+<span class="code">
+<pre>Loading src/test/resources/generic/example_module.json
+EXAMPLITIS MODULE
+Terminal:
+ Total times entered: 1
+ Population that ever hit this state: 1 (100.00%)
+ Average # of hits per total population: 100.00
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 1 (100.00%)
+
+Initial:
+ Total times entered: 1
+ Population that ever hit this state: 1 (100.00%)
+ Average # of hits per total population: 100.00
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 0 (0.00%)
+ Transitioned to:
+ --&gt; Terminal : 1 = 100.00%
+
+Examplitis: 
+ Never reached 
+
+
+End_Examplotomy_Encounter: 
+ Never reached 
+
+
+Examplotomy: 
+ Never reached 
+
+
+Age_Guard: 
+ Never reached 
+
+
+Pre_Examplotomy: 
+ Never reached 
+
+
+Examplotomy_Encounter: 
+ Never reached 
+
+
+Examplitol: 
+ Never reached 
+
+
+Death: 
+ Never reached 
+
+
+Pre_Examplitis: 
+ Never reached 
+
+
+Last_Days: 
+ Never reached 
+
+
+Wellness_Encounter: 
+ Never reached 
+
+
+
+
+EXAMPLITIS MODULE
+Terminal:
+ Total times entered: 3
+ Population that ever hit this state: 3 (100.00%)
+ Average # of hits per total population: 100.00
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 3 (100.00%)
+
+Examplitol:
+ Total times entered: 1
+ Population that ever hit this state: 1 (33.33%)
+ Average # of hits per total population: 33.33
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 0 (0.00%)
+ Transitioned to:
+ --&gt; Terminal : 1 = 100.00%
+
+Wellness_Encounter:
+ Total times entered: 1
+ Population that ever hit this state: 1 (33.33%)
+ Average # of hits per total population: 33.33
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 0 (0.00%)
+ (duration metrics for wellness encounter omitted)
+ Transitioned to:
+ --&gt; Examplitol : 1 = 100.00%
+
+Examplitis:
+ Total times entered: 1
+ Population that ever hit this state: 1 (33.33%)
+ Average # of hits per total population: 33.33
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 0 (0.00%)
+ Transitioned to:
+ --&gt; Wellness_Encounter : 1 = 100.00%
+
+Pre_Examplitis:
+ Total times entered: 1
+ Population that ever hit this state: 1 (33.33%)
+ Average # of hits per total population: 33.33
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 0 (0.00%)
+ Total duration: 8 years 0 months
+ Average duration per time entered: 8 years 0 months
+ Average duration per person that ever entered state: 8 years 0 months
+ Transitioned to:
+ --&gt; Examplitis : 1 = 100.00%
+
+Age_Guard:
+ Total times entered: 3
+ Population that ever hit this state: 3 (100.00%)
+ Average # of hits per total population: 100.00
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 0 (0.00%)
+ Total duration: 126 years 0 months
+ Average duration per time entered: 42 years 0 months
+ Average duration per person that ever entered state: 42 years 0 months
+ Transitioned to:
+ --&gt; Pre_Examplitis : 1 = 33.33%
+ --&gt; Terminal : 2 = 66.67%
+
+Initial:
+ Total times entered: 3
+ Population that ever hit this state: 3 (100.00%)
+ Average # of hits per total population: 100.00
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 0 (0.00%)
+ Transitioned to:
+ --&gt; Age_Guard : 3 = 100.00%
+
+End_Examplotomy_Encounter: 
+ Never reached 
+
+
+Examplotomy: 
+ Never reached 
+
+
+Pre_Examplotomy: 
+ Never reached 
+
+
+Examplotomy_Encounter: 
+ Never reached 
+
+
+Death: 
+ Never reached 
+
+
+Last_Days: 
+ Never reached 
+
+
+
+
+</pre>
+</span>
+</div>
+</div>
+<div id="footer">
+<p>
+<div>
+<label class="hidden" id="label-for-line-wrapping-toggle" for="line-wrapping-toggle">Wrap lines
+<input id="line-wrapping-toggle" type="checkbox" autocomplete="off"/>
+</label>
+</div>Generated by 
+<a href="http://www.gradle.org">Gradle 5.2.1</a> at 25/02/2019 10:20:10 PM</p>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,1439 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>State.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.engine</a> &gt; <span class="el_source">State.java</span></div><h1>State.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.engine;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import org.mitre.synthea.engine.Components.Exact;
+import org.mitre.synthea.engine.Components.ExactWithUnit;
+import org.mitre.synthea.engine.Components.Range;
+import org.mitre.synthea.engine.Components.RangeWithUnit;
+import org.mitre.synthea.engine.Transition.ComplexTransition;
+import org.mitre.synthea.engine.Transition.ComplexTransitionOption;
+import org.mitre.synthea.engine.Transition.ConditionalTransition;
+import org.mitre.synthea.engine.Transition.ConditionalTransitionOption;
+import org.mitre.synthea.engine.Transition.DirectTransition;
+import org.mitre.synthea.engine.Transition.DistributedTransition;
+import org.mitre.synthea.engine.Transition.DistributedTransitionOption;
+import org.mitre.synthea.helpers.RandomValueGenerator;
+import org.mitre.synthea.helpers.ConstantValueGenerator;
+import org.mitre.synthea.helpers.Utilities;
+import org.mitre.synthea.modules.EncounterModule;
+import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.agents.Provider;
+import org.mitre.synthea.world.concepts.ClinicianSpecialty;
+import org.mitre.synthea.world.concepts.HealthRecord;
+import org.mitre.synthea.world.concepts.HealthRecord.CarePlan;
+import org.mitre.synthea.world.concepts.HealthRecord.Code;
+import org.mitre.synthea.world.concepts.HealthRecord.EncounterType;
+import org.mitre.synthea.world.concepts.HealthRecord.Entry;
+import org.mitre.synthea.world.concepts.HealthRecord.Medication;
+import org.mitre.synthea.world.concepts.HealthRecord.Report;
+
+<span class="fc" id="L35">public abstract class State implements Cloneable {</span>
+  public Module module;
+  public String name;
+  public Long entered;
+  public Entry entry;
+  public Long exited;
+
+  private Transition transition;
+  // note that these are not Transition objects, because they are JSON lists
+  private String directTransition; // or in this case just a String
+  private List&lt;ConditionalTransitionOption&gt; conditionalTransition;
+  private List&lt;DistributedTransitionOption&gt; distributedTransition;
+  private List&lt;ComplexTransitionOption&gt; complexTransition;
+  public List&lt;String&gt; remarks;
+
+  protected void initialize(Module module, String name, JsonObject definition) {
+<span class="fc" id="L51">    this.module = module;</span>
+<span class="fc" id="L52">    this.name = name;</span>
+
+<span class="fc bfc" id="L54" title="All 2 branches covered.">    if (directTransition != null) {</span>
+<span class="fc" id="L55">      this.transition = new DirectTransition(directTransition);</span>
+<span class="fc bfc" id="L56" title="All 2 branches covered.">    } else if (distributedTransition != null) {</span>
+<span class="fc" id="L57">      this.transition = new DistributedTransition(distributedTransition);</span>
+<span class="fc bfc" id="L58" title="All 2 branches covered.">    } else if (conditionalTransition != null) {</span>
+<span class="fc" id="L59">      this.transition = new ConditionalTransition(conditionalTransition);</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">    } else if (complexTransition != null) {</span>
+<span class="fc" id="L61">      this.transition = new ComplexTransition(complexTransition);</span>
+<span class="fc bfc" id="L62" title="All 2 branches covered.">    } else if (!(this instanceof Terminal)) {</span>
+<span class="fc" id="L63">      throw new RuntimeException(&quot;State `&quot; + name + &quot;` has no transition.\n&quot;);</span>
+    }
+<span class="fc" id="L65">  }</span>
+
+  /**
+   * Construct a state object from the given definitions.
+   *
+   * @param module
+   *          The module this state belongs to
+   * @param name
+   *          The name of the state
+   * @param definition
+   *          The JSON definition of the state
+   * @return The constructed State object. The returned object will be of the appropriate subclass
+   *         of State, based on the &quot;type&quot; parameter in the JSON definition.
+   * @throws Exception
+   *           if the state type does not exist
+   */
+  public static State build(Module module, String name, JsonObject definition) throws Exception {
+<span class="fc" id="L82">    String className = State.class.getName() + &quot;$&quot; + definition.get(&quot;type&quot;).getAsString();</span>
+
+<span class="fc" id="L84">    Class&lt;?&gt; stateClass = Class.forName(className);</span>
+
+<span class="fc" id="L86">    Gson gson = Utilities.getGson();</span>
+<span class="fc" id="L87">    State state = (State) gson.fromJson(definition, stateClass);</span>
+
+<span class="fc" id="L89">    state.initialize(module, name, definition);</span>
+
+<span class="fc" id="L91">    return state;</span>
+  }
+
+  /**
+   * clone() should copy all the necessary variables of this State so that it can be correctly
+   * executed and modified without altering the original copy. So for example, 'entered' and
+   * 'exited' times should not be copied so the clone can be cleanly executed.
+   */
+  public State clone() {
+    try {
+<span class="fc" id="L101">      State clone = (State) super.clone();</span>
+<span class="fc" id="L102">      clone.module = this.module;</span>
+<span class="fc" id="L103">      clone.name = this.name;</span>
+<span class="fc" id="L104">      clone.transition = this.transition;</span>
+<span class="fc" id="L105">      clone.remarks = this.remarks;</span>
+<span class="fc" id="L106">      return clone;</span>
+<span class="nc" id="L107">    } catch (CloneNotSupportedException e) {</span>
+      // should not happen, and not something we can handle
+<span class="nc" id="L109">      throw new RuntimeException(e);</span>
+    }
+  }
+
+  public String transition(Person person, long time) {
+<span class="fc" id="L114">    return transition.follow(person, time);</span>
+  }
+
+  public Transition getTransition() {
+<span class="nc" id="L118">    return transition;</span>
+  }
+
+  /**
+   * Process this State with the given Person at the specified time within the simulation.
+   * If this State generates a HealthRecord.Entry during processing, then the resulting data
+   * will reside in the State.entry field.
+   *
+   * @param person
+   *          : the person being simulated
+   * @param time
+   *          : the date within the simulated world
+   * @return `true` if processing should continue to the next state, `false` if the processing
+   *         should halt for this time step.
+   */
+  public abstract boolean process(Person person, long time);
+
+  /**
+   * Run the state. This processes the state, setting entered and exit times.
+   *
+   * @param person
+   *          the person being simulated
+   * @param time
+   *          the date within the simulated world
+   * @return `true` if processing should continue to the next state, `false` if the processing
+   *         should halt for this time step.
+   */
+  public boolean run(Person person, long time) {
+    // System.out.format(&quot;State: %s\n&quot;, this.name);
+<span class="fc bfc" id="L147" title="All 2 branches covered.">    if (this.entered == null) {</span>
+<span class="fc" id="L148">      this.entered = time;</span>
+    }
+<span class="fc" id="L150">    boolean exit = process(person, time);</span>
+
+<span class="fc bfc" id="L152" title="All 2 branches covered.">    if (exit) {</span>
+      // Delay state returns a special value for exited,
+      // to indicate when the delay actually completed.
+<span class="fc bfc" id="L155" title="All 2 branches covered.">      if (this instanceof Delay) {</span>
+<span class="fc" id="L156">        this.exited = ((Delay)this).next;</span>
+      } else {
+<span class="fc" id="L158">        this.exited = time;</span>
+      }
+    }
+
+<span class="fc" id="L162">    return exit;</span>
+  }
+
+  public String toString() {
+<span class="fc" id="L166">    return this.getClass().getSimpleName() + &quot; '&quot; + name + &quot;'&quot;;</span>
+  }
+
+  /**
+   * The Initial state type is the first state that is processed in a generic module. It does not
+   * provide any specific function except to indicate the starting point, so it has no properties
+   * except its type. The Initial state requires the specific name &quot;Initial&quot;. In addition, it is the
+   * only state for which there can only be one in the whole module.
+   */
+<span class="fc" id="L175">  public static class Initial extends State {</span>
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc" id="L178">      return true;</span>
+    }
+  }
+
+  /**
+   * The Simple state type indicates a state that performs no additional actions, adds no additional
+   * information to the patient entity, and just transitions to the next state. As an example, this
+   * state may be used to chain conditional or distributed transitions, in order to represent
+   * complex logic.
+   */
+<span class="fc" id="L188">  public static class Simple extends State {</span>
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc" id="L191">      return true;</span>
+    }
+  }
+
+  /**
+   * The CallSubmodule state immediately processes a reusable series of states contained in a
+   * submodule. These states are processes in the same time step, starting with the submodule's
+   * Initial state. Once the submodule's Terminal state is reached, execution of the calling module
+   * resumes.
+   */
+<span class="fc" id="L201">  public static class CallSubmodule extends State {</span>
+    private String submodule;
+
+    @Override
+    public CallSubmodule clone() {
+<span class="fc" id="L206">      CallSubmodule clone = (CallSubmodule) super.clone();</span>
+<span class="fc" id="L207">      clone.submodule = submodule;</span>
+<span class="fc" id="L208">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+      // e.g. &quot;submodule&quot;: &quot;medications/otc_antihistamine&quot;
+<span class="fc" id="L214">      List&lt;State&gt; moduleHistory = person.history;</span>
+<span class="fc" id="L215">      Module submod = Module.getModuleByPath(submodule);</span>
+<span class="fc" id="L216">      HealthRecord.Encounter encounter = person.getCurrentEncounter(module);</span>
+<span class="fc bfc" id="L217" title="All 2 branches covered.">      if (encounter != null) {</span>
+<span class="fc" id="L218">        person.setCurrentEncounter(submod, encounter);</span>
+      }
+<span class="fc" id="L220">      boolean completed = submod.process(person, time);</span>
+
+<span class="fc bfc" id="L222" title="All 2 branches covered.">      if (completed) {</span>
+        // add the history from the submodule to this module's history, at the front
+<span class="fc" id="L224">        moduleHistory.addAll(0, person.history);</span>
+        // clear the submodule history
+<span class="fc" id="L226">        person.attributes.remove(submod.name);</span>
+        // reset person.history to this module's history
+<span class="fc" id="L228">        person.history = moduleHistory;</span>
+        // add this state to history to indicate we returned to this module
+<span class="fc" id="L230">        person.history.add(0, this);</span>
+        // start using the current encounter, it may have changed
+<span class="fc" id="L232">        encounter = person.getCurrentEncounter(submod);</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">        if (encounter != null) {</span>
+<span class="fc" id="L234">          person.setCurrentEncounter(module, encounter);</span>
+        }
+
+<span class="fc" id="L237">        return true;</span>
+      } else {
+        // reset person.history to this module's history
+<span class="fc" id="L240">        person.history = moduleHistory;</span>
+        // the submodule is still processing
+        // next time we call this state it should pick up where it left off
+<span class="fc" id="L243">        return false;</span>
+      }
+    }
+  }
+
+  /**
+   * The Terminal state type indicates the end of the module progression. Once a Terminal state is
+   * reached, no further progress will be made. As such, Terminal states cannot have any transition
+   * properties. If desired, there may be multiple Terminal states with different names to indicate
+   * different ending points; however, this has no actual effect on the records that are produced.
+   */
+<span class="fc" id="L254">  public static class Terminal extends State {</span>
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc" id="L257">      return false;</span>
+    }
+  }
+
+  /**
+   * The Delay state type introduces a pre-configured temporal delay in the module's timeline. As a
+   * simple example, a Delay state may indicate a one-month gap in time between an initial encounter
+   * and a followup encounter. The module will not pass through the Delay state until the proper
+   * amount of time has passed. The Delay state may define an exact time to delay (e.g. 4 days) or a
+   * range of time to delay (e.g. 5 - 7 days).
+   *
+   * &lt;p&gt;Implementation Details Synthea generation occurs in time steps; the default time step is 7
+   * days. This means that if a module is processed on a given date, the next time it is processed
+   * will be exactly 7 days later. If a delay expiration falls between time steps (e.g. day 3 of a
+   * 7-day time step), then the first time step after the delay expiration will effectively rewind
+   * the clock to the delay expiration time and process states using that time. Once it reaches a
+   * state that it can't pass through, it will process it once more using the original (7-day time
+   * step) time.
+   */
+<span class="fc" id="L276">  public static class Delay extends State {</span>
+    // next is &quot;transient&quot; in the sense that it represents object state
+    // as opposed to the other fields which represent object definition
+    // hence it is not set in clone()
+    public Long next;
+
+    private RangeWithUnit&lt;Long&gt; range;
+    private ExactWithUnit&lt;Long&gt; exact;
+
+
+    @Override
+    public Delay clone() {
+<span class="fc" id="L288">      Delay clone = (Delay) super.clone();</span>
+<span class="fc" id="L289">      clone.exact = exact;</span>
+<span class="fc" id="L290">      clone.range = range;</span>
+<span class="fc" id="L291">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc bfc" id="L296" title="All 2 branches covered.">      if (this.next == null) {</span>
+<span class="fc bfc" id="L297" title="All 2 branches covered.">        if (exact != null) {</span>
+          // use an exact quantity
+<span class="fc" id="L299">          this.next = time + Utilities.convertTime(exact.unit, exact.quantity);</span>
+<span class="pc bpc" id="L300" title="1 of 2 branches missed.">        } else if (range != null) {</span>
+          // use a range
+<span class="fc" id="L302">          this.next =</span>
+<span class="fc" id="L303">              time + Utilities.convertTime(range.unit, (long) person.rand(range.low, range.high));</span>
+        } else {
+<span class="nc" id="L305">          throw new RuntimeException(&quot;Delay state has no exact or range: &quot; + this);</span>
+        }
+      }
+
+<span class="fc bfc" id="L309" title="All 2 branches covered.">      return time &gt;= this.next;</span>
+    }
+  }
+
+  /**
+   * The Guard state type indicates a point in the module through which a patient can only pass if
+   * they meet certain logical conditions. For example, a Guard may block a workflow until the
+   * patient reaches a certain age, after which the Guard allows the module to continue to progress.
+   * Depending on the condition(s), a patient may be blocked by a Guard until they die - in which
+   * case they never reach the module's Terminal state.
+   *
+   * &lt;p&gt;The Guard state's allow property provides the logical condition(s) which must be met to
+   * allow the module to continue to the next state. Guard states are similar to conditional
+   * transitions in some ways, but also have an important difference. A conditional transition
+   * tests conditions once and uses the result to immediately choose the next state. A Guard
+   * state will test the same condition on every time-step until the condition passes, at which
+   * point it progresses to the next state.
+   */
+<span class="fc" id="L327">  public static class Guard extends State {</span>
+    private Logic allow;
+
+    @Override
+    public Guard clone() {
+<span class="fc" id="L332">      Guard clone = (Guard) super.clone();</span>
+<span class="fc" id="L333">      clone.allow = allow;</span>
+<span class="fc" id="L334">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc" id="L339">      boolean exit = allow.test(person, time);</span>
+<span class="fc bfc" id="L340" title="All 2 branches covered.">      if (exit) {</span>
+<span class="fc" id="L341">        this.exited = time;</span>
+      }
+<span class="fc" id="L343">      return exit;</span>
+    }
+  }
+
+  /**
+   * The SetAttribute state type sets a specified attribute on the patient entity. In addition to
+   * the assign_to_attribute property on MedicationOrder/ConditionOnset/etc states, this state
+   * allows for arbitrary text or values to be set on an attribute, or for the attribute to be
+   * reset.
+   */
+<span class="fc" id="L353">  public static class SetAttribute extends State {</span>
+    private String attribute;
+    private Object value;
+
+    @Override
+    protected void initialize(Module module, String name, JsonObject definition) {
+<span class="fc" id="L359">      super.initialize(module, name, definition);</span>
+
+      // special handling for integers
+<span class="fc bfc" id="L362" title="All 2 branches covered.">      if (value instanceof Double) {</span>
+<span class="fc" id="L363">        double doubleVal = (double)value;</span>
+
+<span class="fc bfc" id="L365" title="All 2 branches covered.">        if (doubleVal == Math.rint(doubleVal)) {</span>
+<span class="fc" id="L366">          value = (int) doubleVal;</span>
+        }
+      }
+<span class="fc" id="L369">    }</span>
+
+    @Override
+    public SetAttribute clone() {
+<span class="fc" id="L373">      SetAttribute clone = (SetAttribute) super.clone();</span>
+<span class="fc" id="L374">      clone.attribute = attribute;</span>
+<span class="fc" id="L375">      clone.value = value;</span>
+<span class="fc" id="L376">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc bfc" id="L381" title="All 2 branches covered.">      if (value != null) {</span>
+<span class="fc" id="L382">        person.attributes.put(attribute, value);</span>
+<span class="fc bfc" id="L383" title="All 2 branches covered.">      } else if (person.attributes.containsKey(attribute)) {</span>
+        // intentionally clear out the variable
+<span class="fc" id="L385">        person.attributes.remove(attribute);</span>
+      }
+
+<span class="fc" id="L388">      return true;</span>
+    }
+  }
+
+  /**
+   * The Counter state type increments or decrements a specified numeric attribute on the patient
+   * entity. In essence, this state counts the number of times it is processed.
+   *
+   * &lt;p&gt;Note: The attribute is initialized with a default value of 0 if not previously set.
+   */
+<span class="fc" id="L398">  public static class Counter extends State {</span>
+    private String attribute;
+    private String action;
+    private boolean increment;
+
+    @Override
+    protected void initialize(Module module, String name, JsonObject definition) {
+<span class="fc" id="L405">      super.initialize(module, name, definition);</span>
+<span class="fc" id="L406">      increment = action.equals(&quot;increment&quot;);</span>
+<span class="fc" id="L407">    }</span>
+
+    @Override
+    public Counter clone() {
+<span class="fc" id="L411">      Counter clone = (Counter) super.clone();</span>
+<span class="fc" id="L412">      clone.attribute = attribute;</span>
+<span class="fc" id="L413">      clone.increment = increment;</span>
+<span class="fc" id="L414">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc" id="L419">      int counter = 0;</span>
+<span class="fc bfc" id="L420" title="All 2 branches covered.">      if (person.attributes.containsKey(attribute)) {</span>
+<span class="fc" id="L421">        counter = (int) person.attributes.get(attribute);</span>
+      }
+
+<span class="fc bfc" id="L424" title="All 2 branches covered.">      if (increment) {</span>
+<span class="fc" id="L425">        counter++;</span>
+      } else {
+<span class="fc" id="L427">        counter--;</span>
+      }
+<span class="fc" id="L429">      person.attributes.put(attribute, counter);</span>
+<span class="fc" id="L430">      return true;</span>
+    }
+  }
+
+  /**
+   * The Encounter state type indicates a point in the module where an encounter should take place.
+   * Encounters are important in Synthea because they are generally the mechanism through which the
+   * actual patient record is updated (a disease is diagnosed, a medication is prescribed, etc). The
+   * generic module framework supports integration with scheduled wellness encounters from Synthea's
+   * Encounters module, as well as creation of new stand-alone encounters.
+   *
+   * &lt;p&gt;Scheduled Wellness Encounters vs. Standalone Encounters An Encounter state with the wellness
+   * property set to true will block until the next scheduled wellness encounter occurs. Scheduled
+   * wellness encounters are managed by the Encounters module in Synthea and, depending on the
+   * patient's age, typically occur every 1 - 3 years. When a scheduled wellness encounter finally
+   * does occur, Synthea will search the generic modules for currently blocked Encounter states and
+   * will immediately process them (and their subsequent states). An example where this might be
+   * used is for a condition that onsets between encounters, but isn't found and diagnosed until the
+   * next regularly scheduled wellness encounter.
+   *
+   * &lt;p&gt;An Encounter state without the wellness property set will be processed and recorded in the
+   * patient record immediately. Since this creates an encounter, the encounter_class and one or
+   * more codes must be specified in the state configuration. This is how generic modules can
+   * introduce encounters that are not already scheduled by other modules.
+   *
+   * &lt;p&gt;Encounters and Related Events Encounters are typically the mechanism through which a
+   * patient's record will be updated. This makes sense since most recorded events (diagnoses,
+   * prescriptions, and procedures) should happen in the context of an encounter. When an Encounter
+   * state is successfully processed, Synthea will look through the previously processed states for
+   * un-recorded ConditionOnset or AllergyOnset instances that indicate that Encounter (by name) as
+   * the target_encounter. If Synthea finds any, they will be recorded in the patient's record at
+   * the time of the encounter. This is the mechanism for onsetting a disease before it is
+   * discovered and diagnosed.
+   */
+<span class="fc" id="L464">  public static class Encounter extends State {</span>
+    private boolean wellness;
+    private String encounterClass;
+    private List&lt;Code&gt; codes;
+    private String reason;
+
+    @Override
+    public Encounter clone() {
+<span class="fc" id="L472">      Encounter clone = (Encounter) super.clone();</span>
+<span class="fc" id="L473">      clone.wellness = wellness;</span>
+<span class="fc" id="L474">      clone.encounterClass = encounterClass;</span>
+<span class="fc" id="L475">      clone.reason = reason;</span>
+<span class="fc" id="L476">      clone.codes = codes;</span>
+<span class="fc" id="L477">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc bfc" id="L482" title="All 2 branches covered.">      if (wellness) {</span>
+<span class="fc" id="L483">        HealthRecord.Encounter encounter = person.record.currentEncounter(time);</span>
+<span class="fc" id="L484">        entry = encounter;</span>
+<span class="fc" id="L485">        String activeKey = EncounterModule.ACTIVE_WELLNESS_ENCOUNTER + &quot; &quot; + this.module.name;</span>
+<span class="fc bfc" id="L486" title="All 2 branches covered.">        if (person.attributes.containsKey(activeKey)) {</span>
+<span class="fc" id="L487">          person.attributes.remove(activeKey);</span>
+
+<span class="fc" id="L489">          person.setCurrentEncounter(module, encounter);</span>
+
+          // find closest provider and increment encounters count
+<span class="fc" id="L492">          Provider provider = person.getProvider(EncounterType.AMBULATORY, time);</span>
+<span class="fc" id="L493">          person.addCurrentProvider(module.name, provider);</span>
+<span class="fc" id="L494">          int year = Utilities.getYear(time);</span>
+<span class="fc" id="L495">          provider.incrementEncounters(EncounterType.WELLNESS, year);</span>
+<span class="fc" id="L496">          encounter.provider = provider;</span>
+<span class="fc" id="L497">          encounter.clinician = provider.chooseClinicianList(</span>
+              ClinicianSpecialty.GENERAL_PRACTICE, person.random);
+<span class="fc" id="L499">          diagnosePastConditions(person, time);</span>
+
+<span class="fc" id="L501">          return true;</span>
+        } else {
+          // Block until we're in a wellness encounter... then proceed.
+<span class="fc" id="L504">          return false;</span>
+        }
+      } else {
+<span class="fc" id="L507">        EncounterType type = EncounterType.fromString(encounterClass);</span>
+<span class="fc" id="L508">        HealthRecord.Encounter encounter = person.encounterStart(time, type);</span>
+<span class="fc" id="L509">        entry = encounter;</span>
+<span class="pc bpc" id="L510" title="1 of 2 branches missed.">        if (codes != null) {</span>
+<span class="fc" id="L511">          encounter.codes.addAll(codes);</span>
+        }
+<span class="fc" id="L513">        person.setCurrentEncounter(module, encounter);</span>
+
+        // find closest provider and increment encounters count
+<span class="fc" id="L516">        Provider provider = person.getProvider(type, time);</span>
+<span class="fc" id="L517">        person.addCurrentProvider(module.name, provider);</span>
+<span class="fc" id="L518">        int year = Utilities.getYear(time);</span>
+<span class="fc" id="L519">        provider.incrementEncounters(type, year);</span>
+<span class="fc" id="L520">        encounter.provider = provider;</span>
+<span class="fc" id="L521">        encounter.clinician = provider.chooseClinicianList(</span>
+            ClinicianSpecialty.GENERAL_PRACTICE, person.random);
+
+<span class="fc" id="L524">        encounter.name = this.name;</span>
+
+<span class="fc" id="L526">        diagnosePastConditions(person, time);</span>
+
+<span class="fc bfc" id="L528" title="All 2 branches covered.">        if (reason != null) {</span>
+<span class="fc bfc" id="L529" title="All 2 branches covered.">          if (person.attributes.containsKey(reason)) {</span>
+<span class="fc" id="L530">            Entry condition = (Entry) person.attributes.get(reason);</span>
+<span class="fc" id="L531">            encounter.reason = condition.codes.get(0);</span>
+<span class="fc bfc" id="L532" title="All 2 branches covered.">          } else if (person.hadPriorState(reason)) {</span>
+            // loop through the present conditions, the condition &quot;name&quot; will match
+            // the name of the ConditionOnset state (aka &quot;reason&quot;)
+<span class="fc bfc" id="L535" title="All 2 branches covered.">            for (Entry entry : person.record.present.values()) {</span>
+<span class="fc bfc" id="L536" title="All 2 branches covered.">              if (reason.equals(entry.name)) {</span>
+<span class="fc" id="L537">                encounter.reason = entry.codes.get(0);</span>
+<span class="fc" id="L538">                break;</span>
+              }
+<span class="fc" id="L540">            }</span>
+          }
+        }
+
+<span class="fc" id="L544">        return true;</span>
+      }
+    }
+
+    private void diagnosePastConditions(Person person, long time) {
+      // reminder: history[0] is current state, history[size-1] is Initial
+<span class="fc bfc" id="L550" title="All 2 branches covered.">      for (State state : person.history) {</span>
+<span class="fc bfc" id="L551" title="All 2 branches covered.">        if (state instanceof OnsetState) {</span>
+<span class="fc" id="L552">          OnsetState onset = (OnsetState) state;</span>
+
+<span class="fc bfc" id="L554" title="All 4 branches covered.">          if (!onset.diagnosed &amp;&amp; this.name.equals(onset.targetEncounter)) {</span>
+<span class="fc" id="L555">            onset.diagnose(person, time);</span>
+          }
+<span class="fc bfc" id="L557" title="All 6 branches covered.">        } else if (state instanceof Encounter &amp;&amp; state != this &amp;&amp; state.name.equals(this.name)) {</span>
+          // a prior instance of hitting this same state. no need to go back any further
+<span class="fc" id="L559">          break;</span>
+        }
+<span class="fc" id="L561">      }</span>
+<span class="fc" id="L562">    }</span>
+
+    public boolean isWellness() {
+<span class="fc" id="L565">      return wellness;</span>
+    }
+  }
+
+  /**
+   * The EncounterEnd state type indicates the end of the encounter the patient is currently in, for
+   * example when the patient leaves a clinician's office, or is discharged from a hospital. The
+   * time the encounter ended is recorded on the patient's record.
+   *
+   * &lt;p&gt;Note on Wellness Encounters Because wellness encounters are scheduled and initiated outside
+   * the generic modules, and a single wellness encounter may contain observations or medications
+   * from multiple modules, an EncounterEnd state will not record the end time for a wellness
+   * encounter. Hence it is not strictly necessary to use an EncounterEnd state to end the wellness
+   * encounter. Still, it is recommended to use an EncounterEnd state to mark a clear end to the
+   * encounter.
+   */
+<span class="fc" id="L581">  public static class EncounterEnd extends State {</span>
+    private Code dischargeDisposition;
+
+    @Override
+    public EncounterEnd clone() {
+<span class="fc" id="L586">      EncounterEnd clone = (EncounterEnd) super.clone();</span>
+<span class="fc" id="L587">      clone.dischargeDisposition = dischargeDisposition;</span>
+<span class="fc" id="L588">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc" id="L593">      HealthRecord.Encounter encounter = person.getCurrentEncounter(module);</span>
+<span class="fc" id="L594">      EncounterType type = EncounterType.fromString(encounter.type);</span>
+<span class="fc bfc" id="L595" title="All 2 branches covered.">      if (type != EncounterType.WELLNESS) {</span>
+<span class="fc" id="L596">        person.record.encounterEnd(time, type);</span>
+      }
+<span class="fc" id="L598">      encounter.discharge = dischargeDisposition;</span>
+
+      // reset current provider hash
+<span class="fc" id="L601">      person.removeCurrentProvider(module.name);</span>
+<span class="fc" id="L602">      person.setCurrentEncounter(module, null);</span>
+
+<span class="fc" id="L604">      return true;</span>
+    }
+  }
+
+  /**
+   * OnsetState is a parent class for ConditionOnset and AllergyOnset, where some common logic can
+   * be shared. It is an implementation detail and should never be referenced directly in a JSON
+   * module.
+   */
+  private abstract static class OnsetState extends State {
+    public boolean diagnosed;
+
+    protected List&lt;Code&gt; codes;
+    protected String assignToAttribute;
+    protected String targetEncounter;
+
+    public OnsetState clone() {
+<span class="fc" id="L621">      OnsetState clone = (OnsetState) super.clone();</span>
+<span class="fc" id="L622">      clone.codes = codes;</span>
+<span class="fc" id="L623">      clone.assignToAttribute = assignToAttribute;</span>
+<span class="fc" id="L624">      clone.targetEncounter = targetEncounter;</span>
+<span class="fc" id="L625">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc" id="L630">      HealthRecord.Encounter encounter = person.getCurrentEncounter(module);</span>
+
+<span class="fc bfc" id="L632" title="All 6 branches covered.">      if (targetEncounter == null || targetEncounter.trim().length() == 0</span>
+<span class="fc bfc" id="L633" title="All 2 branches covered.">          || (encounter != null &amp;&amp; targetEncounter.equals(encounter.name))) {</span>
+<span class="fc" id="L634">        diagnose(person, time);</span>
+<span class="pc bpc" id="L635" title="1 of 4 branches missed.">      } else if (assignToAttribute != null &amp;&amp; codes != null) {</span>
+        // create a temporary coded entry to use for reference in the attribute,
+        // which will be replaced if the thing is diagnosed
+<span class="fc" id="L638">        HealthRecord.Entry codedEntry = person.record.new Entry(time, codes.get(0).code);</span>
+<span class="fc" id="L639">        codedEntry.codes.addAll(codes);</span>
+
+<span class="fc" id="L641">        person.attributes.put(assignToAttribute, codedEntry);</span>
+      }
+<span class="fc" id="L643">      return true;</span>
+    }
+
+    public abstract void diagnose(Person person, long time);
+  }
+
+  /**
+   * The ConditionOnset state type indicates a point in the module where the patient acquires a
+   * condition. This is not necessarily the same as when the condition is diagnosed and recorded in
+   * the patient's record. In fact, it is possible for a condition to onset but never be discovered.
+   *
+   * &lt;p&gt;If the ConditionOnset state's target_encounter is set to the name of a future encounter,
+   * then the condition will only be diagnosed when that future encounter occurs.
+   */
+<span class="fc" id="L657">  public static class ConditionOnset extends OnsetState {</span>
+    @Override
+    public void diagnose(Person person, long time) {
+<span class="fc" id="L660">      String primaryCode = codes.get(0).code;</span>
+<span class="fc" id="L661">      entry = person.record.conditionStart(time, primaryCode);</span>
+<span class="fc" id="L662">      entry.name = this.name;</span>
+<span class="pc bpc" id="L663" title="1 of 2 branches missed.">      if (codes != null) {</span>
+<span class="fc" id="L664">        entry.codes.addAll(codes);</span>
+      }
+<span class="fc bfc" id="L666" title="All 2 branches covered.">      if (assignToAttribute != null) {</span>
+<span class="fc" id="L667">        person.attributes.put(assignToAttribute, entry);</span>
+      }
+
+<span class="fc" id="L670">      diagnosed = true;</span>
+<span class="fc" id="L671">    }</span>
+  }
+
+  /**
+   * The ConditionEnd state type indicates a point in the module where a currently active condition
+   * should be ended, for example if the patient has been cured of a disease.
+   *
+   * &lt;p&gt;The ConditionEnd state supports three ways of specifying the condition to end: By `codes[]`,
+   * specifying the system, code, and display name of the condition to end By `condition_onset`,
+   * specifying the name of the ConditionOnset state in which the condition was onset By
+   * `referenced_by_attribute`, specifying the name of the attribute to which a previous
+   * ConditionOnset state assigned a condition
+   */
+<span class="fc" id="L684">  public static class ConditionEnd extends State {</span>
+    private List&lt;Code&gt; codes;
+    private String conditionOnset;
+    private String referencedByAttribute;
+
+    @Override
+    public ConditionEnd clone() {
+<span class="fc" id="L691">      ConditionEnd clone = (ConditionEnd) super.clone();</span>
+<span class="fc" id="L692">      clone.codes = codes;</span>
+<span class="fc" id="L693">      clone.conditionOnset = conditionOnset;</span>
+<span class="fc" id="L694">      clone.referencedByAttribute = referencedByAttribute;</span>
+<span class="fc" id="L695">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc bfc" id="L700" title="All 2 branches covered.">      if (conditionOnset != null) {</span>
+<span class="fc" id="L701">        person.record.conditionEndByState(time, conditionOnset);</span>
+<span class="fc bfc" id="L702" title="All 2 branches covered.">      } else if (referencedByAttribute != null) {</span>
+<span class="fc" id="L703">        Entry condition = (Entry) person.attributes.get(referencedByAttribute);</span>
+<span class="fc" id="L704">        condition.stop = time;</span>
+<span class="fc" id="L705">        person.record.conditionEnd(time, condition.type);</span>
+<span class="pc bpc" id="L706" title="1 of 2 branches missed.">      } else if (codes != null) {</span>
+<span class="fc" id="L707">        codes.forEach(code -&gt; person.record.conditionEnd(time, code.code));</span>
+      }
+<span class="fc" id="L709">      return true;</span>
+    }
+  }
+
+  /**
+   * The AllergyOnset state type indicates a point in the module where the patient acquires an
+   * allergy. This is not necessarily the same as when the allergy is diagnosed and recorded in the
+   * patient's record. In fact, it is possible for an allergy to onset but never be discovered.
+   *
+   * &lt;p&gt;If the AllergyOnset state's target_encounter is set to the name of a future encounter,
+   * then the allergy will only be diagnosed when that future encounter occurs.
+   */
+<span class="fc" id="L721">  public static class AllergyOnset extends OnsetState {</span>
+    @Override
+    public void diagnose(Person person, long time) {
+<span class="fc" id="L724">      String primaryCode = codes.get(0).code;</span>
+<span class="fc" id="L725">      entry = person.record.allergyStart(time, primaryCode);</span>
+<span class="fc" id="L726">      entry.name = this.name;</span>
+<span class="fc" id="L727">      entry.codes.addAll(codes);</span>
+
+<span class="fc bfc" id="L729" title="All 2 branches covered.">      if (assignToAttribute != null) {</span>
+<span class="fc" id="L730">        person.attributes.put(assignToAttribute, entry);</span>
+      }
+
+<span class="fc" id="L733">      diagnosed = true;</span>
+<span class="fc" id="L734">    }</span>
+  }
+
+  /**
+   * The AllergyEnd state type indicates a point in the module where a currently active allergy
+   * should be ended, for example if the patient's allergy subsides with time.
+   *
+   * &lt;p&gt;The AllergyEnd state supports three ways of specifying the allergy to end: By `codes[]`,
+   * specifying the system, code, and display name of the allergy to end By `allergy_onset`,
+   * specifying the name of the AllergyOnset state in which the allergy was onset By
+   * `referenced_by_attribute`, specifying the name of the attribute to which a previous
+   * AllergyOnset state assigned a condition
+   *
+   */
+<span class="fc" id="L748">  public static class AllergyEnd extends State {</span>
+    private List&lt;Code&gt; codes;
+
+    private String allergyOnset;
+    private String referencedByAttribute;
+
+    @Override
+    public AllergyEnd clone() {
+<span class="fc" id="L756">      AllergyEnd clone = (AllergyEnd) super.clone();</span>
+<span class="fc" id="L757">      clone.codes = codes;</span>
+<span class="fc" id="L758">      clone.allergyOnset = allergyOnset;</span>
+<span class="fc" id="L759">      clone.referencedByAttribute = referencedByAttribute;</span>
+<span class="fc" id="L760">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="pc bpc" id="L765" title="1 of 2 branches missed.">      if (allergyOnset != null) {</span>
+<span class="fc" id="L766">        person.record.allergyEndByState(time, allergyOnset);</span>
+<span class="nc bnc" id="L767" title="All 2 branches missed.">      } else if (referencedByAttribute != null) {</span>
+<span class="nc" id="L768">        Entry allergy = (Entry) person.attributes.get(referencedByAttribute);</span>
+<span class="nc" id="L769">        allergy.stop = time;</span>
+<span class="nc" id="L770">        person.record.allergyEnd(time, allergy.type);</span>
+<span class="nc bnc" id="L771" title="All 2 branches missed.">      } else if (codes != null) {</span>
+<span class="nc" id="L772">        codes.forEach(code -&gt; person.record.conditionEnd(time, code.code));</span>
+      }
+<span class="fc" id="L774">      return true;</span>
+    }
+  }
+
+  /**
+   * The MedicationOrder state type indicates a point in the module where a medication is
+   * prescribed. MedicationOrder states may only be processed during an Encounter, and so must occur
+   * after the target Encounter state and before the EncounterEnd. See the Encounter section above
+   * for more details. The MedicationOrder state supports identifying a previous ConditionOnset or
+   * the name of an attribute as the reason for the prescription.
+   */
+<span class="fc" id="L785">  public static class MedicationOrder extends State {</span>
+    private List&lt;Code&gt; codes;
+    private String reason;
+    private JsonObject prescription; // TODO make this a Component
+    private String assignToAttribute;
+
+    @Override
+    public MedicationOrder clone() {
+<span class="fc" id="L793">      MedicationOrder clone = (MedicationOrder) super.clone();</span>
+<span class="fc" id="L794">      clone.codes = codes;</span>
+<span class="fc" id="L795">      clone.reason = reason;</span>
+<span class="fc" id="L796">      clone.prescription = prescription;</span>
+<span class="fc" id="L797">      clone.assignToAttribute = assignToAttribute;</span>
+<span class="fc" id="L798">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc" id="L803">      String primaryCode = codes.get(0).code;</span>
+<span class="fc" id="L804">      Medication medication = person.record.medicationStart(time, primaryCode);</span>
+<span class="fc" id="L805">      entry = medication;</span>
+<span class="fc" id="L806">      medication.name = this.name;</span>
+<span class="fc" id="L807">      medication.codes.addAll(codes);</span>
+
+<span class="fc bfc" id="L809" title="All 2 branches covered.">      if (reason != null) {</span>
+        // &quot;reason&quot; is an attribute or stateName referencing a previous conditionOnset state
+<span class="fc bfc" id="L811" title="All 2 branches covered.">        if (person.attributes.containsKey(reason)) {</span>
+<span class="fc" id="L812">          Entry condition = (Entry) person.attributes.get(reason);</span>
+<span class="fc" id="L813">          medication.reasons.addAll(condition.codes);</span>
+<span class="fc bfc" id="L814" title="All 2 branches covered.">        } else if (person.hadPriorState(reason)) {</span>
+          // loop through the present conditions, the condition &quot;name&quot; will match
+          // the name of the ConditionOnset state (aka &quot;reason&quot;)
+<span class="fc bfc" id="L817" title="All 2 branches covered.">          for (Entry entry : person.record.present.values()) {</span>
+<span class="fc bfc" id="L818" title="All 2 branches covered.">            if (reason.equals(entry.name)) {</span>
+<span class="fc" id="L819">              medication.reasons.addAll(entry.codes);</span>
+            }
+<span class="fc" id="L821">          }</span>
+        }
+      }
+
+<span class="fc" id="L825">      medication.prescriptionDetails = prescription;</span>
+
+<span class="fc bfc" id="L827" title="All 2 branches covered.">      if (assignToAttribute != null) {</span>
+<span class="fc" id="L828">        person.attributes.put(assignToAttribute, medication);</span>
+      }
+      // increment number of prescriptions prescribed by respective hospital
+<span class="fc" id="L831">      Provider medicationProvider = person.getCurrentProvider(module.name);</span>
+<span class="fc bfc" id="L832" title="All 2 branches covered.">      if (medicationProvider == null) {</span>
+        // no provider associated with encounter or medication order
+<span class="fc" id="L834">        medicationProvider = person.getProvider(EncounterType.AMBULATORY, time);</span>
+      }
+
+<span class="fc" id="L837">      int year = Utilities.getYear(time);</span>
+<span class="fc" id="L838">      medicationProvider.incrementPrescriptions(year);</span>
+<span class="fc" id="L839">      return true;</span>
+    }
+  }
+
+  /**
+   * The MedicationEnd state type indicates a point in the module where a currently prescribed
+   * medication should be ended.
+   *
+   * &lt;p&gt;The MedicationEnd state supports three ways of specifying the medication to end:
+   * By `codes[]`, specifying the code system, code, and display name of the medication to end By
+   * `medication_order`, specifying the name of the MedicationOrder state in which the medication
+   * was prescribed By `referenced_by_attribute`, specifying the name of the attribute to which a
+   * previous MedicationOrder state assigned a medication
+   */
+<span class="fc" id="L853">  public static class MedicationEnd extends State {</span>
+    private List&lt;Code&gt; codes;
+    private String medicationOrder;
+    private String referencedByAttribute;
+
+    // note that this code has some child codes for various different reasons,
+    // ex &quot;medical aim achieved&quot;, &quot;ineffective&quot;, &quot;avoid interaction&quot;, &quot;side effect&quot;, etc
+<span class="fc" id="L860">    private static final Code EXPIRED = new Code(&quot;SNOMED-CT&quot;, &quot;182840001&quot;,</span>
+        &quot;Drug treatment stopped - medical advice&quot;);
+
+    @Override
+    public MedicationEnd clone() {
+<span class="fc" id="L865">      MedicationEnd clone = (MedicationEnd) super.clone();</span>
+<span class="fc" id="L866">      clone.codes = codes;</span>
+<span class="fc" id="L867">      clone.medicationOrder = medicationOrder;</span>
+<span class="fc" id="L868">      clone.referencedByAttribute = referencedByAttribute;</span>
+<span class="fc" id="L869">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc bfc" id="L874" title="All 2 branches covered.">      if (medicationOrder != null) {</span>
+<span class="fc" id="L875">        person.record.medicationEndByState(time, medicationOrder, EXPIRED);</span>
+<span class="fc bfc" id="L876" title="All 2 branches covered.">      } else if (referencedByAttribute != null) {</span>
+<span class="fc" id="L877">        Medication medication = (Medication) person.attributes.get(referencedByAttribute);</span>
+<span class="fc" id="L878">        medication.stop = time;</span>
+<span class="fc" id="L879">        person.record.medicationEnd(time, medication.type, EXPIRED);</span>
+<span class="fc bfc" id="L880" title="All 2 branches covered.">      } else if (codes != null) {</span>
+<span class="fc" id="L881">        codes.forEach(code -&gt; person.record.medicationEnd(time, code.code, EXPIRED));</span>
+      }
+<span class="fc" id="L883">      return true;</span>
+    }
+  }
+
+  /**
+   * The CarePlanStart state type indicates a point in the module where a care plan should be
+   * prescribed. CarePlanStart states may only be processed during an Encounter, and so must occur
+   * after the target Encounter state and before the EncounterEnd. See the Encounter section above
+   * for more details. One or more codes describes the care plan and a list of activities describes
+   * what the care plan entails.
+   */
+<span class="fc" id="L894">  public static class CarePlanStart extends State {</span>
+    private List&lt;Code&gt; codes;
+    private List&lt;Code&gt; activities;
+    private List&lt;JsonObject&gt; goals; // TODO: make this a Component
+    private String reason;
+    private String assignToAttribute;
+
+    @Override
+    public CarePlanStart clone() {
+<span class="fc" id="L903">      CarePlanStart clone = (CarePlanStart) super.clone();</span>
+<span class="fc" id="L904">      clone.codes = codes;</span>
+<span class="fc" id="L905">      clone.activities = activities;</span>
+<span class="fc" id="L906">      clone.goals = goals;</span>
+<span class="fc" id="L907">      clone.reason = reason;</span>
+<span class="fc" id="L908">      clone.assignToAttribute = assignToAttribute;</span>
+<span class="fc" id="L909">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc" id="L914">      String primaryCode = codes.get(0).code;</span>
+<span class="fc" id="L915">      CarePlan careplan = person.record.careplanStart(time, primaryCode);</span>
+<span class="fc" id="L916">      entry = careplan;</span>
+<span class="fc" id="L917">      careplan.name = this.name;</span>
+<span class="fc" id="L918">      careplan.codes.addAll(codes);</span>
+
+<span class="pc bpc" id="L920" title="1 of 2 branches missed.">      if (activities != null) {</span>
+<span class="fc" id="L921">        careplan.activities.addAll(activities);</span>
+      }
+<span class="fc bfc" id="L923" title="All 2 branches covered.">      if (goals != null) {</span>
+<span class="fc" id="L924">        careplan.goals.addAll(goals);</span>
+      }
+<span class="fc bfc" id="L926" title="All 2 branches covered.">      if (reason != null) {</span>
+        // &quot;reason&quot; is an attribute or stateName referencing a previous conditionOnset state
+<span class="fc bfc" id="L928" title="All 2 branches covered.">        if (person.attributes.containsKey(reason)) {</span>
+<span class="fc" id="L929">          Entry condition = (Entry) person.attributes.get(reason);</span>
+<span class="fc" id="L930">          careplan.reasons.addAll(condition.codes);</span>
+<span class="fc bfc" id="L931" title="All 2 branches covered.">        } else if (person.hadPriorState(reason)) {</span>
+          // loop through the present conditions, the condition &quot;name&quot; will match
+          // the name of the ConditionOnset state (aka &quot;reason&quot;)
+<span class="fc bfc" id="L934" title="All 2 branches covered.">          for (Entry entry : person.record.present.values()) {</span>
+<span class="fc bfc" id="L935" title="All 2 branches covered.">            if (reason.equals(entry.name)) {</span>
+<span class="fc" id="L936">              careplan.reasons.addAll(entry.codes);</span>
+            }
+<span class="fc" id="L938">          }</span>
+        }
+      }
+<span class="fc bfc" id="L941" title="All 2 branches covered.">      if (assignToAttribute != null) {</span>
+<span class="fc" id="L942">        person.attributes.put(assignToAttribute, careplan);</span>
+      }
+<span class="fc" id="L944">      return true;</span>
+    }
+  }
+
+  /**
+   * The CarePlanEnd state type indicates a point in the module where a currently prescribed care
+   * plan should be ended. The CarePlanEnd state supports three ways of specifying the care plan to
+   * end: By `codes[]`, specifying the code system, code, and display name of the care plan to end
+   * By `careplan`, specifying the name of the CarePlanStart state in which the care plan was
+   * prescribed By `referenced_by_attribute`, specifying the name of the attribute to which a
+   * previous CarePlanStart state assigned a care plan
+   */
+<span class="fc" id="L956">  public static class CarePlanEnd extends State {</span>
+    private List&lt;Code&gt; codes;
+    private String careplan;
+    private String referencedByAttribute;
+
+<span class="fc" id="L961">    private static final Code FINISHED = new Code(&quot;SNOMED-CT&quot;, &quot;385658003&quot;, &quot;Done&quot;);</span>
+
+    @Override
+    public CarePlanEnd clone() {
+<span class="fc" id="L965">      CarePlanEnd clone = (CarePlanEnd) super.clone();</span>
+<span class="fc" id="L966">      clone.codes = codes;</span>
+<span class="fc" id="L967">      clone.careplan = careplan;</span>
+<span class="fc" id="L968">      clone.referencedByAttribute = referencedByAttribute;</span>
+<span class="fc" id="L969">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc bfc" id="L974" title="All 2 branches covered.">      if (careplan != null) {</span>
+<span class="fc" id="L975">        person.record.careplanEndByState(time, careplan, FINISHED);</span>
+<span class="fc bfc" id="L976" title="All 2 branches covered.">      } else if (referencedByAttribute != null) {</span>
+<span class="fc" id="L977">        CarePlan careplan = (CarePlan) person.attributes.get(referencedByAttribute);</span>
+<span class="fc" id="L978">        careplan.stop = time;</span>
+<span class="fc" id="L979">        person.record.careplanEnd(time, careplan.type, FINISHED);</span>
+<span class="pc bpc" id="L980" title="1 of 2 branches missed.">      } else if (codes != null) {</span>
+<span class="fc" id="L981">        codes.forEach(code -&gt; person.record.careplanEnd(time, code.code, FINISHED));</span>
+      }
+<span class="fc" id="L983">      return true;</span>
+    }
+  }
+
+  /**
+   * The Procedure state type indicates a point in the module where a procedure should be performed.
+   * Procedure states may only be processed during an Encounter, and so must occur after the target
+   * Encounter state and before the EncounterEnd. See the Encounter section above for more details.
+   * Optionally, you may define a duration of time that the procedure takes. The Procedure also
+   * supports identifying a previous ConditionOnset or an attribute as the reason for the procedure.
+   */
+<span class="fc" id="L994">  public static class Procedure extends State {</span>
+    private List&lt;Code&gt; codes;
+    private String reason;
+    private RangeWithUnit&lt;Long&gt; duration;
+    private String assignToAttribute;
+
+    @Override
+    public Procedure clone() {
+<span class="fc" id="L1002">      Procedure clone = (Procedure) super.clone();</span>
+<span class="fc" id="L1003">      clone.codes = codes;</span>
+<span class="fc" id="L1004">      clone.reason = reason;</span>
+<span class="fc" id="L1005">      clone.duration = duration;</span>
+<span class="fc" id="L1006">      clone.assignToAttribute = assignToAttribute;</span>
+<span class="fc" id="L1007">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc" id="L1012">      String primaryCode = codes.get(0).code;</span>
+<span class="fc" id="L1013">      HealthRecord.Procedure procedure = person.record.procedure(time, primaryCode);</span>
+<span class="fc" id="L1014">      entry = procedure;</span>
+<span class="fc" id="L1015">      procedure.name = this.name;</span>
+<span class="fc" id="L1016">      procedure.codes.addAll(codes);</span>
+
+<span class="fc bfc" id="L1018" title="All 2 branches covered.">      if (reason != null) {</span>
+        // &quot;reason&quot; is an attribute or stateName referencing a previous conditionOnset state
+<span class="fc bfc" id="L1020" title="All 2 branches covered.">        if (person.attributes.containsKey(reason)) {</span>
+<span class="fc" id="L1021">          Entry condition = (Entry) person.attributes.get(reason);</span>
+<span class="fc" id="L1022">          procedure.reasons.addAll(condition.codes);</span>
+<span class="pc bpc" id="L1023" title="1 of 2 branches missed.">        } else if (person.hadPriorState(reason)) {</span>
+          // loop through the present conditions, the condition &quot;name&quot; will match
+          // the name of the ConditionOnset state (aka &quot;reason&quot;)
+<span class="fc bfc" id="L1026" title="All 2 branches covered.">          for (Entry entry : person.record.present.values()) {</span>
+<span class="fc bfc" id="L1027" title="All 2 branches covered.">            if (reason.equals(entry.name)) {</span>
+<span class="fc" id="L1028">              procedure.reasons.addAll(entry.codes);</span>
+            }
+<span class="fc" id="L1030">          }</span>
+        }
+      }
+<span class="fc bfc" id="L1033" title="All 2 branches covered.">      if (duration != null) {</span>
+<span class="fc" id="L1034">        double durationVal = person.rand(duration.low, duration.high);</span>
+<span class="fc" id="L1035">        procedure.stop = procedure.start + Utilities.convertTime(duration.unit, (long) durationVal);</span>
+      }
+      // increment number of procedures by respective hospital
+      Provider provider;
+<span class="fc bfc" id="L1039" title="All 2 branches covered.">      if (person.getCurrentProvider(module.name) != null) {</span>
+<span class="fc" id="L1040">        provider = person.getCurrentProvider(module.name);</span>
+      } else { // no provider associated with encounter or procedure
+<span class="fc" id="L1042">        provider = person.getProvider(EncounterType.AMBULATORY, time);</span>
+      }
+<span class="fc" id="L1044">      int year = Utilities.getYear(time);</span>
+<span class="fc" id="L1045">      provider.incrementProcedures(year);</span>
+
+<span class="fc bfc" id="L1047" title="All 2 branches covered.">      if (assignToAttribute != null) {</span>
+<span class="fc" id="L1048">        person.attributes.put(assignToAttribute, procedure);</span>
+      }
+
+<span class="fc" id="L1051">      return true;</span>
+    }
+  }
+
+  /**
+   * The VitalSign state type indicates a point in the module where a patient's vital sign is set.
+   * Vital Signs represent the actual physical state of the patient, in contrast to Observations
+   * which are the recording of that physical state.
+   *
+   * &lt;p&gt;Usage Notes In general, the Vital Sign should be used if the value directly affects the
+   * patient's physical condition. For example, high blood pressure directly increases the risk of
+   * heart attack so any conditional logic that would trigger a heart attack should reference a
+   * Vital Sign instead of an Observation. ' On the other hand, if the value only affects the
+   * patient's care, using just an Observation would be more appropriate. For example, it is the
+   * observation of MMSE that can lead to a diagnosis of Alzheimer's; MMSE is an observed value and
+   * not a physical metric, so it should not be stored in a VitalSign.
+   */
+<span class="fc" id="L1068">  public static class VitalSign extends State {</span>
+    private org.mitre.synthea.world.concepts.VitalSign vitalSign;
+    private String unit;
+    private Range&lt;Double&gt; range;
+    private Exact&lt;Double&gt; exact;
+
+    @Override
+    public VitalSign clone() {
+<span class="fc" id="L1076">      VitalSign clone = (VitalSign) super.clone();</span>
+<span class="fc" id="L1077">      clone.range = range;</span>
+<span class="fc" id="L1078">      clone.exact = exact;</span>
+<span class="fc" id="L1079">      clone.vitalSign = vitalSign;</span>
+<span class="fc" id="L1080">      clone.unit = unit;</span>
+<span class="fc" id="L1081">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc bfc" id="L1086" title="All 2 branches covered.">      if (exact != null) {</span>
+<span class="fc" id="L1087">        person.setVitalSign(vitalSign, new ConstantValueGenerator(person, exact.quantity));</span>
+<span class="pc bpc" id="L1088" title="1 of 2 branches missed.">      } else if (range != null) {</span>
+<span class="fc" id="L1089">        person.setVitalSign(vitalSign, new RandomValueGenerator(person, range.low, range.high));</span>
+      } else {
+<span class="nc" id="L1091">        throw new RuntimeException(</span>
+            &quot;VitalSign state has no exact quantity or low/high range: &quot; + this);
+      }
+
+<span class="fc" id="L1095">      return true;</span>
+    }
+  }
+
+  /**
+   * The Observation state type indicates a point in the module where an observation is recorded.
+   * Observations include clinical findings, vital signs, lab tests, etc. Observation states may
+   * only be processed during an Encounter, and so must occur after the target Encounter state and
+   * before the EncounterEnd. See the Encounter section above for more details.
+   *
+   * &lt;p&gt;Observation Categories Common observation categories include: &quot;vital-signs&quot; :
+   * Clinical observations measure the body's basic functions such as such as blood pressure, heart
+   * rate, respiratory rate, height, weight, body mass index, head circumference, pulse oximetry,
+   * temperature, and body surface area.
+   *
+   * &lt;p&gt;&quot;procedure&quot; : Observations generated by other procedures. This category includes
+   * observations resulting from interventional and non-interventional procedures excluding lab and
+   * imaging (e.g. cardiology catheterization, endoscopy, electrodiagnostics, etc.). Procedure
+   * results are typically generated by a clinician to provide more granular information about
+   * component observations made during a procedure, such as where a gastroenterologist reports the
+   * size of a polyp observed during a colonoscopy.
+   *
+   * &lt;p&gt;&quot;laboratory&quot; : The results of observations generated by laboratories. Laboratory results are
+   * typically generated by laboratories providing analytic services in areas such as chemistry,
+   * hematology, serology, histology, cytology, anatomic pathology, microbiology, and/or virology.
+   * These observations are based on analysis of specimens obtained from the patient and submitted
+   * to the laboratory.
+   *
+   * &lt;p&gt;&quot;exam&quot; : Observations generated by physical exam findings including direct observations made
+   * by a clinician and use of simple instruments and the result of simple maneuvers performed
+   * directly on the patient's body.
+   *
+   * &lt;p&gt;&quot;social-history&quot; : The Social History Observations define the patient's occupational,
+   * personal (e.g. lifestyle), social, and environmental history and health risk factors, as well
+   * as administrative data such as marital status, race, ethnicity and religious affiliation.
+   */
+<span class="fc" id="L1131">  public static class Observation extends State {</span>
+    private List&lt;Code&gt; codes;
+    private Range&lt;Double&gt; range;
+    private Exact&lt;Object&gt; exact;
+    private Code valueCode;
+    private String attribute;
+    private org.mitre.synthea.world.concepts.VitalSign vitalSign;
+    private String category;
+    private String unit;
+
+    @Override
+    public Observation clone() {
+<span class="fc" id="L1143">      Observation clone = (Observation) super.clone();</span>
+<span class="fc" id="L1144">      clone.codes = codes;</span>
+<span class="fc" id="L1145">      clone.range = range;</span>
+<span class="fc" id="L1146">      clone.exact = exact;</span>
+<span class="fc" id="L1147">      clone.valueCode = valueCode;</span>
+<span class="fc" id="L1148">      clone.attribute = attribute;</span>
+<span class="fc" id="L1149">      clone.vitalSign = vitalSign;</span>
+<span class="fc" id="L1150">      clone.category = category;</span>
+<span class="fc" id="L1151">      clone.unit = unit;</span>
+<span class="fc" id="L1152">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc" id="L1157">      String primaryCode = codes.get(0).code;</span>
+<span class="fc" id="L1158">      Object value = null;</span>
+<span class="fc bfc" id="L1159" title="All 2 branches covered.">      if (exact != null) {</span>
+<span class="fc" id="L1160">        value = exact.quantity;</span>
+<span class="fc bfc" id="L1161" title="All 2 branches covered.">      } else if (range != null) {</span>
+<span class="fc" id="L1162">        value = person.rand(range.low, range.high);</span>
+<span class="fc bfc" id="L1163" title="All 2 branches covered.">      } else if (attribute != null) {</span>
+<span class="fc" id="L1164">        value = person.attributes.get(attribute);</span>
+<span class="fc bfc" id="L1165" title="All 2 branches covered.">      } else if (vitalSign != null) {</span>
+<span class="fc" id="L1166">        value = person.getVitalSign(vitalSign, time);</span>
+<span class="pc bpc" id="L1167" title="1 of 2 branches missed.">      } else if (valueCode != null) {</span>
+<span class="fc" id="L1168">        value = valueCode;</span>
+      }
+<span class="fc" id="L1170">      HealthRecord.Observation observation = person.record.observation(time, primaryCode, value);</span>
+<span class="fc" id="L1171">      entry = observation;</span>
+<span class="fc" id="L1172">      observation.name = this.name;</span>
+<span class="fc" id="L1173">      observation.codes.addAll(codes);</span>
+<span class="fc" id="L1174">      observation.category = category;</span>
+<span class="fc" id="L1175">      observation.unit = unit;</span>
+
+<span class="fc" id="L1177">      return true;</span>
+    }
+  }
+
+  /**
+   * ObservationGroup is an internal parent class to provide common logic to state types that
+   * package multiple observations into a single entity. It is an implementation detail and should
+   * not be referenced by JSON modules directly.
+   */
+  private abstract static class ObservationGroup extends State {
+    protected List&lt;Code&gt; codes;
+    protected List&lt;Observation&gt; observations;
+
+    public ObservationGroup clone() {
+<span class="fc" id="L1191">      ObservationGroup clone = (ObservationGroup) super.clone();</span>
+<span class="fc" id="L1192">      clone.codes = codes;</span>
+<span class="fc" id="L1193">      clone.observations = observations;</span>
+<span class="fc" id="L1194">      return clone;</span>
+    }
+  }
+
+  /**
+   * The MultiObservation state indicates that some number of Observations should be
+   * grouped together as a single observation. This can be necessary when one observation records
+   * multiple values, for example in the case of Blood Pressure, which is really 2 values, Systolic
+   * and Diastolic Blood Pressure.  MultiObservation states may only be processed
+   * during an Encounter, and so must occur after the target Encounter state and before the
+   * EncounterEnd. See the Encounter section above for more details.
+   */
+<span class="fc" id="L1206">  public static class MultiObservation extends ObservationGroup {</span>
+    private String category;
+
+    @Override
+    public MultiObservation clone() {
+<span class="fc" id="L1211">      MultiObservation clone = (MultiObservation) super.clone();</span>
+<span class="fc" id="L1212">      clone.category = category;</span>
+<span class="fc" id="L1213">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc bfc" id="L1218" title="All 2 branches covered.">      for (Observation o : observations) {</span>
+<span class="fc" id="L1219">        o.process(person, time);</span>
+<span class="fc" id="L1220">      }</span>
+<span class="fc" id="L1221">      String primaryCode = codes.get(0).code;</span>
+<span class="fc" id="L1222">      HealthRecord.Observation observation =</span>
+<span class="fc" id="L1223">          person.record.multiObservation(time, primaryCode, observations.size());</span>
+<span class="fc" id="L1224">      entry = observation;</span>
+<span class="fc" id="L1225">      observation.name = this.name;</span>
+<span class="fc" id="L1226">      observation.codes.addAll(codes);</span>
+<span class="fc" id="L1227">      observation.category = category;</span>
+
+<span class="fc" id="L1229">      return true;</span>
+    }
+  }
+
+  /**
+   * The DiagnosticReport state indicates that some number of Observations should be
+   * grouped together within a single Diagnostic Report. This can be used when multiple observations
+   * are part of a single panel. DiagnosticReport states may only be processed during an Encounter,
+   * and so must occur after the target Encounter state and before the EncounterEnd. See the
+   * Encounter section above for more details.
+   */
+<span class="fc" id="L1240">  public static class DiagnosticReport extends ObservationGroup {</span>
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc bfc" id="L1243" title="All 2 branches covered.">      for (Observation o : observations) {</span>
+<span class="fc" id="L1244">        o.process(person, time);</span>
+<span class="fc" id="L1245">      }</span>
+<span class="fc" id="L1246">      String primaryCode = codes.get(0).code;</span>
+<span class="fc" id="L1247">      Report report = person.record.report(time, primaryCode, observations.size());</span>
+<span class="fc" id="L1248">      entry = report;</span>
+<span class="fc" id="L1249">      report.name = this.name;</span>
+<span class="fc" id="L1250">      report.codes.addAll(codes);</span>
+
+      // increment number of labs by respective provider
+      Provider provider;
+<span class="fc bfc" id="L1254" title="All 2 branches covered.">      if (person.getCurrentProvider(module.name) != null) {</span>
+<span class="fc" id="L1255">        provider = person.getCurrentProvider(module.name);</span>
+      } else { // no provider associated with encounter or procedure
+<span class="fc" id="L1257">        provider = person.getProvider(EncounterType.AMBULATORY, time);</span>
+      }
+<span class="fc" id="L1259">      int year = Utilities.getYear(time);</span>
+<span class="fc" id="L1260">      provider.incrementLabs(year);</span>
+
+<span class="fc" id="L1262">      return true;</span>
+    }
+  }
+
+  /**
+   * The ImagingStudy state indicates a point in the module when an imaging study was performed.
+   * An ImagingStudy consists of one or more Studies, where each Study contains one or more
+   * Instances of an image. ImagingStudy states may only be processed during an Encounter,
+   * and must occur after the target Encounter state and before the EncounterEnd. See the
+   * Encounter section above for more details.
+   */
+<span class="fc" id="L1273">  public static class ImagingStudy extends State {</span>
+    /** The equivalent SNOMED codes that describe this ImagingStudy as a Procedure. */
+    private Code procedureCode;
+    /** The Series of Instances that represent this ImagingStudy. */
+    private List&lt;HealthRecord.ImagingStudy.Series&gt; series;
+
+    @Override
+    public ImagingStudy clone() {
+<span class="fc" id="L1281">      ImagingStudy clone = (ImagingStudy) super.clone();</span>
+<span class="fc" id="L1282">      clone.procedureCode = procedureCode;</span>
+<span class="fc" id="L1283">      clone.series = series;</span>
+<span class="fc" id="L1284">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+      // The modality code of the first series is a good approximation
+      // of the type of ImagingStudy this is
+<span class="fc" id="L1291">      String primaryModality = series.get(0).modality.code;</span>
+<span class="fc" id="L1292">      entry = person.record.imagingStudy(time, primaryModality, series);</span>
+
+      // Also add the Procedure equivalent of this ImagingStudy to the patient's record
+<span class="fc" id="L1295">      String primaryProcedureCode = procedureCode.code;</span>
+<span class="fc" id="L1296">      HealthRecord.Procedure procedure = person.record.procedure(time, primaryProcedureCode);</span>
+<span class="fc" id="L1297">      procedure.name = this.name;</span>
+<span class="fc" id="L1298">      procedure.codes.add(procedureCode);</span>
+<span class="fc" id="L1299">      procedure.stop = procedure.start + TimeUnit.MINUTES.toMillis(30);</span>
+<span class="fc" id="L1300">      return true;</span>
+    }
+  }
+
+  /**
+   * The Symptom state type adds or updates a patient's symptom. Synthea tracks symptoms in order to
+   * drive a patient's encounters, on a scale of 1-100. A symptom may be tracked for multiple
+   * conditions, in these cases only the highest value is considered. See also the Symptom logical
+   * condition type.
+   */
+<span class="fc" id="L1310">  public static class Symptom extends State {</span>
+    private String symptom;
+    private String cause;
+    private Double probability;
+    private Range&lt;Integer&gt; range;
+    private Exact&lt;Integer&gt; exact;
+    public boolean addressed;
+
+    @Override
+    protected void initialize(Module module, String name, JsonObject definition) {
+<span class="fc" id="L1320">      super.initialize(module, name, definition);</span>
+<span class="fc bfc" id="L1321" title="All 2 branches covered.">      if (cause == null) {</span>
+<span class="fc" id="L1322">        cause = module.name;</span>
+      }
+<span class="pc bpc" id="L1324" title="2 of 6 branches missed.">      if (probability == null || probability &gt; 1 || probability &lt; 0) {</span>
+<span class="fc" id="L1325">        probability = 1.0;</span>
+      }
+<span class="fc" id="L1327">      addressed = false;</span>
+<span class="fc" id="L1328">    }</span>
+
+    @Override
+    public Symptom clone() {
+<span class="fc" id="L1332">      Symptom clone = (Symptom) super.clone();</span>
+<span class="fc" id="L1333">      clone.symptom = symptom;</span>
+<span class="fc" id="L1334">      clone.cause = cause;</span>
+<span class="fc" id="L1335">      clone.probability = probability;</span>
+<span class="fc" id="L1336">      clone.range = range;</span>
+<span class="fc" id="L1337">      clone.exact = exact;</span>
+<span class="fc" id="L1338">      clone.addressed = addressed;</span>
+<span class="fc" id="L1339">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc bfc" id="L1344" title="All 2 branches covered.">      if (person.rand() &lt;= probability) {</span>
+<span class="fc bfc" id="L1345" title="All 2 branches covered.">        if (exact != null) {</span>
+<span class="fc" id="L1346">          person.setSymptom(cause, symptom, exact.quantity, addressed);</span>
+<span class="pc bpc" id="L1347" title="1 of 2 branches missed.">        } else if (range != null) {</span>
+<span class="fc" id="L1348">          person.setSymptom(cause, symptom, (int) person.rand(range.low, range.high), addressed);</span>
+        } else {
+<span class="nc" id="L1350">          person.setSymptom(cause, symptom, 0, addressed);</span>
+        }
+      }
+<span class="fc" id="L1353">      return true;</span>
+    }
+  }
+
+  /**
+   * The Death state type indicates a point in the module at which the patient dies or the patient
+   * is given a terminal diagnosis (e.g. &quot;you have 3 months to live&quot;). When the Death state is
+   * processed, the patient's death is immediately recorded (the alive? method will return false)
+   * unless range or exact attributes are specified, in which case the patient will die sometime in
+   * the future. In either case the module will continue to progress to the next state(s) for the
+   * current time-step. Typically, the Death state should transition to a Terminal state.
+   *
+   * &lt;p&gt;The Cause of Death listed on a Death Certificate can be specified in three ways:
+   * By `codes[]`, specifying the system, code, and display name of the condition causing death.
+   * By `condition_onset`, specifying the name of the ConditionOnset state in which the condition
+   * causing death was onset. By `referenced_by_attribute`, specifying the name of the attribute to
+   * which a previous ConditionOnset state assigned a condition that caused death.
+   *
+   * &lt;p&gt;Implementation Warning If a Death state is processed after a Delay, it may cause
+   * inconsistencies in the record. This is because the Delay implementation must rewind time to
+   * correctly honor the requested delay duration. If it rewinds time, and then the patient dies at
+   * the rewinded time, then any modules that were processed before the generic module may have
+   * created events and records with a timestamp after the patient's death.
+   */
+<span class="fc" id="L1377">  public static class Death extends State {</span>
+    private List&lt;Code&gt; codes;
+    private String conditionOnset;
+    private String referencedByAttribute;
+    private RangeWithUnit&lt;Integer&gt; range;
+    private ExactWithUnit&lt;Integer&gt; exact;
+
+    @Override
+    public Death clone() {
+<span class="fc" id="L1386">      Death clone = (Death) super.clone();</span>
+<span class="fc" id="L1387">      clone.codes = codes;</span>
+<span class="fc" id="L1388">      clone.conditionOnset = conditionOnset;</span>
+<span class="fc" id="L1389">      clone.referencedByAttribute = referencedByAttribute;</span>
+<span class="fc" id="L1390">      clone.range = range;</span>
+<span class="fc" id="L1391">      clone.exact = exact;</span>
+<span class="fc" id="L1392">      return clone;</span>
+    }
+
+    @Override
+    public boolean process(Person person, long time) {
+<span class="fc" id="L1397">      Code reason = null;</span>
+<span class="fc bfc" id="L1398" title="All 2 branches covered.">      if (codes != null) {</span>
+<span class="fc" id="L1399">        reason = codes.get(0);</span>
+<span class="fc bfc" id="L1400" title="All 2 branches covered.">      } else if (conditionOnset != null) {</span>
+<span class="pc bpc" id="L1401" title="1 of 2 branches missed.">        if (person.hadPriorState(conditionOnset)) {</span>
+          // loop through the present conditions, the condition &quot;name&quot; will match
+          // the name of the ConditionOnset state (aka &quot;reason&quot;)
+<span class="fc bfc" id="L1404" title="All 2 branches covered.">          for (Entry entry : person.record.present.values()) {</span>
+<span class="fc bfc" id="L1405" title="All 4 branches covered.">            if (entry.name != null &amp;&amp; entry.name.equals(conditionOnset)) {</span>
+<span class="fc" id="L1406">              reason = entry.codes.get(0);</span>
+            }
+<span class="fc" id="L1408">          }</span>
+        }
+<span class="fc bfc" id="L1410" title="All 2 branches covered.">      } else if (referencedByAttribute != null) {</span>
+<span class="fc" id="L1411">        Entry entry = (Entry) person.attributes.get(referencedByAttribute);</span>
+<span class="pc bpc" id="L1412" title="1 of 2 branches missed.">        if (entry == null) {</span>
+          // condition referenced but not yet diagnosed
+<span class="nc" id="L1414">          throw new RuntimeException(&quot;Attribute '&quot; + referencedByAttribute</span>
+              + &quot;' was referenced by state '&quot; + name + &quot;' but not set&quot;);
+        }
+<span class="fc" id="L1417">        reason = entry.codes.get(0);</span>
+      }
+<span class="fc" id="L1419">      String rule = String.format(&quot;%s %s&quot;, module, name);</span>
+<span class="fc bfc" id="L1420" title="All 2 branches covered.">      if (reason != null) {</span>
+<span class="fc" id="L1421">        rule = String.format(&quot;%s %s&quot;, rule, reason.display);</span>
+      }
+<span class="fc bfc" id="L1423" title="All 2 branches covered.">      if (exact != null) {</span>
+<span class="fc" id="L1424">        long timeOfDeath = time + Utilities.convertTime(exact.unit, exact.quantity);</span>
+<span class="fc" id="L1425">        person.recordDeath(timeOfDeath, reason, rule);</span>
+<span class="fc" id="L1426">        return true;</span>
+<span class="fc bfc" id="L1427" title="All 2 branches covered.">      } else if (range != null) {</span>
+<span class="fc" id="L1428">        double duration = person.rand(range.low, range.high);</span>
+<span class="fc" id="L1429">        long timeOfDeath = time + Utilities.convertTime(range.unit, (long) duration);</span>
+<span class="fc" id="L1430">        person.recordDeath(timeOfDeath, reason, rule);</span>
+<span class="fc" id="L1431">        return true;</span>
+      } else {
+<span class="fc" id="L1433">        person.recordDeath(time, reason, rule);</span>
+<span class="fc" id="L1434">        return true;</span>
+      }
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

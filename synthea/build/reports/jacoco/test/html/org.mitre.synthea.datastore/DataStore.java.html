@@ -1,0 +1,732 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DataStore.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.datastore</a> &gt; <span class="el_source">DataStore.java</span></div><h1>DataStore.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.datastore;
+
+import com.google.common.collect.Table;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.mitre.synthea.helpers.Utilities;
+import org.mitre.synthea.modules.HealthInsuranceModule;
+import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.agents.Provider;
+import org.mitre.synthea.world.concepts.HealthRecord;
+import org.mitre.synthea.world.concepts.HealthRecord.CarePlan;
+import org.mitre.synthea.world.concepts.HealthRecord.Code;
+import org.mitre.synthea.world.concepts.HealthRecord.Encounter;
+import org.mitre.synthea.world.concepts.HealthRecord.EncounterType;
+import org.mitre.synthea.world.concepts.HealthRecord.ImagingStudy;
+import org.mitre.synthea.world.concepts.HealthRecord.Medication;
+import org.mitre.synthea.world.concepts.HealthRecord.Observation;
+import org.mitre.synthea.world.concepts.HealthRecord.Procedure;
+import org.mitre.synthea.world.concepts.HealthRecord.Report;
+
+/**
+ * In-memory database, intended to be the primary repository for Synthea data as it runs. Allows for
+ * the (optional) use of a persistent database. Eventually this should be augmented to be more
+ * generic (possibly using an ORM?).
+ */
+public class DataStore {
+  // DB_CLOSE_DELAY=-1 maintains the DB in memory after all connections closed
+  // (so that we don't lose everything between 1 connection closing and the next being opened)
+  private static final String JDBC_OPTIONS = &quot;DB_CLOSE_DELAY=-1&quot;;
+  private static final String IN_MEMORY_JDBC_STRING = &quot;jdbc:h2:mem:synthea;&quot; + JDBC_OPTIONS;
+  private static final String FILEBASED_JDBC_STRING = &quot;jdbc:h2:./database;&quot; + JDBC_OPTIONS;
+
+  static {
+    try {
+<span class="fc" id="L44">      Class.forName(&quot;org.h2.Driver&quot;);</span>
+<span class="nc" id="L45">    } catch (ClassNotFoundException e) {</span>
+<span class="nc" id="L46">      throw new Error(e);</span>
+<span class="fc" id="L47">    }</span>
+<span class="fc" id="L48">  }</span>
+
+  /**
+   * Flag for whether the DB uses a file (true) or is in-memory only (false).
+   */
+  private boolean fileBased;
+
+<span class="fc" id="L55">  public DataStore(boolean fileBased) {</span>
+<span class="fc" id="L56">    this.fileBased = fileBased;</span>
+<span class="fc" id="L57">    try (Connection connection = getConnection()) {</span>
+      // TODO all of this needs to be done generically, ORM?
+      // but this is faster in the short term
+      // in the long term I want more standardized schemas
+
+<span class="fc" id="L62">      connection</span>
+<span class="fc" id="L63">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS PERSON &quot;
+              + &quot;(id varchar, name varchar, date_of_birth bigint, date_of_death bigint, &quot;
+              + &quot;race varchar, gender varchar, socioeconomic_status varchar)&quot;)
+<span class="fc" id="L67">          .execute();</span>
+<span class="fc" id="L68">      connection.prepareStatement(&quot;CREATE INDEX IF NOT EXISTS PERSON_RACE ON PERSON(RACE);&quot;)</span>
+<span class="fc" id="L69">          .execute();</span>
+<span class="fc" id="L70">      connection.prepareStatement(&quot;CREATE INDEX IF NOT EXISTS PERSON_GENDER ON PERSON(GENDER);&quot;)</span>
+<span class="fc" id="L71">          .execute();</span>
+
+<span class="fc" id="L73">      connection</span>
+<span class="fc" id="L74">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS ATTRIBUTE &quot;
+              + &quot;(person_id varchar, name varchar, value varchar)&quot;)
+<span class="fc" id="L77">          .execute();</span>
+<span class="fc" id="L78">      connection.prepareStatement(</span>
+<span class="fc" id="L79">          &quot;CREATE INDEX IF NOT EXISTS ATTRIBUTE_KEY ON ATTRIBUTE(PERSON_ID, NAME);&quot;).execute();</span>
+
+<span class="fc" id="L81">      connection</span>
+<span class="fc" id="L82">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS PROVIDER (id varchar, name varchar)&quot;)
+<span class="fc" id="L84">          .execute();</span>
+<span class="fc" id="L85">      connection.prepareStatement(&quot;CREATE INDEX IF NOT EXISTS PROVIDER_ID ON PROVIDER(ID);&quot;)</span>
+<span class="fc" id="L86">          .execute();</span>
+
+<span class="fc" id="L88">      connection</span>
+<span class="fc" id="L89">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS PROVIDER_ATTRIBUTE &quot;
+              + &quot;(provider_id varchar, name varchar, value varchar)&quot;)
+<span class="fc" id="L92">          .execute();</span>
+
+<span class="fc" id="L94">      connection</span>
+<span class="fc" id="L95">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS ENCOUNTER &quot;
+              + &quot;(id varchar, person_id varchar, provider_id varchar, name varchar, type varchar, &quot;
+              + &quot;start bigint, stop bigint, code varchar, display varchar, system varchar)&quot;)
+<span class="fc" id="L99">          .execute();</span>
+<span class="fc" id="L100">      connection.prepareStatement(&quot;CREATE INDEX IF NOT EXISTS ENCOUNTER_ID ON ENCOUNTER(ID);&quot;)</span>
+<span class="fc" id="L101">          .execute();</span>
+
+<span class="fc" id="L103">      connection</span>
+<span class="fc" id="L104">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS CONDITION &quot;
+              + &quot;(person_id varchar, name varchar, type varchar, start bigint, stop bigint, &quot;
+              + &quot;code varchar, display varchar, system varchar)&quot;)
+<span class="fc" id="L108">          .execute();</span>
+<span class="fc" id="L109">      connection</span>
+<span class="fc" id="L110">          .prepareStatement(</span>
+              &quot;CREATE INDEX IF NOT EXISTS CONDITION_PERSON ON CONDITION(PERSON_ID, TYPE);&quot;)
+<span class="fc" id="L112">          .execute();</span>
+
+<span class="fc" id="L114">      connection</span>
+<span class="fc" id="L115">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS MEDICATION &quot;
+              + &quot;(id varchar, person_id varchar, provider_id varchar, name varchar, type varchar, &quot;
+              + &quot;start bigint, stop bigint, code varchar, display varchar, system varchar)&quot;)
+<span class="fc" id="L119">          .execute();</span>
+
+<span class="fc" id="L121">      connection</span>
+<span class="fc" id="L122">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS PROCEDURE &quot;
+              + &quot;(person_id varchar, encounter_id varchar, name varchar, type varchar, &quot;
+              + &quot;start bigint, stop bigint, code varchar, display varchar, system varchar)&quot;)
+<span class="fc" id="L126">          .execute();</span>
+
+<span class="fc" id="L128">      connection</span>
+<span class="fc" id="L129">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS REPORT &quot;
+              + &quot;(id varchar, person_id varchar, encounter_id varchar, name varchar, type varchar, &quot;
+              + &quot;start bigint, code varchar, display varchar, system varchar)&quot;)
+<span class="fc" id="L133">          .execute();</span>
+
+<span class="fc" id="L135">      connection</span>
+<span class="fc" id="L136">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS OBSERVATION &quot;
+              + &quot;(person_id varchar, encounter_id varchar, report_id varchar, name varchar, &quot;
+              + &quot;type varchar, start bigint, value varchar, unit varchar, &quot;
+              + &quot;code varchar, display varchar, system varchar)&quot;)
+<span class="fc" id="L141">          .execute();</span>
+
+<span class="fc" id="L143">      connection</span>
+<span class="fc" id="L144">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS IMMUNIZATION &quot;
+              + &quot;(person_id varchar, encounter_id varchar, name varchar, type varchar, &quot;
+              + &quot;start bigint, code varchar, display varchar, system varchar)&quot;)
+<span class="fc" id="L148">          .execute();</span>
+
+<span class="fc" id="L150">      connection</span>
+<span class="fc" id="L151">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS CAREPLAN &quot;
+              + &quot;(id varchar, person_id varchar, provider_id varchar, name varchar, type varchar, &quot;
+              + &quot;start bigint, stop bigint, code varchar, display varchar, system varchar)&quot;)
+<span class="fc" id="L155">          .execute();</span>
+
+<span class="fc" id="L157">      connection</span>
+<span class="fc" id="L158">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS IMAGING_STUDY &quot;
+              + &quot;(id varchar, uid varchar, person_id varchar, encounter_id varchar, start bigint, &quot;
+              + &quot;modality_code varchar, modality_display varchar, modality_system varchar, &quot;
+              + &quot;bodysite_code varchar, bodysite_display varchar, bodysite_system varchar, &quot;
+              + &quot;sop_class varchar)&quot;)
+<span class="fc" id="L164">          .execute();</span>
+
+<span class="fc" id="L166">      connection</span>
+<span class="fc" id="L167">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS CLAIM &quot;
+              + &quot;(id varchar, person_id varchar, encounter_id varchar, medication_id varchar, &quot;
+              + &quot;time bigint, cost decimal)&quot;)
+<span class="fc" id="L171">          .execute();</span>
+<span class="fc" id="L172">      connection.prepareStatement(&quot;CREATE INDEX IF NOT EXISTS CLAIM_ID ON CLAIM(ID);&quot;).execute();</span>
+
+<span class="fc" id="L174">      connection</span>
+<span class="fc" id="L175">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS COVERAGE (person_id varchar, year int, category varchar)&quot;)
+<span class="fc" id="L177">          .execute();</span>
+
+      // TODO - special case here, would like to refactor. maybe make all attributes time-based?
+<span class="fc" id="L180">      connection</span>
+<span class="fc" id="L181">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS QUALITY_OF_LIFE &quot;
+              + &quot;(person_id varchar, year int, qol double, qaly double, daly double)&quot;)
+<span class="fc" id="L184">          .execute();</span>
+
+<span class="fc" id="L186">      connection</span>
+<span class="fc" id="L187">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS UTILIZATION &quot;
+              + &quot;(provider_id varchar, year int, encounters int, procedures int, &quot;
+              + &quot;labs int, prescriptions int)&quot;)
+<span class="fc" id="L191">          .execute();</span>
+
+<span class="fc" id="L193">      connection</span>
+<span class="fc" id="L194">          .prepareStatement(</span>
+              &quot;CREATE TABLE IF NOT EXISTS UTILIZATION_DETAIL &quot;
+              + &quot;(provider_id varchar, year int, category varchar, value int)&quot;)
+<span class="fc" id="L197">          .execute();</span>
+
+<span class="fc" id="L199">      connection.commit();</span>
+
+<span class="nc" id="L201">    } catch (SQLException e) {</span>
+<span class="nc" id="L202">      e.printStackTrace();</span>
+<span class="fc" id="L203">    }</span>
+<span class="fc" id="L204">  }</span>
+
+  public Connection getConnection() throws SQLException {
+<span class="pc bpc" id="L207" title="1 of 2 branches missed.">    Connection connection = DriverManager</span>
+<span class="fc" id="L208">        .getConnection(this.fileBased ? FILEBASED_JDBC_STRING : IN_MEMORY_JDBC_STRING);</span>
+<span class="fc" id="L209">    connection.setAutoCommit(false);</span>
+<span class="fc" id="L210">    return connection;</span>
+  }
+
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public boolean store(Person p) {
+<span class="fc" id="L215">    String personID = (String) p.attributes.get(Person.ID);</span>
+
+<span class="fc" id="L217">    try (Connection connection = getConnection()) {</span>
+      // CREATE TABLE IF NOT EXISTS PERSON (id varchar, name varchar, date_of_birth bigint,
+      // date_of_death bigint, race varchar, gender varchar, socioeconomic_status varchar)
+<span class="fc" id="L220">      PreparedStatement stmt = connection.prepareStatement(</span>
+          &quot;INSERT INTO PERSON &quot;
+          + &quot;(id, name, date_of_birth, date_of_death, race, gender, socioeconomic_status) &quot;
+          + &quot;VALUES (?,?,?,?,?,?,?);&quot;);
+
+<span class="fc" id="L225">      stmt.setString(1, personID);</span>
+<span class="fc" id="L226">      stmt.setString(2, (String) p.attributes.get(Person.NAME));</span>
+<span class="fc" id="L227">      stmt.setLong(3, (long) p.attributes.get(Person.BIRTHDATE));</span>
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">      if (p.record.death == null) {</span>
+<span class="fc" id="L229">        stmt.setObject(4, null);</span>
+      } else {
+<span class="nc" id="L231">        stmt.setLong(4, p.record.death);</span>
+      }
+
+<span class="fc" id="L234">      stmt.setString(5, (String) p.attributes.get(Person.RACE));</span>
+<span class="fc" id="L235">      stmt.setString(6, (String) p.attributes.get(Person.GENDER));</span>
+<span class="fc" id="L236">      stmt.setString(7, (String) p.attributes.get(Person.SOCIOECONOMIC_CATEGORY));</span>
+
+<span class="fc" id="L238">      stmt.execute();</span>
+
+      // CREATE TABLE IF NOT EXISTS ATTRIBUTE (person_id varchar, name varchar, value varchar)
+<span class="fc" id="L241">      stmt = connection</span>
+<span class="fc" id="L242">          .prepareStatement(&quot;INSERT INTO ATTRIBUTE (person_id, name, value) VALUES (?,?,?);&quot;);</span>
+<span class="fc bfc" id="L243" title="All 2 branches covered.">      for (Map.Entry&lt;String, Object&gt; attr : p.attributes.entrySet()) {</span>
+<span class="fc" id="L244">        stmt.setString(1, personID);</span>
+<span class="fc" id="L245">        stmt.setString(2, attr.getKey());</span>
+<span class="fc" id="L246">        stmt.setString(3, String.valueOf(attr.getValue()));</span>
+<span class="fc" id="L247">        stmt.addBatch();</span>
+<span class="fc" id="L248">      }</span>
+<span class="fc" id="L249">      stmt.executeBatch();</span>
+
+      // Add coverage to database
+<span class="fc" id="L252">      stmt = connection</span>
+<span class="fc" id="L253">          .prepareStatement(&quot;INSERT INTO COVERAGE (person_id, year, category) VALUES (?,?,?);&quot;);</span>
+<span class="fc" id="L254">      List&lt;String&gt; coverage = (List&lt;String&gt;) p.attributes.get(HealthInsuranceModule.INSURANCE);</span>
+<span class="fc" id="L255">      long birthdate = (long) p.attributes.get(Person.BIRTHDATE);</span>
+<span class="fc" id="L256">      int birthYear = Utilities.getYear(birthdate);</span>
+<span class="pc bpc" id="L257" title="1 of 2 branches missed.">      for (int i = 0; i &lt; coverage.size(); i++) {</span>
+<span class="fc" id="L258">        String category = coverage.get(i);</span>
+<span class="fc bfc" id="L259" title="All 2 branches covered.">        if (category == null) {</span>
+<span class="fc" id="L260">          break;</span>
+        } else {
+<span class="fc" id="L262">          stmt.setString(1, personID);</span>
+<span class="fc" id="L263">          stmt.setInt(2, (birthYear + i));</span>
+<span class="fc" id="L264">          stmt.setString(3, category);</span>
+<span class="fc" id="L265">          stmt.addBatch();</span>
+        }
+      }
+<span class="fc" id="L268">      stmt.executeBatch();</span>
+
+<span class="fc bfc" id="L270" title="All 2 branches covered.">      for (Encounter encounter : p.record.encounters) {</span>
+<span class="fc" id="L271">        String encounterID = UUID.randomUUID().toString();</span>
+
+<span class="fc" id="L273">        String providerID = null;</span>
+
+<span class="pc bpc" id="L275" title="1 of 2 branches missed.">        if (encounter.provider != null) {</span>
+<span class="fc" id="L276">          providerID = encounter.provider.getResourceID();</span>
+        }
+
+        // CREATE TABLE IF NOT EXISTS ENCOUNTER (id varchar, person_id varchar, provider_id varchar,
+        // name varchar, type varchar, start bigint, stop bigint, code varchar, display varchar,
+        // system varchar)
+<span class="fc" id="L282">        stmt = connection.prepareStatement(</span>
+            &quot;INSERT INTO ENCOUNTER &quot;
+            + &quot;(id, person_id, provider_id, name, type, start, stop, code, display, system) &quot;
+            + &quot;VALUES (?,?,?,?,?,?,?,?,?,?);&quot;);
+<span class="fc" id="L286">        stmt.setString(1, encounterID);</span>
+<span class="fc" id="L287">        stmt.setString(2, personID);</span>
+<span class="fc" id="L288">        stmt.setString(3, providerID);</span>
+<span class="fc" id="L289">        stmt.setString(4, encounter.name);</span>
+<span class="fc" id="L290">        stmt.setString(5, encounter.type);</span>
+<span class="fc" id="L291">        stmt.setLong(6, encounter.start);</span>
+<span class="fc" id="L292">        stmt.setLong(7, encounter.stop);</span>
+<span class="pc bpc" id="L293" title="1 of 2 branches missed.">        if (encounter.codes.isEmpty()) {</span>
+<span class="nc" id="L294">          stmt.setString(8, null);</span>
+<span class="nc" id="L295">          stmt.setString(9, null);</span>
+<span class="nc" id="L296">          stmt.setString(10, null);</span>
+        } else {
+<span class="fc" id="L298">          Code code = encounter.codes.get(0);</span>
+<span class="fc" id="L299">          stmt.setString(8, code.code);</span>
+<span class="fc" id="L300">          stmt.setString(9, code.display);</span>
+<span class="fc" id="L301">          stmt.setString(10, code.system);</span>
+        }
+<span class="fc" id="L303">        stmt.execute();</span>
+
+<span class="fc bfc" id="L305" title="All 2 branches covered.">        for (HealthRecord.Entry condition : encounter.conditions) {</span>
+          // CREATE TABLE IF NOT EXISTS CONDITION (person_id varchar, name varchar, type varchar,
+          // start bigint, stop bigint, code varchar, display varchar, system varchar)
+<span class="fc" id="L308">          stmt = connection.prepareStatement(</span>
+              &quot;INSERT INTO CONDITION &quot;
+              + &quot;(person_id, name, type, start, stop, code, display, system) &quot;
+              + &quot;VALUES (?,?,?,?,?,?,?,?);&quot;);
+<span class="fc" id="L312">          stmt.setString(1, personID);</span>
+<span class="fc" id="L313">          stmt.setString(2, condition.name);</span>
+<span class="fc" id="L314">          stmt.setString(3, condition.type);</span>
+<span class="fc" id="L315">          stmt.setLong(4, condition.start);</span>
+<span class="fc" id="L316">          stmt.setLong(5, condition.stop);</span>
+<span class="pc bpc" id="L317" title="1 of 2 branches missed.">          if (condition.codes.isEmpty()) {</span>
+<span class="nc" id="L318">            stmt.setString(6, null);</span>
+<span class="nc" id="L319">            stmt.setString(7, null);</span>
+<span class="nc" id="L320">            stmt.setString(8, null);</span>
+          } else {
+<span class="fc" id="L322">            Code code = condition.codes.get(0);</span>
+<span class="fc" id="L323">            stmt.setString(6, code.code);</span>
+<span class="fc" id="L324">            stmt.setString(7, code.display);</span>
+<span class="fc" id="L325">            stmt.setString(8, code.system);</span>
+          }
+<span class="fc" id="L327">          stmt.execute();</span>
+<span class="fc" id="L328">        }</span>
+
+<span class="fc bfc" id="L330" title="All 2 branches covered.">        for (Report report : encounter.reports) {</span>
+<span class="fc" id="L331">          String reportID = UUID.randomUUID().toString();</span>
+
+          // CREATE TABLE IF NOT EXISTS REPORT (id varchar, person_id varchar, encounter_id varchar,
+          // name varchar, type varchar, start bigint, code varchar, display varchar, system
+          // varchar)
+<span class="fc" id="L336">          stmt = connection.prepareStatement(</span>
+              &quot;INSERT INTO report &quot;
+              + &quot;(id, person_id, encounter_id, name, type, start, code, display, system) &quot;
+              + &quot;VALUES (?,?,?,?,?,?,?,?,?);&quot;);
+<span class="fc" id="L340">          stmt.setString(1, personID);</span>
+<span class="fc" id="L341">          stmt.setString(2, encounterID);</span>
+<span class="fc" id="L342">          stmt.setString(3, reportID);</span>
+<span class="fc" id="L343">          stmt.setString(4, report.name);</span>
+<span class="fc" id="L344">          stmt.setString(5, report.type);</span>
+<span class="fc" id="L345">          stmt.setLong(6, report.start);</span>
+<span class="pc bpc" id="L346" title="1 of 2 branches missed.">          if (report.codes.isEmpty()) {</span>
+<span class="nc" id="L347">            stmt.setString(7, null);</span>
+<span class="nc" id="L348">            stmt.setString(8, null);</span>
+<span class="nc" id="L349">            stmt.setString(9, null);</span>
+          } else {
+<span class="fc" id="L351">            Code code = report.codes.get(0);</span>
+<span class="fc" id="L352">            stmt.setString(7, code.code);</span>
+<span class="fc" id="L353">            stmt.setString(8, code.display);</span>
+<span class="fc" id="L354">            stmt.setString(9, code.system);</span>
+          }
+
+<span class="fc" id="L357">          stmt.execute();</span>
+
+<span class="fc bfc" id="L359" title="All 2 branches covered.">          for (Observation observation : report.observations) {</span>
+            // CREATE TABLE IF NOT EXISTS OBSERVATION (person_id varchar, encounter_id varchar,
+            // report_id varchar, name varchar, type varchar, start bigint, value varchar, unit
+            // varchar, code varchar, display varchar, system varchar)
+<span class="fc" id="L363">            stmt = connection.prepareStatement(</span>
+                &quot;INSERT INTO OBSERVATION &quot;
+                + &quot;(person_id, encounter_id, report_id, name, type, start, value, unit, &quot;
+                + &quot;code, display, system) &quot;
+                + &quot;VALUES (?,?,?,?,?,?,?,?,?,?,?);&quot;);
+<span class="fc" id="L368">            stmt.setString(1, personID);</span>
+<span class="fc" id="L369">            stmt.setString(2, encounterID);</span>
+<span class="fc" id="L370">            stmt.setString(3, reportID); // report ID</span>
+<span class="fc" id="L371">            stmt.setString(4, observation.name);</span>
+<span class="fc" id="L372">            stmt.setString(5, observation.type);</span>
+<span class="fc" id="L373">            stmt.setLong(6, observation.start);</span>
+<span class="fc" id="L374">            stmt.setString(7, String.valueOf(observation.value));</span>
+<span class="fc" id="L375">            stmt.setString(8, observation.unit);</span>
+<span class="pc bpc" id="L376" title="1 of 2 branches missed.">            if (observation.codes.isEmpty()) {</span>
+<span class="nc" id="L377">              stmt.setString(9, null);</span>
+<span class="nc" id="L378">              stmt.setString(10, null);</span>
+<span class="nc" id="L379">              stmt.setString(11, null);</span>
+            } else {
+<span class="fc" id="L381">              Code code = observation.codes.get(0);</span>
+<span class="fc" id="L382">              stmt.setString(9, code.code);</span>
+<span class="fc" id="L383">              stmt.setString(10, code.display);</span>
+<span class="fc" id="L384">              stmt.setString(11, code.system);</span>
+            }
+
+<span class="fc" id="L387">            stmt.execute();</span>
+<span class="fc" id="L388">          }</span>
+<span class="fc" id="L389">        }</span>
+
+<span class="fc bfc" id="L391" title="All 2 branches covered.">        for (Observation observation : encounter.observations) {</span>
+<span class="fc bfc" id="L392" title="All 2 branches covered.">          if (observation.report != null) {</span>
+            // only add observations that don't belong to a diagnostic report here
+<span class="fc" id="L394">            continue;</span>
+          }
+          // CREATE TABLE IF NOT EXISTS OBSERVATION (person_id varchar, encounter_id varchar,
+          // report_id varchar, name varchar, type varchar, start bigint, value varchar, unit
+          // varchar, code varchar, display varchar, system varchar)
+<span class="fc" id="L399">          stmt = connection.prepareStatement(</span>
+              &quot;INSERT INTO OBSERVATION &quot;
+              + &quot;(person_id, encounter_id, report_id, name, type, start, value, unit, &quot;
+              + &quot;code, display, system) &quot;
+              + &quot;VALUES (?,?,?,?,?,?,?,?,?,?,?);&quot;);
+<span class="fc" id="L404">          stmt.setString(1, personID);</span>
+<span class="fc" id="L405">          stmt.setString(2, encounterID);</span>
+<span class="fc" id="L406">          stmt.setString(3, null); // report ID</span>
+<span class="fc" id="L407">          stmt.setString(4, observation.name);</span>
+<span class="fc" id="L408">          stmt.setString(5, observation.type);</span>
+<span class="fc" id="L409">          stmt.setLong(6, observation.start);</span>
+<span class="fc" id="L410">          stmt.setString(7, String.valueOf(observation.value));</span>
+<span class="fc" id="L411">          stmt.setString(8, observation.unit);</span>
+<span class="pc bpc" id="L412" title="1 of 2 branches missed.">          if (observation.codes.isEmpty()) {</span>
+<span class="nc" id="L413">            stmt.setString(9, null);</span>
+<span class="nc" id="L414">            stmt.setString(10, null);</span>
+<span class="nc" id="L415">            stmt.setString(11, null);</span>
+          } else {
+<span class="fc" id="L417">            Code code = observation.codes.get(0);</span>
+<span class="fc" id="L418">            stmt.setString(9, code.code);</span>
+<span class="fc" id="L419">            stmt.setString(10, code.display);</span>
+<span class="fc" id="L420">            stmt.setString(11, code.system);</span>
+          }
+
+<span class="fc" id="L423">          stmt.execute();</span>
+<span class="fc" id="L424">        }</span>
+
+<span class="fc bfc" id="L426" title="All 2 branches covered.">        for (Procedure procedure : encounter.procedures) {</span>
+          // CREATE TABLE IF NOT EXISTS PROCEDURE (person_id varchar, encounter_id varchar, name
+          // varchar, type varchar, start bigint, stop bigint, code varchar, display varchar, system
+          // varchar)
+<span class="fc" id="L430">          stmt = connection.prepareStatement(</span>
+              &quot;INSERT INTO PROCEDURE &quot;
+              + &quot;(person_id, encounter_id, name, type, start, stop, code, display, system) &quot;
+              + &quot;VALUES (?,?,?,?,?,?,?,?,?);&quot;);
+<span class="fc" id="L434">          stmt.setString(1, personID);</span>
+<span class="fc" id="L435">          stmt.setString(2, encounterID);</span>
+
+<span class="fc" id="L437">          stmt.setString(3, procedure.name);</span>
+<span class="fc" id="L438">          stmt.setString(4, procedure.type);</span>
+<span class="fc" id="L439">          stmt.setLong(5, procedure.start);</span>
+<span class="fc" id="L440">          stmt.setLong(6, procedure.stop);</span>
+<span class="pc bpc" id="L441" title="1 of 2 branches missed.">          if (procedure.codes.isEmpty()) {</span>
+<span class="nc" id="L442">            stmt.setString(7, null);</span>
+<span class="nc" id="L443">            stmt.setString(8, null);</span>
+<span class="nc" id="L444">            stmt.setString(9, null);</span>
+          } else {
+<span class="fc" id="L446">            Code code = procedure.codes.get(0);</span>
+<span class="fc" id="L447">            stmt.setString(7, code.code);</span>
+<span class="fc" id="L448">            stmt.setString(8, code.display);</span>
+<span class="fc" id="L449">            stmt.setString(9, code.system);</span>
+          }
+
+<span class="fc" id="L452">          stmt.execute();</span>
+<span class="fc" id="L453">        }</span>
+
+<span class="fc bfc" id="L455" title="All 2 branches covered.">        for (Medication medication : encounter.medications) {</span>
+          // CREATE TABLE IF NOT EXISTS MEDICATION (id varchar, person_id varchar, provider_id
+          // varchar, name varchar, type varchar, start bigint, stop bigint, code varchar, display
+          // varchar, system varchar)
+<span class="fc" id="L459">          stmt = connection.prepareStatement(</span>
+              &quot;INSERT INTO MEDICATION &quot;
+              + &quot;(id, person_id, provider_id, name, type, start, stop, code, display, system) &quot;
+              + &quot;VALUES (?,?,?,?,?,?,?,?,?,?);&quot;);
+<span class="fc" id="L463">          String medicationID = UUID.randomUUID().toString();</span>
+<span class="fc" id="L464">          stmt.setString(1, medicationID);</span>
+<span class="fc" id="L465">          stmt.setString(2, personID);</span>
+<span class="fc" id="L466">          stmt.setString(3, providerID);</span>
+<span class="fc" id="L467">          stmt.setString(4, medication.name);</span>
+<span class="fc" id="L468">          stmt.setString(5, medication.type);</span>
+<span class="fc" id="L469">          stmt.setLong(6, medication.start);</span>
+<span class="fc" id="L470">          stmt.setLong(7, medication.stop);</span>
+<span class="pc bpc" id="L471" title="1 of 2 branches missed.">          if (medication.codes.isEmpty()) {</span>
+<span class="nc" id="L472">            stmt.setString(8, null);</span>
+<span class="nc" id="L473">            stmt.setString(9, null);</span>
+<span class="nc" id="L474">            stmt.setString(10, null);</span>
+          } else {
+<span class="fc" id="L476">            Code code = medication.codes.get(0);</span>
+<span class="fc" id="L477">            stmt.setString(8, code.code);</span>
+<span class="fc" id="L478">            stmt.setString(9, code.display);</span>
+<span class="fc" id="L479">            stmt.setString(10, code.system);</span>
+          }
+<span class="fc" id="L481">          stmt.execute();</span>
+
+          // CREATE TABLE IF NOT EXISTS CLAIM (id varchar, person_id varchar, encounter_id varchar,
+          // medication_id varchar, time bigint, cost decimal)
+<span class="fc" id="L485">          stmt = connection.prepareStatement(</span>
+              &quot;INSERT INTO CLAIM &quot;
+              + &quot;(id, person_id, encounter_id, medication_id, time, cost) &quot;
+              + &quot;VALUES (?,?,?,?,?,?)&quot;);
+<span class="fc" id="L489">          stmt.setString(1, UUID.randomUUID().toString());</span>
+<span class="fc" id="L490">          stmt.setString(2, personID);</span>
+<span class="fc" id="L491">          stmt.setString(3, encounterID);</span>
+<span class="fc" id="L492">          stmt.setString(4, medicationID);</span>
+<span class="fc" id="L493">          stmt.setLong(5, medication.start);</span>
+<span class="fc" id="L494">          stmt.setBigDecimal(6, medication.claim.total());</span>
+<span class="fc" id="L495">          stmt.execute();</span>
+
+<span class="fc" id="L497">        }</span>
+
+<span class="fc bfc" id="L499" title="All 2 branches covered.">        for (HealthRecord.Entry immunization : encounter.immunizations) {</span>
+          // CREATE TABLE IF NOT EXISTS IMMUNIZATION (person_id varchar, encounter_id varchar, name
+          // varchar, type varchar, start bigint, code varchar, display varchar, system varchar)
+<span class="fc" id="L502">          stmt = connection.prepareStatement(</span>
+              &quot;INSERT INTO IMMUNIZATION &quot;
+              + &quot;(person_id, encounter_id, name, type, start, code, display, system) &quot;
+              + &quot;VALUES (?,?,?,?,?,?,?,?);&quot;);
+<span class="fc" id="L506">          stmt.setString(1, personID);</span>
+<span class="fc" id="L507">          stmt.setString(2, encounterID);</span>
+<span class="fc" id="L508">          stmt.setString(3, immunization.name);</span>
+<span class="fc" id="L509">          stmt.setString(4, immunization.type);</span>
+<span class="fc" id="L510">          stmt.setLong(5, immunization.start);</span>
+<span class="pc bpc" id="L511" title="1 of 2 branches missed.">          if (immunization.codes.isEmpty()) {</span>
+<span class="nc" id="L512">            stmt.setString(6, null);</span>
+<span class="nc" id="L513">            stmt.setString(7, null);</span>
+<span class="nc" id="L514">            stmt.setString(8, null);</span>
+          } else {
+<span class="fc" id="L516">            Code code = immunization.codes.get(0);</span>
+<span class="fc" id="L517">            stmt.setString(6, code.code);</span>
+<span class="fc" id="L518">            stmt.setString(7, code.display);</span>
+<span class="fc" id="L519">            stmt.setString(8, code.system);</span>
+          }
+<span class="fc" id="L521">          stmt.execute();</span>
+<span class="fc" id="L522">        }</span>
+
+<span class="fc bfc" id="L524" title="All 2 branches covered.">        for (CarePlan careplan : encounter.careplans) {</span>
+          // CREATE TABLE IF NOT EXISTS careplan (id varchar, person_id varchar, provider_id
+          // varchar, name varchar, type varchar, start bigint, stop bigint, code varchar, display
+          // varchar, system varchar)
+<span class="fc" id="L528">          stmt = connection.prepareStatement(</span>
+              &quot;INSERT INTO careplan &quot;
+              + &quot;(id, person_id, provider_id, name, type, start, stop, code, display, system) &quot;
+              + &quot;VALUES (?,?,?,?,?,?,?,?,?,?);&quot;);
+<span class="fc" id="L532">          stmt.setString(1, UUID.randomUUID().toString());</span>
+<span class="fc" id="L533">          stmt.setString(2, personID);</span>
+<span class="pc bpc" id="L534" title="1 of 2 branches missed.">          if (encounter.provider == null) {</span>
+<span class="nc" id="L535">            stmt.setString(3, null);</span>
+          } else {
+<span class="fc" id="L537">            stmt.setString(3, encounter.provider.getResourceID());</span>
+          }
+<span class="fc" id="L539">          stmt.setString(4, careplan.name);</span>
+<span class="fc" id="L540">          stmt.setString(5, careplan.type);</span>
+<span class="fc" id="L541">          stmt.setLong(6, careplan.start);</span>
+<span class="fc" id="L542">          stmt.setLong(7, careplan.stop);</span>
+<span class="pc bpc" id="L543" title="1 of 2 branches missed.">          if (careplan.codes.isEmpty()) {</span>
+<span class="nc" id="L544">            stmt.setString(8, null);</span>
+<span class="nc" id="L545">            stmt.setString(9, null);</span>
+<span class="nc" id="L546">            stmt.setString(10, null);</span>
+          } else {
+<span class="fc" id="L548">            Code code = careplan.codes.get(0);</span>
+<span class="fc" id="L549">            stmt.setString(8, code.code);</span>
+<span class="fc" id="L550">            stmt.setString(9, code.display);</span>
+<span class="fc" id="L551">            stmt.setString(10, code.system);</span>
+          }
+<span class="fc" id="L553">          stmt.execute();</span>
+<span class="fc" id="L554">        }</span>
+
+<span class="fc bfc" id="L556" title="All 2 branches covered.">        for (ImagingStudy imagingStudy : encounter.imagingStudies) {</span>
+          // CREATE TABLE IF NOT EXISTS IMAGING_STUDY (uid varchar,
+          // person_id varchar, encounter_id varchar, start bigint,
+          // modality_code varchar, modality_display varchar, modality_system varchar,
+          // bodysite_code varchar, bodysite_display varchar, bodysite_system varchar,
+          // sop_class varchar)
+
+<span class="fc" id="L563">          stmt = connection.prepareStatement(</span>
+              &quot;INSERT INTO IMAGING_STUDY &quot;
+              + &quot;(id, uid, person_id, encounter_id, start, modality_code, modality_display, &quot;
+              + &quot;modality_system, bodysite_code, bodysite_display, bodysite_system, sop_class) &quot;
+              + &quot;VALUES (?,?,?,?,?,?,?,?,?,?,?,?);&quot;);
+<span class="fc" id="L568">          stmt.setString(1, UUID.randomUUID().toString());</span>
+<span class="fc" id="L569">          stmt.setString(2, imagingStudy.dicomUid);</span>
+<span class="fc" id="L570">          stmt.setString(3, personID);</span>
+<span class="fc" id="L571">          stmt.setString(4, encounterID);</span>
+<span class="fc" id="L572">          stmt.setLong(5, imagingStudy.start);</span>
+
+<span class="fc" id="L574">          Code modality = imagingStudy.series.get(0).modality;</span>
+<span class="fc" id="L575">          stmt.setString(6, modality.code);</span>
+<span class="fc" id="L576">          stmt.setString(7, modality.display);</span>
+<span class="fc" id="L577">          stmt.setString(8, modality.system);</span>
+
+<span class="fc" id="L579">          Code bodySite = imagingStudy.series.get(0).bodySite;</span>
+<span class="fc" id="L580">          stmt.setString(9, bodySite.code);</span>
+<span class="fc" id="L581">          stmt.setString(10, bodySite.display);</span>
+<span class="fc" id="L582">          stmt.setString(11, bodySite.system);</span>
+
+<span class="fc" id="L584">          Code sopClass = imagingStudy.series.get(0).instances.get(0).sopClass;</span>
+<span class="fc" id="L585">          stmt.setString(12, sopClass.code);</span>
+
+<span class="fc" id="L587">          stmt.execute();</span>
+<span class="fc" id="L588">        }</span>
+
+        // CREATE TABLE IF NOT EXISTS CLAIM (id varchar, person_id varchar, encounter_id varchar,
+        // medication_id varchar, time bigint, cost decimal)
+<span class="fc" id="L592">        stmt = connection.prepareStatement(</span>
+            &quot;INSERT INTO CLAIM &quot;
+            + &quot;(id, person_id, encounter_id, medication_id, time, cost) &quot;
+            + &quot;VALUES (?,?,?,?,?,?)&quot;);
+<span class="fc" id="L596">        stmt.setString(1, UUID.randomUUID().toString());</span>
+<span class="fc" id="L597">        stmt.setString(2, personID);</span>
+<span class="fc" id="L598">        stmt.setString(3, encounterID);</span>
+<span class="fc" id="L599">        stmt.setString(4, null);</span>
+<span class="fc" id="L600">        stmt.setLong(5, encounter.start);</span>
+<span class="fc" id="L601">        stmt.setBigDecimal(6, encounter.claim.total());</span>
+<span class="fc" id="L602">        stmt.execute();</span>
+
+<span class="fc" id="L604">      }</span>
+
+<span class="fc" id="L606">      Map&lt;Integer, Double&gt; qalys = (Map&lt;Integer, Double&gt;) p.attributes.get(&quot;QALY&quot;);</span>
+<span class="fc" id="L607">      Map&lt;Integer, Double&gt; dalys = (Map&lt;Integer, Double&gt;) p.attributes.get(&quot;DALY&quot;);</span>
+<span class="fc" id="L608">      Map&lt;Integer, Double&gt; qols = (Map&lt;Integer, Double&gt;) p.attributes.get(&quot;QOL&quot;);</span>
+<span class="pc bpc" id="L609" title="1 of 2 branches missed.">      if (qols != null) {</span>
+        // TODO - would rather have something more generic
+<span class="fc" id="L611">        stmt = connection.prepareStatement(</span>
+            &quot;INSERT INTO QUALITY_OF_LIFE (person_id, year, qol, qaly, daly) VALUES (?,?,?,?,?);&quot;);
+
+<span class="fc bfc" id="L614" title="All 2 branches covered.">        for (Integer year : qols.keySet()) {</span>
+<span class="fc" id="L615">          stmt.setString(1, personID);</span>
+<span class="fc" id="L616">          stmt.setInt(2, year);</span>
+<span class="fc" id="L617">          stmt.setDouble(3, qols.get(year));</span>
+<span class="fc" id="L618">          stmt.setDouble(4, qalys.get(year));</span>
+<span class="fc" id="L619">          stmt.setDouble(5, dalys.get(year));</span>
+<span class="fc" id="L620">          stmt.addBatch();</span>
+<span class="fc" id="L621">        }</span>
+<span class="fc" id="L622">        stmt.executeBatch();</span>
+      }
+
+<span class="fc" id="L625">      connection.commit();</span>
+<span class="fc" id="L626">      return true;</span>
+<span class="nc" id="L627">    } catch (SQLException e) {</span>
+<span class="nc" id="L628">      e.printStackTrace();</span>
+<span class="nc" id="L629">      return false;</span>
+    }
+  }
+
+  public boolean store(Collection&lt;? extends Provider&gt; providers) {
+<span class="fc" id="L634">    try (Connection connection = getConnection()) {</span>
+      // CREATE TABLE IF NOT EXISTS PROVIDER (id varchar, name varchar)
+<span class="fc" id="L636">      PreparedStatement providerTable = connection</span>
+<span class="fc" id="L637">          .prepareStatement(&quot;INSERT INTO PROVIDER (id, name) VALUES (?,?);&quot;);</span>
+
+      // create table provider_attribute (provider_id varchar, name varchar, value varchar)
+<span class="fc" id="L640">      PreparedStatement attributeTable = connection.prepareStatement(</span>
+          &quot;INSERT INTO PROVIDER_ATTRIBUTE (provider_id, name, value) VALUES (?,?,?);&quot;);
+
+      // CREATE TABLE IF NOT EXISTS UTILIZATION (provider_id varchar, encounters int, procedures
+      // int, labs int, prescriptions int)
+<span class="fc" id="L645">      PreparedStatement utilizationTable = connection.prepareStatement(</span>
+          &quot;INSERT INTO UTILIZATION &quot;
+          + &quot;(provider_id, year, encounters, procedures, labs, prescriptions) &quot;
+          + &quot;VALUES (?,?,?,?,?,?)&quot;);
+
+      // CREATE TABLE IF NOT EXISTS UTILIZATION_DETAIL (provider_id varchar, year int, category
+      // string, value int)
+<span class="fc" id="L652">      PreparedStatement utilizationDetailTable = connection.prepareStatement(</span>
+          &quot;INSERT INTO UTILIZATION_DETAIL (provider_id, year, category, value) VALUES (?,?,?,?)&quot;);
+<span class="fc bfc" id="L654" title="All 2 branches covered.">      for (Provider p : providers) {</span>
+<span class="fc" id="L655">        String providerID = p.getResourceID();</span>
+<span class="fc" id="L656">        Map&lt;String, Object&gt; attributes = p.getAttributes();</span>
+
+<span class="fc" id="L658">        providerTable.setString(1, providerID);</span>
+<span class="fc" id="L659">        providerTable.setString(2, (String) attributes.get(&quot;name&quot;));</span>
+<span class="fc" id="L660">        providerTable.addBatch();</span>
+
+<span class="fc bfc" id="L662" title="All 2 branches covered.">        for (Object key : attributes.keySet()) {</span>
+<span class="fc" id="L663">          attributeTable.setString(1, providerID);</span>
+<span class="fc" id="L664">          attributeTable.setString(2, (String) key);</span>
+<span class="fc" id="L665">          attributeTable.setString(3, String.valueOf(attributes.get(key)));</span>
+<span class="fc" id="L666">          attributeTable.addBatch();</span>
+<span class="fc" id="L667">        }</span>
+
+<span class="fc" id="L669">        Table&lt;Integer, String, AtomicInteger&gt; u = p.getUtilization();</span>
+<span class="fc bfc" id="L670" title="All 2 branches covered.">        for (Integer year : u.rowKeySet()) {</span>
+<span class="fc" id="L671">          utilizationTable.setString(1, providerID);</span>
+<span class="fc" id="L672">          utilizationTable.setInt(2, year);</span>
+<span class="fc" id="L673">          utilizationTable.setInt(3, pickUtilization(u, year, Provider.ENCOUNTERS));</span>
+<span class="fc" id="L674">          utilizationTable.setInt(4, pickUtilization(u, year, Provider.PROCEDURES));</span>
+<span class="fc" id="L675">          utilizationTable.setInt(5, pickUtilization(u, year, Provider.LABS));</span>
+<span class="fc" id="L676">          utilizationTable.setInt(6, pickUtilization(u, year, Provider.PRESCRIPTIONS));</span>
+<span class="fc" id="L677">          utilizationTable.addBatch();</span>
+
+<span class="fc bfc" id="L679" title="All 2 branches covered.">          for (String category : u.columnKeySet()) {</span>
+<span class="fc bfc" id="L680" title="All 2 branches covered.">            if (!category.startsWith(Provider.ENCOUNTERS)) {</span>
+<span class="fc" id="L681">              continue;</span>
+            }
+
+<span class="fc" id="L684">            int count = pickUtilization(u, year, category);</span>
+
+<span class="fc bfc" id="L686" title="All 2 branches covered.">            if (count == 0) {</span>
+              // don't bother storing 0 in the database
+<span class="fc" id="L688">              continue;</span>
+            }
+
+<span class="fc" id="L691">            utilizationDetailTable.setString(1, providerID);</span>
+<span class="fc" id="L692">            utilizationDetailTable.setInt(2, year);</span>
+<span class="fc" id="L693">            utilizationDetailTable.setString(3, category);</span>
+<span class="fc" id="L694">            utilizationDetailTable.setInt(4, count);</span>
+<span class="fc" id="L695">            utilizationDetailTable.addBatch();</span>
+<span class="fc" id="L696">          }</span>
+<span class="fc" id="L697">        }</span>
+<span class="fc" id="L698">      }</span>
+
+<span class="fc bfc" id="L700" title="All 2 branches covered.">      for (int year = 1900; year &lt;= Utilities.getYear(System.currentTimeMillis()); year++) {</span>
+<span class="fc bfc" id="L701" title="All 2 branches covered.">        for (int t = 0; t &lt; EncounterType.values().length; t++) {</span>
+<span class="fc" id="L702">          utilizationDetailTable.setString(1, &quot;None&quot;);</span>
+<span class="fc" id="L703">          utilizationDetailTable.setInt(2, year);</span>
+<span class="fc" id="L704">          utilizationDetailTable.setString(3, EncounterType.values()[t].toString());</span>
+<span class="fc" id="L705">          utilizationDetailTable.setInt(4, 0);</span>
+<span class="fc" id="L706">          utilizationDetailTable.addBatch();</span>
+        }
+      }
+
+<span class="fc" id="L710">      providerTable.executeBatch();</span>
+<span class="fc" id="L711">      attributeTable.executeBatch();</span>
+<span class="fc" id="L712">      utilizationTable.executeBatch();</span>
+<span class="fc" id="L713">      utilizationDetailTable.executeBatch();</span>
+<span class="fc" id="L714">      connection.commit();</span>
+<span class="fc" id="L715">      return true;</span>
+<span class="nc" id="L716">    } catch (SQLException e) {</span>
+<span class="nc" id="L717">      e.printStackTrace();</span>
+<span class="nc" id="L718">      return false;</span>
+    }
+  }
+
+  private static int pickUtilization(Table&lt;Integer, String, AtomicInteger&gt; u, int year,
+      String category) {
+<span class="fc" id="L724">    AtomicInteger value = u.get(year, category);</span>
+<span class="fc bfc" id="L725" title="All 2 branches covered.">    if (value == null) {</span>
+<span class="fc" id="L726">      return 0;</span>
+    } else {
+<span class="fc" id="L728">      return value.get();</span>
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

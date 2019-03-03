@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HospitalExporterDstu2.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.export</a> &gt; <span class="el_source">HospitalExporterDstu2.java</span></div><h1>HospitalExporterDstu2.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.export;
+
+import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.model.api.ExtensionDt;
+import ca.uhn.fhir.model.dstu2.resource.Bundle;
+import ca.uhn.fhir.model.dstu2.resource.Bundle.Entry;
+import ca.uhn.fhir.model.dstu2.resource.Organization;
+import ca.uhn.fhir.model.dstu2.valueset.BundleTypeEnum;
+import ca.uhn.fhir.model.primitive.IntegerDt;
+
+import com.google.common.collect.Table;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.world.agents.Provider;
+
+<span class="nc" id="L27">public abstract class HospitalExporterDstu2 {</span>
+
+<span class="fc" id="L29">  private static final FhirContext FHIR_CTX = FhirContext.forDstu2();</span>
+
+  private static final String SYNTHEA_URI = &quot;http://synthetichealth.github.io/synthea/&quot;;
+
+  public static void export(long stop) {
+<span class="fc bfc" id="L34" title="All 2 branches covered.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.hospital.fhir_dstu2.export&quot;))) {</span>
+      
+<span class="fc" id="L36">      Bundle bundle = new Bundle();</span>
+<span class="pc bpc" id="L37" title="1 of 2 branches missed.">      if (Boolean.parseBoolean(Config.get(&quot;exporter.fhir.transaction_bundle&quot;))) {</span>
+<span class="fc" id="L38">        bundle.setType(BundleTypeEnum.TRANSACTION);</span>
+      } else {
+<span class="nc" id="L40">        bundle.setType(BundleTypeEnum.COLLECTION);</span>
+      }
+<span class="fc bfc" id="L42" title="All 2 branches covered.">      for (Provider h : Provider.getProviderList()) {</span>
+        // filter - exports only those hospitals in use
+<span class="fc" id="L44">        Table&lt;Integer, String, AtomicInteger&gt; utilization = h.getUtilization();</span>
+<span class="fc" id="L45">        int totalEncounters = utilization.column(Provider.ENCOUNTERS).values().stream()</span>
+<span class="fc" id="L46">            .mapToInt(ai -&gt; ai.get()).sum();</span>
+<span class="fc bfc" id="L47" title="All 2 branches covered.">        if (totalEncounters &gt; 0) {</span>
+<span class="fc" id="L48">          Entry entry = FhirDstu2.provider(bundle, h);</span>
+<span class="fc" id="L49">          addHospitalExtensions(h, (Organization) entry.getResource());</span>
+        }
+<span class="fc" id="L51">      }</span>
+
+<span class="fc" id="L53">      String bundleJson = FHIR_CTX.newJsonParser().setPrettyPrint(true)</span>
+<span class="fc" id="L54">          .encodeResourceToString(bundle);</span>
+
+      // get output folder
+<span class="fc" id="L57">      List&lt;String&gt; folders = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L58">      folders.add(&quot;fhir_dstu2&quot;);</span>
+<span class="fc" id="L59">      String baseDirectory = Config.get(&quot;exporter.baseDirectory&quot;);</span>
+<span class="fc" id="L60">      File f = Paths.get(baseDirectory, folders.toArray(new String[0])).toFile();</span>
+<span class="fc" id="L61">      f.mkdirs();</span>
+<span class="fc" id="L62">      Path outFilePath = f.toPath().resolve(&quot;hospitalInformation&quot; + stop + &quot;.json&quot;);</span>
+
+      try {
+<span class="fc" id="L65">        Files.write(outFilePath, Collections.singleton(bundleJson), StandardOpenOption.CREATE_NEW);</span>
+<span class="nc" id="L66">      } catch (IOException e) {</span>
+<span class="nc" id="L67">        e.printStackTrace();</span>
+<span class="fc" id="L68">      }</span>
+    }
+<span class="fc" id="L70">  }</span>
+
+  public static void addHospitalExtensions(Provider h, Organization organizationResource) {
+<span class="fc" id="L73">    Table&lt;Integer, String, AtomicInteger&gt; utilization = h.getUtilization();</span>
+    // calculate totals for utilization
+<span class="fc" id="L75">    int totalEncounters = utilization.column(Provider.ENCOUNTERS).values().stream()</span>
+<span class="fc" id="L76">        .mapToInt(ai -&gt; ai.get()).sum();</span>
+<span class="fc" id="L77">    ExtensionDt encountersExtension = new ExtensionDt();</span>
+<span class="fc" id="L78">    encountersExtension.setUrl(SYNTHEA_URI + &quot;utilization-encounters-extension&quot;);</span>
+<span class="fc" id="L79">    IntegerDt encountersValue = new IntegerDt(totalEncounters);</span>
+<span class="fc" id="L80">    encountersExtension.setValue(encountersValue);</span>
+<span class="fc" id="L81">    organizationResource.addUndeclaredExtension(encountersExtension);</span>
+
+<span class="fc" id="L83">    int totalProcedures = utilization.column(Provider.PROCEDURES).values().stream()</span>
+<span class="pc" id="L84">        .mapToInt(ai -&gt; ai.get()).sum();</span>
+<span class="fc" id="L85">    ExtensionDt proceduresExtension = new ExtensionDt();</span>
+<span class="fc" id="L86">    proceduresExtension.setUrl(SYNTHEA_URI + &quot;utilization-procedures-extension&quot;);</span>
+<span class="fc" id="L87">    IntegerDt proceduresValue = new IntegerDt(totalProcedures);</span>
+<span class="fc" id="L88">    proceduresExtension.setValue(proceduresValue);</span>
+<span class="fc" id="L89">    organizationResource.addUndeclaredExtension(proceduresExtension);</span>
+
+<span class="pc" id="L91">    int totalLabs = utilization.column(Provider.LABS).values().stream().mapToInt(ai -&gt; ai.get())</span>
+<span class="fc" id="L92">        .sum();</span>
+<span class="fc" id="L93">    ExtensionDt labsExtension = new ExtensionDt();</span>
+<span class="fc" id="L94">    labsExtension.setUrl(SYNTHEA_URI + &quot;utilization-labs-extension&quot;);</span>
+<span class="fc" id="L95">    IntegerDt labsValue = new IntegerDt(totalLabs);</span>
+<span class="fc" id="L96">    labsExtension.setValue(labsValue);</span>
+<span class="fc" id="L97">    organizationResource.addUndeclaredExtension(labsExtension);</span>
+
+<span class="fc" id="L99">    int totalPrescriptions = utilization.column(Provider.PRESCRIPTIONS).values().stream()</span>
+<span class="pc" id="L100">        .mapToInt(ai -&gt; ai.get()).sum();</span>
+<span class="fc" id="L101">    ExtensionDt prescriptionsExtension = new ExtensionDt();</span>
+<span class="fc" id="L102">    prescriptionsExtension.setUrl(SYNTHEA_URI + &quot;utilization-prescriptions-extension&quot;);</span>
+<span class="fc" id="L103">    IntegerDt prescriptionsValue = new IntegerDt(totalPrescriptions);</span>
+<span class="fc" id="L104">    prescriptionsExtension.setValue(prescriptionsValue);</span>
+<span class="fc" id="L105">    organizationResource.addUndeclaredExtension(prescriptionsExtension);</span>
+
+<span class="fc" id="L107">    Integer bedCount = h.getBedCount();</span>
+<span class="pc bpc" id="L108" title="1 of 2 branches missed.">    if (bedCount != null) {</span>
+<span class="nc" id="L109">      ExtensionDt bedCountExtension = new ExtensionDt();</span>
+<span class="nc" id="L110">      bedCountExtension.setUrl(SYNTHEA_URI + &quot;bed-count-extension&quot;);</span>
+<span class="nc" id="L111">      IntegerDt bedCountValue = new IntegerDt(bedCount);</span>
+<span class="nc" id="L112">      bedCountExtension.setValue(bedCountValue);</span>
+<span class="nc" id="L113">      organizationResource.addUndeclaredExtension(bedCountExtension);</span>
+    }
+<span class="fc" id="L115">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

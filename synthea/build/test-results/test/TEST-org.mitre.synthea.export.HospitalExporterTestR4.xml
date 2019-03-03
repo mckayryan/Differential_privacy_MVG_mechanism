@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.export.HospitalExporterTestR4" tests="1" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:18:30" hostname="ryan-B250M-HD3" time="8.607">
+  <properties/>
+  <testcase name="testFHIRExport" classname="org.mitre.synthea.export.HospitalExporterTestR4" time="8.607"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

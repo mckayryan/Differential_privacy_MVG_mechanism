@@ -1,0 +1,2346 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FhirStu3.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.export</a> &gt; <span class="el_source">FhirStu3.java</span></div><h1>FhirStu3.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.export;
+
+import ca.uhn.fhir.context.FhirContext;
+
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Table;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.apache.sis.geometry.DirectPosition2D;
+import org.hl7.fhir.dstu3.model.Address;
+import org.hl7.fhir.dstu3.model.AllergyIntolerance;
+import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceCategory;
+import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceClinicalStatus;
+import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceCriticality;
+import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceType;
+import org.hl7.fhir.dstu3.model.AllergyIntolerance.AllergyIntoleranceVerificationStatus;
+import org.hl7.fhir.dstu3.model.Basic;
+import org.hl7.fhir.dstu3.model.BooleanType;
+import org.hl7.fhir.dstu3.model.Bundle;
+import org.hl7.fhir.dstu3.model.Bundle.BundleEntryComponent;
+import org.hl7.fhir.dstu3.model.Bundle.BundleEntryRequestComponent;
+import org.hl7.fhir.dstu3.model.Bundle.BundleType;
+import org.hl7.fhir.dstu3.model.Bundle.HTTPVerb;
+import org.hl7.fhir.dstu3.model.CarePlan.CarePlanActivityComponent;
+import org.hl7.fhir.dstu3.model.CarePlan.CarePlanActivityDetailComponent;
+import org.hl7.fhir.dstu3.model.CarePlan.CarePlanActivityStatus;
+import org.hl7.fhir.dstu3.model.CarePlan.CarePlanIntent;
+import org.hl7.fhir.dstu3.model.CarePlan.CarePlanStatus;
+import org.hl7.fhir.dstu3.model.Claim.ClaimStatus;
+import org.hl7.fhir.dstu3.model.Claim.ItemComponent;
+import org.hl7.fhir.dstu3.model.Claim.ProcedureComponent;
+import org.hl7.fhir.dstu3.model.Claim.SpecialConditionComponent;
+import org.hl7.fhir.dstu3.model.CodeType;
+import org.hl7.fhir.dstu3.model.CodeableConcept;
+import org.hl7.fhir.dstu3.model.Coding;
+import org.hl7.fhir.dstu3.model.Condition;
+import org.hl7.fhir.dstu3.model.Condition.ConditionClinicalStatus;
+import org.hl7.fhir.dstu3.model.Condition.ConditionVerificationStatus;
+import org.hl7.fhir.dstu3.model.ContactPoint;
+import org.hl7.fhir.dstu3.model.ContactPoint.ContactPointSystem;
+import org.hl7.fhir.dstu3.model.Coverage;
+import org.hl7.fhir.dstu3.model.DateTimeType;
+import org.hl7.fhir.dstu3.model.DateType;
+import org.hl7.fhir.dstu3.model.DecimalType;
+import org.hl7.fhir.dstu3.model.DiagnosticReport;
+import org.hl7.fhir.dstu3.model.DiagnosticReport.DiagnosticReportStatus;
+import org.hl7.fhir.dstu3.model.Dosage;
+import org.hl7.fhir.dstu3.model.Encounter.EncounterHospitalizationComponent;
+import org.hl7.fhir.dstu3.model.Encounter.EncounterStatus;
+import org.hl7.fhir.dstu3.model.Enumerations.AdministrativeGender;
+import org.hl7.fhir.dstu3.model.ExplanationOfBenefit;
+import org.hl7.fhir.dstu3.model.Extension;
+import org.hl7.fhir.dstu3.model.Goal.GoalStatus;
+import org.hl7.fhir.dstu3.model.HumanName;
+import org.hl7.fhir.dstu3.model.Identifier;
+import org.hl7.fhir.dstu3.model.ImagingStudy.ImagingStudySeriesComponent;
+import org.hl7.fhir.dstu3.model.ImagingStudy.ImagingStudySeriesInstanceComponent;
+import org.hl7.fhir.dstu3.model.ImagingStudy.InstanceAvailability;
+import org.hl7.fhir.dstu3.model.Immunization;
+import org.hl7.fhir.dstu3.model.Immunization.ImmunizationStatus;
+import org.hl7.fhir.dstu3.model.IntegerType;
+import org.hl7.fhir.dstu3.model.MedicationRequest;
+import org.hl7.fhir.dstu3.model.MedicationRequest.MedicationRequestIntent;
+import org.hl7.fhir.dstu3.model.MedicationRequest.MedicationRequestRequesterComponent;
+import org.hl7.fhir.dstu3.model.MedicationRequest.MedicationRequestStatus;
+import org.hl7.fhir.dstu3.model.Meta;
+import org.hl7.fhir.dstu3.model.Money;
+import org.hl7.fhir.dstu3.model.Narrative;
+import org.hl7.fhir.dstu3.model.Narrative.NarrativeStatus;
+import org.hl7.fhir.dstu3.model.Observation.ObservationComponentComponent;
+import org.hl7.fhir.dstu3.model.Observation.ObservationStatus;
+import org.hl7.fhir.dstu3.model.Organization;
+import org.hl7.fhir.dstu3.model.Patient;
+import org.hl7.fhir.dstu3.model.Patient.PatientCommunicationComponent;
+import org.hl7.fhir.dstu3.model.Period;
+import org.hl7.fhir.dstu3.model.PositiveIntType;
+import org.hl7.fhir.dstu3.model.Practitioner;
+import org.hl7.fhir.dstu3.model.Procedure.ProcedureStatus;
+import org.hl7.fhir.dstu3.model.Quantity;
+import org.hl7.fhir.dstu3.model.Reference;
+import org.hl7.fhir.dstu3.model.ReferralRequest;
+import org.hl7.fhir.dstu3.model.Resource;
+import org.hl7.fhir.dstu3.model.SimpleQuantity;
+import org.hl7.fhir.dstu3.model.StringType;
+import org.hl7.fhir.dstu3.model.Timing;
+import org.hl7.fhir.dstu3.model.Timing.TimingRepeatComponent;
+import org.hl7.fhir.dstu3.model.Timing.UnitsOfTime;
+import org.hl7.fhir.dstu3.model.Type;
+import org.hl7.fhir.utilities.xhtml.NodeType;
+import org.hl7.fhir.utilities.xhtml.XhtmlNode;
+import org.mitre.synthea.engine.Event;
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.SimpleCSV;
+import org.mitre.synthea.helpers.Utilities;
+import org.mitre.synthea.modules.HealthInsuranceModule;
+import org.mitre.synthea.world.agents.Clinician;
+import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.agents.Provider;
+import org.mitre.synthea.world.concepts.Costs;
+import org.mitre.synthea.world.concepts.HealthRecord;
+import org.mitre.synthea.world.concepts.HealthRecord.CarePlan;
+import org.mitre.synthea.world.concepts.HealthRecord.Claim;
+import org.mitre.synthea.world.concepts.HealthRecord.Code;
+import org.mitre.synthea.world.concepts.HealthRecord.Encounter;
+import org.mitre.synthea.world.concepts.HealthRecord.EncounterType;
+import org.mitre.synthea.world.concepts.HealthRecord.ImagingStudy;
+import org.mitre.synthea.world.concepts.HealthRecord.Medication;
+import org.mitre.synthea.world.concepts.HealthRecord.Observation;
+import org.mitre.synthea.world.concepts.HealthRecord.Procedure;
+import org.mitre.synthea.world.concepts.HealthRecord.Report;
+
+<span class="nc" id="L124">public class FhirStu3 {</span>
+  // HAPI FHIR warns that the context creation is expensive, and should be performed
+  // per-application, not per-record
+<span class="fc" id="L127">  private static final FhirContext FHIR_CTX = FhirContext.forDstu3();</span>
+
+  private static final String SNOMED_URI = &quot;http://snomed.info/sct&quot;;
+  private static final String LOINC_URI = &quot;http://loinc.org&quot;;
+  private static final String RXNORM_URI = &quot;http://www.nlm.nih.gov/research/umls/rxnorm&quot;;
+  private static final String CVX_URI = &quot;http://hl7.org/fhir/sid/cvx&quot;;
+  private static final String DISCHARGE_URI = &quot;http://www.nubc.org/patient-discharge&quot;;
+  private static final String SHR_EXT = &quot;http://standardhealthrecord.org/fhir/StructureDefinition/&quot;;
+  private static final String SYNTHEA_EXT = &quot;http://synthetichealth.github.io/synthea/&quot;;
+  private static final String UNITSOFMEASURE_URI = &quot;http://unitsofmeasure.org&quot;;
+  private static final String DICOM_DCM_URI = &quot;http://dicom.nema.org/resources/ontology/DCM&quot;;
+
+  @SuppressWarnings(&quot;rawtypes&quot;)
+<span class="fc" id="L140">  private static final Map raceEthnicityCodes = loadRaceEthnicityCodes();</span>
+  @SuppressWarnings(&quot;rawtypes&quot;)
+<span class="fc" id="L142">  private static final Map languageLookup = loadLanguageLookup();</span>
+
+<span class="fc" id="L144">  private static final boolean USE_SHR_EXTENSIONS =</span>
+<span class="fc" id="L145">      Boolean.parseBoolean(Config.get(&quot;exporter.fhir.use_shr_extensions&quot;));</span>
+<span class="fc" id="L146">  protected static boolean TRANSACTION_BUNDLE =</span>
+<span class="fc" id="L147">      Boolean.parseBoolean(Config.get(&quot;exporter.fhir.transaction_bundle&quot;));</span>
+
+<span class="fc" id="L149">  private static final String COUNTRY_CODE = Config.get(&quot;generate.geography.country_code&quot;);</span>
+
+<span class="fc" id="L151">  private static final Table&lt;String,String,String&gt; SHR_MAPPING = loadSHRMapping();</span>
+
+  @SuppressWarnings(&quot;rawtypes&quot;)
+  private static Map loadRaceEthnicityCodes() {
+<span class="fc" id="L155">    String filename = &quot;race_ethnicity_codes.json&quot;;</span>
+    try {
+<span class="fc" id="L157">      String json = Utilities.readResource(filename);</span>
+<span class="fc" id="L158">      Gson g = new Gson();</span>
+<span class="fc" id="L159">      return g.fromJson(json, HashMap.class);</span>
+<span class="nc" id="L160">    } catch (Exception e) {</span>
+<span class="nc" id="L161">      System.err.println(&quot;ERROR: unable to load json: &quot; + filename);</span>
+<span class="nc" id="L162">      e.printStackTrace();</span>
+<span class="nc" id="L163">      throw new ExceptionInInitializerError(e);</span>
+    }
+  }
+
+  @SuppressWarnings(&quot;rawtypes&quot;)
+  private static Map loadLanguageLookup() {
+<span class="fc" id="L169">    String filename = &quot;language_lookup.json&quot;;</span>
+    try {
+<span class="fc" id="L171">      String json = Utilities.readResource(filename);</span>
+<span class="fc" id="L172">      Gson g = new Gson();</span>
+<span class="fc" id="L173">      return g.fromJson(json, HashMap.class);</span>
+<span class="nc" id="L174">    } catch (Exception e) {</span>
+<span class="nc" id="L175">      System.err.println(&quot;ERROR: unable to load json: &quot; + filename);</span>
+<span class="nc" id="L176">      e.printStackTrace();</span>
+<span class="nc" id="L177">      throw new ExceptionInInitializerError(e);</span>
+    }
+  }
+
+
+  private static Table&lt;String, String, String&gt; loadSHRMapping() {
+<span class="pc bpc" id="L183" title="1 of 2 branches missed.">    if (!USE_SHR_EXTENSIONS) {</span>
+      // don't bother creating the table unless we need it
+<span class="nc" id="L185">      return null;</span>
+    }
+<span class="fc" id="L187">    Table&lt;String,String,String&gt; mappingTable = HashBasedTable.create();</span>
+
+    List&lt;LinkedHashMap&lt;String,String&gt;&gt; csvData;
+    try {
+<span class="fc" id="L191">      csvData = SimpleCSV.parse(Utilities.readResource(&quot;shr_mapping.csv&quot;));</span>
+<span class="nc" id="L192">    } catch (IOException e) {</span>
+<span class="nc" id="L193">      e.printStackTrace();</span>
+<span class="nc" id="L194">      return null;</span>
+<span class="fc" id="L195">    }</span>
+
+<span class="fc bfc" id="L197" title="All 2 branches covered.">    for (LinkedHashMap&lt;String,String&gt; line : csvData) {</span>
+<span class="fc" id="L198">      String system = line.get(&quot;SYSTEM&quot;);</span>
+<span class="fc" id="L199">      String code = line.get(&quot;CODE&quot;);</span>
+<span class="fc" id="L200">      String url = line.get(&quot;URL&quot;);</span>
+
+<span class="fc" id="L202">      mappingTable.put(system, code, url);</span>
+<span class="fc" id="L203">    }</span>
+
+<span class="fc" id="L205">    return mappingTable;</span>
+  }
+
+  /**
+   * Convert the given Person into a FHIR Bundle, containing the Patient and the
+   * associated entries from their health record.
+   *
+   * @param person Person to generate the FHIR from
+   * @param stopTime Time the simulation ended
+   * @return FHIR Bundle containing the Person's health record.
+   */
+  public static Bundle convertToFHIR(Person person, long stopTime) {
+<span class="fc" id="L217">    Bundle bundle = new Bundle();</span>
+<span class="fc bfc" id="L218" title="All 2 branches covered.">    if (TRANSACTION_BUNDLE) {</span>
+<span class="fc" id="L219">      bundle.setType(BundleType.TRANSACTION);</span>
+    } else {
+<span class="fc" id="L221">      bundle.setType(BundleType.COLLECTION);</span>
+    }
+
+<span class="fc" id="L224">    BundleEntryComponent personEntry = basicInfo(person, bundle, stopTime);</span>
+
+<span class="fc bfc" id="L226" title="All 2 branches covered.">    for (Encounter encounter : person.record.encounters) {</span>
+<span class="fc" id="L227">      BundleEntryComponent encounterEntry = encounter(person, personEntry, bundle, encounter);</span>
+
+<span class="fc bfc" id="L229" title="All 2 branches covered.">      for (HealthRecord.Entry condition : encounter.conditions) {</span>
+<span class="fc" id="L230">        condition(personEntry, bundle, encounterEntry, condition);</span>
+<span class="fc" id="L231">      }</span>
+
+<span class="fc bfc" id="L233" title="All 2 branches covered.">      for (HealthRecord.Entry allergy : encounter.allergies) {</span>
+<span class="fc" id="L234">        allergy(personEntry, bundle, encounterEntry, allergy);</span>
+<span class="fc" id="L235">      }</span>
+
+<span class="fc bfc" id="L237" title="All 2 branches covered.">      for (Observation observation : encounter.observations) {</span>
+<span class="fc" id="L238">        observation(personEntry, bundle, encounterEntry, observation);</span>
+<span class="fc" id="L239">      }</span>
+
+<span class="fc bfc" id="L241" title="All 2 branches covered.">      for (Procedure procedure : encounter.procedures) {</span>
+<span class="fc" id="L242">        procedure(personEntry, bundle, encounterEntry, procedure);</span>
+<span class="fc" id="L243">      }</span>
+
+<span class="fc bfc" id="L245" title="All 2 branches covered.">      for (Medication medication : encounter.medications) {</span>
+<span class="fc" id="L246">        medication(personEntry, bundle, encounterEntry, medication);</span>
+<span class="fc" id="L247">      }</span>
+
+<span class="fc bfc" id="L249" title="All 2 branches covered.">      for (HealthRecord.Entry immunization : encounter.immunizations) {</span>
+<span class="fc" id="L250">        immunization(personEntry, bundle, encounterEntry, immunization);</span>
+<span class="fc" id="L251">      }</span>
+
+<span class="fc bfc" id="L253" title="All 2 branches covered.">      for (Report report : encounter.reports) {</span>
+<span class="fc" id="L254">        report(personEntry, bundle, encounterEntry, report);</span>
+<span class="fc" id="L255">      }</span>
+
+<span class="fc bfc" id="L257" title="All 2 branches covered.">      for (CarePlan careplan : encounter.careplans) {</span>
+<span class="fc" id="L258">        careplan(personEntry, bundle, encounterEntry, careplan);</span>
+<span class="fc" id="L259">      }</span>
+
+<span class="pc bpc" id="L261" title="1 of 2 branches missed.">      for (ImagingStudy imagingStudy : encounter.imagingStudies) {</span>
+<span class="nc" id="L262">        imagingStudy(personEntry, bundle, encounterEntry, imagingStudy);</span>
+<span class="nc" id="L263">      }</span>
+
+      // one claim per encounter
+<span class="fc" id="L266">      BundleEntryComponent encounterClaim = encounterClaim(personEntry, bundle,</span>
+          encounterEntry, encounter.claim);
+
+<span class="fc" id="L269">      explanationOfBenefit(personEntry,bundle,encounterEntry,person,</span>
+          encounterClaim, encounter);
+<span class="fc" id="L271">    }</span>
+<span class="fc" id="L272">    return bundle;</span>
+  }
+
+  /**
+   * Convert the given Person into a JSON String, containing a FHIR Bundle of the Person and the
+   * associated entries from their health record.
+   *
+   * @param person Person to generate the FHIR JSON for
+   * @param stopTime Time the simulation ended
+   * @return String containing a JSON representation of a FHIR Bundle containing the Person's 
+   *     health record.
+   */
+  public static String convertToFHIRJson(Person person, long stopTime) {
+<span class="fc" id="L285">    Bundle bundle = convertToFHIR(person, stopTime);</span>
+<span class="fc" id="L286">    String bundleJson = FHIR_CTX.newJsonParser().setPrettyPrint(true)</span>
+<span class="fc" id="L287">        .encodeResourceToString(bundle);</span>
+<span class="fc" id="L288">    return bundleJson;</span>
+  }
+
+  /**
+   * Map the given Person to a FHIR Patient resource, and add it to the given Bundle.
+   *
+   * @param person The Person
+   * @param bundle The Bundle to add to
+   * @param stopTime Time the simulation ended
+   * @return The created Entry
+   */
+  @SuppressWarnings(&quot;rawtypes&quot;)
+  private static BundleEntryComponent basicInfo(Person person, Bundle bundle, long stopTime) {
+<span class="fc" id="L301">    Patient patientResource = new Patient();</span>
+
+<span class="fc" id="L303">    patientResource.addIdentifier().setSystem(&quot;https://github.com/synthetichealth/synthea&quot;)</span>
+<span class="fc" id="L304">        .setValue((String) person.attributes.get(Person.ID));</span>
+
+<span class="fc" id="L306">    Code mrnCode = new Code(&quot;http://hl7.org/fhir/v2/0203&quot;, &quot;MR&quot;, &quot;Medical Record Number&quot;);</span>
+<span class="fc" id="L307">    patientResource.addIdentifier()</span>
+<span class="fc" id="L308">        .setType(mapCodeToCodeableConcept(mrnCode, &quot;http://hl7.org/fhir/v2/0203&quot;))</span>
+<span class="fc" id="L309">        .setSystem(&quot;http://hospital.smarthealthit.org&quot;)</span>
+<span class="fc" id="L310">        .setValue((String) person.attributes.get(Person.ID));</span>
+
+<span class="fc" id="L312">    Code ssnCode = new Code(&quot;http://hl7.org/fhir/identifier-type&quot;, &quot;SB&quot;, &quot;Social Security Number&quot;);</span>
+<span class="fc" id="L313">    patientResource.addIdentifier()</span>
+<span class="fc" id="L314">        .setType(mapCodeToCodeableConcept(ssnCode, &quot;http://hl7.org/fhir/identifier-type&quot;))</span>
+<span class="fc" id="L315">        .setSystem(&quot;http://hl7.org/fhir/sid/us-ssn&quot;)</span>
+<span class="fc" id="L316">        .setValue((String) person.attributes.get(Person.IDENTIFIER_SSN));</span>
+
+<span class="pc bpc" id="L318" title="1 of 2 branches missed.">    if (person.attributes.get(Person.IDENTIFIER_DRIVERS) != null) {</span>
+<span class="fc" id="L319">      Code driversCode = new Code(&quot;http://hl7.org/fhir/v2/0203&quot;, &quot;DL&quot;, &quot;Driver's License&quot;);</span>
+<span class="fc" id="L320">      patientResource.addIdentifier()</span>
+<span class="fc" id="L321">          .setType(mapCodeToCodeableConcept(driversCode, &quot;http://hl7.org/fhir/v2/0203&quot;))</span>
+<span class="fc" id="L322">          .setSystem(&quot;urn:oid:2.16.840.1.113883.4.3.25&quot;)</span>
+<span class="fc" id="L323">          .setValue((String) person.attributes.get(Person.IDENTIFIER_DRIVERS));</span>
+    }
+
+<span class="pc bpc" id="L326" title="1 of 2 branches missed.">    if (person.attributes.get(Person.IDENTIFIER_PASSPORT) != null) {</span>
+<span class="fc" id="L327">      Code passportCode = new Code(&quot;http://hl7.org/fhir/v2/0203&quot;, &quot;PPN&quot;, &quot;Passport Number&quot;);</span>
+<span class="fc" id="L328">      patientResource.addIdentifier()</span>
+<span class="fc" id="L329">          .setType(mapCodeToCodeableConcept(passportCode, &quot;http://hl7.org/fhir/v2/0203&quot;))</span>
+<span class="fc" id="L330">          .setSystem(SHR_EXT + &quot;passportNumber&quot;)</span>
+<span class="fc" id="L331">          .setValue((String) person.attributes.get(Person.IDENTIFIER_PASSPORT));</span>
+    }
+
+    // We do not yet account for mixed race
+<span class="fc" id="L335">    Extension raceExtension = new Extension(</span>
+        &quot;http://hl7.org/fhir/us/core/StructureDefinition/us-core-race&quot;);
+<span class="fc" id="L337">    String race = (String) person.attributes.get(Person.RACE);</span>
+
+    String raceDisplay;
+<span class="pc bpc" id="L340" title="3 of 5 branches missed.">    switch (race) {</span>
+      case &quot;white&quot;:
+<span class="fc" id="L342">        raceDisplay = &quot;White&quot;;</span>
+<span class="fc" id="L343">        break;</span>
+      case &quot;black&quot;:
+<span class="nc" id="L345">        raceDisplay = &quot;Black or African American&quot;;</span>
+<span class="nc" id="L346">        break;</span>
+      case &quot;asian&quot;:
+<span class="nc" id="L348">        raceDisplay = &quot;Asian&quot;;</span>
+<span class="nc" id="L349">        break;</span>
+      case &quot;native&quot;:
+<span class="nc" id="L351">        raceDisplay = &quot;American Indian or Alaska Native&quot;;</span>
+<span class="nc" id="L352">        break;</span>
+      default: // Hispanic or Other (Put Hawaiian and Pacific Islander here for now)
+<span class="fc" id="L354">        raceDisplay = &quot;Other&quot;;</span>
+        break;
+    }
+
+<span class="fc" id="L358">    String raceNum = (String) raceEthnicityCodes.get(race);</span>
+
+<span class="pc bpc" id="L360" title="1 of 2 branches missed.">    if (race != &quot;hispanic&quot;) {</span>
+<span class="fc" id="L361">      Extension raceCodingExtension = new Extension(&quot;ombCategory&quot;);</span>
+<span class="fc" id="L362">      Coding raceCoding = new Coding();</span>
+<span class="fc" id="L363">      raceCoding.setSystem(&quot;urn:oid:2.16.840.1.113883.6.238&quot;);</span>
+<span class="fc" id="L364">      raceCoding.setCode(raceNum);</span>
+<span class="fc" id="L365">      raceCoding.setDisplay(raceDisplay);</span>
+<span class="fc" id="L366">      raceCodingExtension.setValue(raceCoding);</span>
+<span class="fc" id="L367">      raceExtension.addExtension(raceCodingExtension);</span>
+    }
+
+<span class="fc" id="L370">    Extension raceTextExtension = new Extension(&quot;text&quot;);</span>
+<span class="fc" id="L371">    raceTextExtension.setValue(new StringType(raceDisplay));</span>
+
+<span class="fc" id="L373">    raceExtension.addExtension(raceTextExtension);</span>
+
+<span class="fc" id="L375">    patientResource.addExtension(raceExtension);</span>
+
+    // We do not yet account for mixed ethnicity
+<span class="fc" id="L378">    Extension ethnicityExtension = new Extension(</span>
+        &quot;http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity&quot;);
+<span class="fc" id="L380">    String ethnicity = (String) person.attributes.get(Person.ETHNICITY);</span>
+
+    String ethnicityDisplay;
+<span class="pc bpc" id="L383" title="1 of 2 branches missed.">    if (race == &quot;hispanic&quot;) {</span>
+<span class="nc" id="L384">      ethnicity = &quot;hispanic&quot;;</span>
+<span class="nc" id="L385">      ethnicityDisplay = &quot;Hispanic or Latino&quot;;</span>
+    } else {
+<span class="fc" id="L387">      ethnicity = &quot;nonhispanic&quot;;</span>
+<span class="fc" id="L388">      ethnicityDisplay = &quot;Not Hispanic or Latino&quot;;</span>
+    }
+
+<span class="fc" id="L391">    String ethnicityNum = (String) raceEthnicityCodes.get(ethnicity);</span>
+
+<span class="fc" id="L393">    Extension ethnicityCodingExtension = new Extension(&quot;ombCategory&quot;);</span>
+<span class="fc" id="L394">    Coding ethnicityCoding = new Coding();</span>
+<span class="fc" id="L395">    ethnicityCoding.setSystem(&quot;urn:oid:2.16.840.1.113883.6.238&quot;);</span>
+<span class="fc" id="L396">    ethnicityCoding.setCode(ethnicityNum);</span>
+<span class="fc" id="L397">    ethnicityCoding.setDisplay(ethnicityDisplay);</span>
+<span class="fc" id="L398">    ethnicityCodingExtension.setValue(ethnicityCoding);</span>
+
+<span class="fc" id="L400">    ethnicityExtension.addExtension(ethnicityCodingExtension);</span>
+
+<span class="fc" id="L402">    Extension ethnicityTextExtension = new Extension(&quot;text&quot;);</span>
+<span class="fc" id="L403">    ethnicityTextExtension.setValue(new StringType(ethnicityDisplay));</span>
+
+<span class="fc" id="L405">    ethnicityExtension.addExtension(ethnicityTextExtension);</span>
+
+<span class="fc" id="L407">    patientResource.addExtension(ethnicityExtension);</span>
+
+<span class="fc" id="L409">    String firstLanguage = (String) person.attributes.get(Person.FIRST_LANGUAGE);</span>
+<span class="fc" id="L410">    Map languageMap = (Map) languageLookup.get(firstLanguage);</span>
+<span class="fc" id="L411">    Code languageCode = new Code((String) languageMap.get(&quot;system&quot;),</span>
+<span class="fc" id="L412">        (String) languageMap.get(&quot;code&quot;), (String) languageMap.get(&quot;display&quot;));</span>
+<span class="fc" id="L413">    List&lt;PatientCommunicationComponent&gt; communication =</span>
+        new ArrayList&lt;PatientCommunicationComponent&gt;();
+<span class="fc" id="L415">    communication.add(new PatientCommunicationComponent(</span>
+<span class="fc" id="L416">        mapCodeToCodeableConcept(languageCode, (String) languageMap.get(&quot;system&quot;))));</span>
+<span class="fc" id="L417">    patientResource.setCommunication(communication);</span>
+
+<span class="fc" id="L419">    HumanName name = patientResource.addName();</span>
+<span class="fc" id="L420">    name.setUse(HumanName.NameUse.OFFICIAL);</span>
+<span class="fc" id="L421">    name.addGiven((String) person.attributes.get(Person.FIRST_NAME));</span>
+<span class="fc" id="L422">    name.setFamily((String) person.attributes.get(Person.LAST_NAME));</span>
+<span class="pc bpc" id="L423" title="1 of 2 branches missed.">    if (person.attributes.get(Person.NAME_PREFIX) != null) {</span>
+<span class="fc" id="L424">      name.addPrefix((String) person.attributes.get(Person.NAME_PREFIX));</span>
+    }
+<span class="fc bfc" id="L426" title="All 2 branches covered.">    if (person.attributes.get(Person.NAME_SUFFIX) != null) {</span>
+<span class="fc" id="L427">      name.addSuffix((String) person.attributes.get(Person.NAME_SUFFIX));</span>
+    }
+<span class="fc bfc" id="L429" title="All 2 branches covered.">    if (person.attributes.get(Person.MAIDEN_NAME) != null) {</span>
+<span class="fc" id="L430">      HumanName maidenName = patientResource.addName();</span>
+<span class="fc" id="L431">      maidenName.setUse(HumanName.NameUse.MAIDEN);</span>
+<span class="fc" id="L432">      maidenName.addGiven((String) person.attributes.get(Person.FIRST_NAME));</span>
+<span class="fc" id="L433">      maidenName.setFamily((String) person.attributes.get(Person.MAIDEN_NAME));</span>
+<span class="pc bpc" id="L434" title="1 of 2 branches missed.">      if (person.attributes.get(Person.NAME_PREFIX) != null) {</span>
+<span class="fc" id="L435">        maidenName.addPrefix((String) person.attributes.get(Person.NAME_PREFIX));</span>
+      }
+<span class="pc bpc" id="L437" title="1 of 2 branches missed.">      if (person.attributes.get(Person.NAME_SUFFIX) != null) {</span>
+<span class="nc" id="L438">        maidenName.addSuffix((String) person.attributes.get(Person.NAME_SUFFIX));</span>
+      }
+    }
+
+<span class="fc" id="L442">    Extension mothersMaidenNameExtension = new Extension(</span>
+        &quot;http://hl7.org/fhir/StructureDefinition/patient-mothersMaidenName&quot;);
+<span class="fc" id="L444">    String mothersMaidenName = (String) person.attributes.get(Person.NAME_MOTHER);</span>
+<span class="fc" id="L445">    mothersMaidenNameExtension.setValue(new StringType(mothersMaidenName));</span>
+<span class="fc" id="L446">    patientResource.addExtension(mothersMaidenNameExtension);</span>
+
+<span class="fc" id="L448">    long birthdate = (long) person.attributes.get(Person.BIRTHDATE);</span>
+<span class="fc" id="L449">    patientResource.setBirthDate(new Date(birthdate));</span>
+
+<span class="fc" id="L451">    Extension birthSexExtension = new Extension(</span>
+        &quot;http://hl7.org/fhir/us/core/StructureDefinition/us-core-birthsex&quot;);
+<span class="fc bfc" id="L453" title="All 2 branches covered.">    if (person.attributes.get(Person.GENDER).equals(&quot;M&quot;)) {</span>
+<span class="fc" id="L454">      patientResource.setGender(AdministrativeGender.MALE);</span>
+<span class="fc" id="L455">      birthSexExtension.setValue(new CodeType(&quot;M&quot;));</span>
+<span class="pc bpc" id="L456" title="1 of 2 branches missed.">    } else if (person.attributes.get(Person.GENDER).equals(&quot;F&quot;)) {</span>
+<span class="fc" id="L457">      patientResource.setGender(AdministrativeGender.FEMALE);</span>
+<span class="fc" id="L458">      birthSexExtension.setValue(new CodeType(&quot;F&quot;));</span>
+    }
+<span class="fc" id="L460">    patientResource.addExtension(birthSexExtension);</span>
+
+<span class="fc" id="L462">    String state = (String) person.attributes.get(Person.STATE);</span>
+
+<span class="fc" id="L464">    Address addrResource = patientResource.addAddress();</span>
+<span class="fc" id="L465">    addrResource.addLine((String) person.attributes.get(Person.ADDRESS))</span>
+<span class="fc" id="L466">        .setCity((String) person.attributes.get(Person.CITY))</span>
+<span class="fc" id="L467">        .setPostalCode((String) person.attributes.get(Person.ZIP))</span>
+<span class="fc" id="L468">        .setState(state);</span>
+<span class="pc bpc" id="L469" title="1 of 2 branches missed.">    if (COUNTRY_CODE != null) {</span>
+<span class="fc" id="L470">      addrResource.setCountry(COUNTRY_CODE);</span>
+    }
+
+<span class="fc" id="L473">    Address birthplace = new Address();</span>
+<span class="fc" id="L474">    birthplace.setCity((String) person.attributes.get(Person.BIRTH_CITY))</span>
+<span class="fc" id="L475">            .setState((String) person.attributes.get(Person.BIRTH_STATE))</span>
+<span class="fc" id="L476">            .setCountry((String) person.attributes.get(Person.BIRTH_COUNTRY));</span>
+
+<span class="fc" id="L478">    Extension birthplaceExtension = new Extension(</span>
+        &quot;http://hl7.org/fhir/StructureDefinition/birthPlace&quot;);
+<span class="fc" id="L480">    birthplaceExtension.setValue(birthplace);</span>
+<span class="fc" id="L481">    patientResource.addExtension(birthplaceExtension);</span>
+
+<span class="pc bpc" id="L483" title="1 of 2 branches missed.">    if (person.attributes.get(Person.MULTIPLE_BIRTH_STATUS) != null) {</span>
+<span class="nc" id="L484">      patientResource.setMultipleBirth(</span>
+<span class="nc" id="L485">          new IntegerType((int) person.attributes.get(Person.MULTIPLE_BIRTH_STATUS)));</span>
+    } else {
+<span class="fc" id="L487">      patientResource.setMultipleBirth(new BooleanType(false));</span>
+    }
+
+<span class="fc" id="L490">    patientResource.addTelecom().setSystem(ContactPoint.ContactPointSystem.PHONE)</span>
+<span class="fc" id="L491">        .setUse(ContactPoint.ContactPointUse.HOME)</span>
+<span class="fc" id="L492">        .setValue((String) person.attributes.get(Person.TELECOM));</span>
+
+<span class="fc" id="L494">    String maritalStatus = ((String) person.attributes.get(Person.MARITAL_STATUS));</span>
+<span class="pc bpc" id="L495" title="1 of 2 branches missed.">    if (maritalStatus != null) {</span>
+<span class="fc" id="L496">      Code maritalStatusCode = new Code(&quot;http://hl7.org/fhir/v3/MaritalStatus&quot;, maritalStatus,</span>
+          maritalStatus);
+<span class="fc" id="L498">      patientResource.setMaritalStatus(</span>
+<span class="fc" id="L499">          mapCodeToCodeableConcept(maritalStatusCode, &quot;http://hl7.org/fhir/v3/MaritalStatus&quot;));</span>
+<span class="fc" id="L500">    } else {</span>
+<span class="nc" id="L501">      Code maritalStatusCode = new Code(&quot;http://hl7.org/fhir/v3/MaritalStatus&quot;, &quot;S&quot;,</span>
+          &quot;Never Married&quot;);
+<span class="nc" id="L503">      patientResource.setMaritalStatus(</span>
+<span class="nc" id="L504">          mapCodeToCodeableConcept(maritalStatusCode, &quot;http://hl7.org/fhir/v3/MaritalStatus&quot;));</span>
+    }
+
+<span class="fc" id="L507">    DirectPosition2D coord = person.getLatLon();</span>
+<span class="pc bpc" id="L508" title="1 of 2 branches missed.">    if (coord != null) {</span>
+<span class="fc" id="L509">      Extension geolocation = addrResource.addExtension();</span>
+<span class="fc" id="L510">      geolocation.setUrl(&quot;http://hl7.org/fhir/StructureDefinition/geolocation&quot;);</span>
+<span class="fc" id="L511">      geolocation.addExtension(&quot;latitude&quot;, new DecimalType(coord.getY()));</span>
+<span class="fc" id="L512">      geolocation.addExtension(&quot;longitude&quot;, new DecimalType(coord.getX()));</span>
+    }
+
+<span class="pc bpc" id="L515" title="1 of 2 branches missed.">    if (!person.alive(stopTime)) {</span>
+<span class="nc" id="L516">      patientResource.setDeceased(</span>
+<span class="nc" id="L517">          convertFhirDateTime(person.events.event(Event.DEATH).time, true));</span>
+    }
+
+<span class="fc" id="L520">    String generatedBySynthea = &quot;Generated by &lt;a href=\&quot;https://github.com/synthetichealth/synthea\&quot;&gt;Synthea&lt;/a&gt;.&quot;</span>
+        + &quot;Version identifier: &quot; + Utilities.SYNTHEA_VERSION + &quot; . &quot;
+        + &quot;  Person seed: &quot; + person.seed
+        + &quot;  Population seed: &quot; + person.populationSeed;
+
+<span class="fc" id="L525">    patientResource.setText(new Narrative().setStatus(NarrativeStatus.GENERATED)</span>
+<span class="fc" id="L526">        .setDiv(new XhtmlNode(NodeType.Element).setValue(generatedBySynthea)));</span>
+
+<span class="pc bpc" id="L528" title="1 of 2 branches missed.">    if (USE_SHR_EXTENSIONS) {</span>
+
+<span class="fc" id="L530">      patientResource.setMeta(new Meta().addProfile(SHR_EXT + &quot;shr-entity-Patient&quot;));</span>
+
+      // Patient profile requires race, ethnicity, birthsex,
+      // MothersMaidenName, FathersName, Person-extension
+
+<span class="fc" id="L535">      patientResource.addExtension()</span>
+<span class="fc" id="L536">        .setUrl(SHR_EXT + &quot;shr-actor-FictionalPerson-extension&quot;)</span>
+<span class="fc" id="L537">        .setValue(new BooleanType(true));</span>
+
+<span class="fc" id="L539">      String fathersName = (String) person.attributes.get(Person.NAME_FATHER);</span>
+<span class="fc" id="L540">      Extension fathersNameExtension = new Extension(</span>
+<span class="fc" id="L541">          SHR_EXT + &quot;shr-entity-FathersName-extension&quot;, new HumanName().setText(fathersName));</span>
+<span class="fc" id="L542">      patientResource.addExtension(fathersNameExtension);</span>
+
+<span class="fc" id="L544">      String ssn = (String) person.attributes.get(Person.IDENTIFIER_SSN);</span>
+<span class="fc" id="L545">      Extension ssnExtension = new Extension(</span>
+          SHR_EXT + &quot;shr-demographics-SocialSecurityNumber-extension&quot;,
+          new StringType(ssn));
+<span class="fc" id="L548">      patientResource.addExtension(ssnExtension);</span>
+
+<span class="fc" id="L550">      Basic personResource = new Basic();</span>
+      // the only required field on this patient resource is code
+
+<span class="fc" id="L553">      Coding fixedCode = new Coding(</span>
+          &quot;http://standardhealthrecord.org/fhir/basic-resource-type&quot;,
+          &quot;shr-entity-Person&quot;, &quot;shr-entity-Person&quot;);
+<span class="fc" id="L556">      personResource.setCode(new CodeableConcept().addCoding(fixedCode));</span>
+
+<span class="fc" id="L558">      Meta personMeta = new Meta();</span>
+<span class="fc" id="L559">      personMeta.addProfile(SHR_EXT + &quot;shr-entity-Person&quot;);</span>
+<span class="fc" id="L560">      personResource.setMeta(personMeta);</span>
+
+<span class="fc" id="L562">      BundleEntryComponent personEntry = newEntry(bundle, personResource);</span>
+<span class="fc" id="L563">      patientResource.addExtension()</span>
+<span class="fc" id="L564">          .setUrl(SHR_EXT + &quot;shr-entity-Person-extension&quot;)</span>
+<span class="fc" id="L565">          .setValue(new Reference(personEntry.getFullUrl()));</span>
+    }
+
+    // DALY and QALY values
+    // we only write the last(current) one to the patient record
+<span class="fc" id="L570">    Double dalyValue = (Double) person.attributes.get(&quot;most-recent-daly&quot;);</span>
+<span class="fc" id="L571">    Double qalyValue = (Double) person.attributes.get(&quot;most-recent-qaly&quot;);</span>
+<span class="pc bpc" id="L572" title="1 of 2 branches missed.">    if (dalyValue != null) {</span>
+<span class="fc" id="L573">      Extension dalyExtension = new Extension(SYNTHEA_EXT + &quot;disability-adjusted-life-years&quot;);</span>
+<span class="fc" id="L574">      DecimalType daly = new DecimalType(dalyValue);</span>
+<span class="fc" id="L575">      dalyExtension.setValue(daly);</span>
+<span class="fc" id="L576">      patientResource.addExtension(dalyExtension);</span>
+
+<span class="fc" id="L578">      Extension qalyExtension = new Extension(SYNTHEA_EXT + &quot;quality-adjusted-life-years&quot;);</span>
+<span class="fc" id="L579">      DecimalType qaly = new DecimalType(qalyValue);</span>
+<span class="fc" id="L580">      qalyExtension.setValue(qaly);</span>
+<span class="fc" id="L581">      patientResource.addExtension(qalyExtension);</span>
+    }
+
+<span class="fc" id="L584">    return newEntry(bundle, patientResource);</span>
+  }
+
+  /**
+   * Map the given Encounter into a FHIR Encounter resource, and add it to the given Bundle.
+   *
+   * @param personEntry Entry for the Person
+   * @param bundle The Bundle to add to
+   * @param encounter The current Encounter
+   * @return The added Entry
+   */
+  private static BundleEntryComponent encounter(Person person, BundleEntryComponent personEntry,
+      Bundle bundle, Encounter encounter) {
+<span class="fc" id="L597">    org.hl7.fhir.dstu3.model.Encounter encounterResource = new org.hl7.fhir.dstu3.model.Encounter();</span>
+
+<span class="fc" id="L599">    encounterResource.setSubject(new Reference(personEntry.getFullUrl()));</span>
+<span class="fc" id="L600">    encounterResource.setStatus(EncounterStatus.FINISHED);</span>
+<span class="pc bpc" id="L601" title="1 of 2 branches missed.">    if (encounter.codes.isEmpty()) {</span>
+      // wellness encounter
+<span class="nc" id="L603">      encounterResource.addType().addCoding().setCode(&quot;185349003&quot;)</span>
+<span class="nc" id="L604">          .setDisplay(&quot;Encounter for check up&quot;).setSystem(SNOMED_URI);</span>
+
+    } else {
+<span class="fc" id="L607">      Code code = encounter.codes.get(0);</span>
+<span class="fc" id="L608">      encounterResource.addType(mapCodeToCodeableConcept(code, SNOMED_URI));</span>
+    }
+
+<span class="fc" id="L611">    encounterResource.setClass_(new Coding().setCode(encounter.type));</span>
+<span class="fc" id="L612">    encounterResource</span>
+<span class="fc" id="L613">        .setPeriod(new Period()</span>
+<span class="fc" id="L614">            .setStart(new Date(encounter.start))</span>
+<span class="fc" id="L615">            .setEnd(new Date(encounter.stop)));</span>
+
+<span class="fc bfc" id="L617" title="All 2 branches covered.">    if (encounter.reason != null) {</span>
+<span class="fc" id="L618">      encounterResource.addReason().addCoding().setCode(encounter.reason.code)</span>
+<span class="fc" id="L619">          .setDisplay(encounter.reason.display).setSystem(SNOMED_URI);</span>
+    }
+
+<span class="pc bpc" id="L622" title="1 of 2 branches missed.">    if (encounter.provider != null) {</span>
+<span class="fc" id="L623">      String providerFullUrl = findProviderUrl(encounter.provider, bundle);</span>
+
+<span class="fc bfc" id="L625" title="All 2 branches covered.">      if (providerFullUrl != null) {</span>
+<span class="fc" id="L626">        encounterResource.setServiceProvider(new Reference(providerFullUrl));</span>
+      } else {
+<span class="fc" id="L628">        BundleEntryComponent providerOrganization = provider(bundle, encounter.provider);</span>
+<span class="fc" id="L629">        encounterResource.setServiceProvider(new Reference(providerOrganization.getFullUrl()));</span>
+      }
+<span class="fc" id="L631">    } else { // no associated provider, patient goes to ambulatory provider</span>
+<span class="nc" id="L632">      Provider provider = person.getProvider(EncounterType.AMBULATORY, encounter.start);</span>
+<span class="nc" id="L633">      String providerFullUrl = findProviderUrl(provider, bundle);</span>
+
+<span class="nc bnc" id="L635" title="All 2 branches missed.">      if (providerFullUrl != null) {</span>
+<span class="nc" id="L636">        encounterResource.setServiceProvider(new Reference(providerFullUrl));</span>
+      } else {
+<span class="nc" id="L638">        BundleEntryComponent providerOrganization = provider(bundle, provider);</span>
+<span class="nc" id="L639">        encounterResource.setServiceProvider(new Reference(providerOrganization.getFullUrl()));</span>
+      }
+    }
+
+<span class="pc bpc" id="L643" title="1 of 2 branches missed.">    if (encounter.clinician != null) {</span>
+<span class="fc" id="L644">      String practitionerFullUrl = findPractitioner(encounter.clinician, bundle);</span>
+
+<span class="fc bfc" id="L646" title="All 2 branches covered.">      if (practitionerFullUrl != null) {</span>
+<span class="fc" id="L647">        encounterResource.addParticipant().setIndividual(new Reference(practitionerFullUrl));</span>
+      } else {
+<span class="fc" id="L649">        BundleEntryComponent practitioner = practitioner(bundle, encounter.clinician);</span>
+<span class="fc" id="L650">        encounterResource.addParticipant().setIndividual(new Reference(practitioner.getFullUrl()));</span>
+      }
+    }
+
+<span class="pc bpc" id="L654" title="1 of 2 branches missed.">    if (encounter.discharge != null) {</span>
+<span class="nc" id="L655">      EncounterHospitalizationComponent hospitalization = new EncounterHospitalizationComponent();</span>
+<span class="nc" id="L656">      Code dischargeDisposition = new Code(DISCHARGE_URI, encounter.discharge.code,</span>
+          encounter.discharge.display);
+<span class="nc" id="L658">      hospitalization</span>
+<span class="nc" id="L659">          .setDischargeDisposition(mapCodeToCodeableConcept(dischargeDisposition, DISCHARGE_URI));</span>
+<span class="nc" id="L660">      encounterResource.setHospitalization(hospitalization);</span>
+    }
+
+<span class="pc bpc" id="L663" title="1 of 2 branches missed.">    if (USE_SHR_EXTENSIONS) {</span>
+<span class="fc" id="L664">      encounterResource.setMeta(</span>
+<span class="fc" id="L665">          new Meta().addProfile(SHR_EXT + &quot;shr-encounter-EncounterPerformed&quot;));</span>
+      // required fields for this profile are status &amp; action-PerformedContext-extension
+
+<span class="fc" id="L668">      Extension performedContext = new Extension();</span>
+<span class="fc" id="L669">      performedContext.setUrl(SHR_EXT + &quot;shr-action-PerformedContext-extension&quot;);</span>
+<span class="fc" id="L670">      performedContext.addExtension(</span>
+          SHR_EXT + &quot;shr-action-Status-extension&quot;,
+          new CodeType(&quot;finished&quot;));
+
+<span class="fc" id="L674">      encounterResource.addExtension(performedContext);</span>
+    }
+
+<span class="fc" id="L677">    return newEntry(bundle, encounterResource);</span>
+  }
+
+  /**
+   * Find the provider entry in this bundle, and return the associated &quot;fullUrl&quot; attribute.
+   * @param provider A given provider.
+   * @param bundle The current bundle being generated.
+   * @return Provider.fullUrl if found, otherwise null.
+   */
+  private static String findProviderUrl(Provider provider, Bundle bundle) {
+<span class="fc bfc" id="L687" title="All 2 branches covered.">    for (BundleEntryComponent entry : bundle.getEntry()) {</span>
+<span class="fc bfc" id="L688" title="All 2 branches covered.">      if (entry.getResource().fhirType().equals(&quot;Organization&quot;)) {</span>
+<span class="fc" id="L689">        Organization org = (Organization) entry.getResource();</span>
+<span class="fc bfc" id="L690" title="All 2 branches covered.">        if (org.getIdentifierFirstRep().getValue().equals(provider.getResourceID())) {</span>
+<span class="fc" id="L691">          return entry.getFullUrl();</span>
+        }
+      }
+<span class="fc" id="L694">    }</span>
+<span class="fc" id="L695">    return null;</span>
+  }
+
+  /**
+   * Find the Practitioner entry in this bundle, and return the associated &quot;fullUrl&quot;
+   * attribute.
+   * @param clinician A given clinician.
+   * @param bundle The current bundle being generated.
+   * @return Practitioner.fullUrl if found, otherwise null.
+   */
+  private static String findPractitioner(Clinician clinician, Bundle bundle) {
+<span class="fc bfc" id="L706" title="All 2 branches covered.">    for (BundleEntryComponent entry : bundle.getEntry()) {</span>
+<span class="fc bfc" id="L707" title="All 2 branches covered.">      if (entry.getResource().fhirType().equals(&quot;Practitioner&quot;)) {</span>
+<span class="fc" id="L708">        Practitioner doc = (Practitioner) entry.getResource();</span>
+<span class="fc bfc" id="L709" title="All 2 branches covered.">        if (doc.getIdentifierFirstRep().getValue().equals(&quot;&quot; + clinician.seed)) {</span>
+<span class="fc" id="L710">          return entry.getFullUrl();</span>
+        }
+      }
+<span class="fc" id="L713">    }</span>
+<span class="fc" id="L714">    return null;</span>
+  }
+
+  /**
+   * Create an entry for the given Claim, which references a Medication.
+   *
+   * @param personEntry Entry for the person
+   * @param bundle The Bundle to add to
+   * @param encounterEntry The current Encounter
+   * @param claim the Claim object
+   * @param medicationEntry The Entry for the Medication object, previously created
+   * @return the added Entry
+   */
+  private static BundleEntryComponent medicationClaim(BundleEntryComponent personEntry,
+      Bundle bundle, BundleEntryComponent encounterEntry, Claim claim,
+      BundleEntryComponent medicationEntry) {
+<span class="fc" id="L730">    org.hl7.fhir.dstu3.model.Claim claimResource = new org.hl7.fhir.dstu3.model.Claim();</span>
+<span class="fc" id="L731">    org.hl7.fhir.dstu3.model.Encounter encounterResource =</span>
+<span class="fc" id="L732">        (org.hl7.fhir.dstu3.model.Encounter) encounterEntry.getResource();</span>
+
+<span class="fc" id="L734">    claimResource.setStatus(ClaimStatus.ACTIVE);</span>
+<span class="fc" id="L735">    claimResource.setUse(org.hl7.fhir.dstu3.model.Claim.Use.COMPLETE);</span>
+
+    // duration of encounter
+<span class="fc" id="L738">    claimResource.setBillablePeriod(encounterResource.getPeriod());</span>
+
+<span class="fc" id="L740">    claimResource.setPatient(new Reference(personEntry.getFullUrl()));</span>
+<span class="fc" id="L741">    claimResource.setOrganization(encounterResource.getServiceProvider());</span>
+
+    // add item for encounter
+<span class="fc" id="L744">    claimResource.addItem(new org.hl7.fhir.dstu3.model.Claim.ItemComponent(new PositiveIntType(1))</span>
+<span class="fc" id="L745">        .addEncounter(new Reference(encounterEntry.getFullUrl())));</span>
+
+    // add prescription.
+<span class="fc" id="L748">    claimResource.setPrescription(new Reference(medicationEntry.getFullUrl()));</span>
+
+<span class="fc" id="L750">    Money moneyResource = new Money();</span>
+<span class="fc" id="L751">    moneyResource.setValue(claim.total());</span>
+<span class="fc" id="L752">    moneyResource.setCode(&quot;USD&quot;);</span>
+<span class="fc" id="L753">    moneyResource.setSystem(&quot;urn:iso:std:iso:4217&quot;);</span>
+<span class="fc" id="L754">    claimResource.setTotal(moneyResource);</span>
+
+<span class="fc" id="L756">    return newEntry(bundle, claimResource);</span>
+  }
+
+  /**
+   * Create an entry for the given Claim, associated to an Encounter.
+   *
+   * @param personEntry Entry for the person
+   * @param bundle The Bundle to add to
+   * @param encounterEntry The current Encounter
+   * @param claim the Claim object
+   * @return the added Entry
+   */
+  private static BundleEntryComponent encounterClaim(BundleEntryComponent personEntry,
+      Bundle bundle, BundleEntryComponent encounterEntry, Claim claim) {
+<span class="fc" id="L770">    org.hl7.fhir.dstu3.model.Claim claimResource = new org.hl7.fhir.dstu3.model.Claim();</span>
+<span class="fc" id="L771">    org.hl7.fhir.dstu3.model.Encounter encounterResource =</span>
+<span class="fc" id="L772">        (org.hl7.fhir.dstu3.model.Encounter) encounterEntry.getResource();</span>
+<span class="fc" id="L773">    claimResource.setStatus(ClaimStatus.ACTIVE);</span>
+<span class="fc" id="L774">    claimResource.setUse(org.hl7.fhir.dstu3.model.Claim.Use.COMPLETE);</span>
+
+    // duration of encounter
+<span class="fc" id="L777">    claimResource.setBillablePeriod(encounterResource.getPeriod());</span>
+
+<span class="fc" id="L779">    claimResource.setPatient(new Reference(personEntry.getFullUrl()));</span>
+<span class="fc" id="L780">    claimResource.setOrganization(encounterResource.getServiceProvider());</span>
+
+    // add item for encounter
+<span class="fc" id="L783">    claimResource.addItem(new ItemComponent(new PositiveIntType(1))</span>
+<span class="fc" id="L784">        .addEncounter(new Reference(encounterEntry.getFullUrl())));</span>
+
+<span class="fc" id="L786">    int itemSequence = 2;</span>
+<span class="fc" id="L787">    int conditionSequence = 1;</span>
+<span class="fc" id="L788">    int procedureSequence = 1;</span>
+<span class="fc" id="L789">    int informationSequence = 1;</span>
+
+<span class="fc bfc" id="L791" title="All 2 branches covered.">    for (HealthRecord.Entry item : claim.items) {</span>
+<span class="fc bfc" id="L792" title="All 2 branches covered.">      if (Costs.hasCost(item)) {</span>
+        // update claimItems list
+<span class="fc" id="L794">        ItemComponent claimItem = new ItemComponent(new PositiveIntType(itemSequence));</span>
+<span class="fc" id="L795">        Code primaryCode = item.codes.get(0);</span>
+
+<span class="fc" id="L797">        CodeableConcept serviceProvided = new CodeableConcept()</span>
+<span class="fc" id="L798">            .addCoding(new Coding()</span>
+<span class="fc" id="L799">                .setCode(primaryCode.code)</span>
+<span class="fc" id="L800">                .setVersion(&quot;v1&quot;)</span>
+                // Temporarily set the system to SNOMED.  Should be
+                // changed when Terminology branch gets merged and
+                // system names can be translated to their URI's
+<span class="fc" id="L804">                .setSystem(SNOMED_URI));</span>
+<span class="fc" id="L805">        claimItem.setService(serviceProvided);</span>
+        // calculate the cost of the procedure
+<span class="fc" id="L807">        Money moneyResource = new Money();</span>
+<span class="fc" id="L808">        moneyResource.setCode(&quot;USD&quot;);</span>
+<span class="fc" id="L809">        moneyResource.setSystem(&quot;urn:iso:std:iso:4217&quot;);</span>
+<span class="fc" id="L810">        moneyResource.setValue(item.cost());</span>
+<span class="fc" id="L811">        claimItem.setNet(moneyResource);</span>
+
+<span class="fc bfc" id="L813" title="All 2 branches covered.">        if (item instanceof HealthRecord.Procedure) {</span>
+<span class="fc" id="L814">          Type procedureReference = new Reference(item.fullUrl);</span>
+<span class="fc" id="L815">          ProcedureComponent claimProcedure = new ProcedureComponent(</span>
+              new PositiveIntType(procedureSequence), procedureReference);
+<span class="fc" id="L817">          claimResource.addProcedure(claimProcedure);</span>
+<span class="fc" id="L818">          claimItem.addProcedureLinkId(procedureSequence);</span>
+
+<span class="fc" id="L820">          procedureSequence++;</span>
+<span class="fc" id="L821">        } else {</span>
+<span class="fc" id="L822">          Reference informationReference = new Reference(item.fullUrl);</span>
+<span class="fc" id="L823">          SpecialConditionComponent informationComponent = new SpecialConditionComponent();</span>
+<span class="fc" id="L824">          informationComponent.setSequence(informationSequence);</span>
+<span class="fc" id="L825">          informationComponent.setValue(informationReference);</span>
+<span class="fc" id="L826">          CodeableConcept category = new CodeableConcept();</span>
+<span class="fc" id="L827">          category.getCodingFirstRep()</span>
+<span class="fc" id="L828">            .setSystem(&quot;http://hl7.org/fhir/claiminformationcategory&quot;)</span>
+<span class="fc" id="L829">            .setCode(&quot;info&quot;);</span>
+<span class="fc" id="L830">          informationComponent.setCategory(category);</span>
+<span class="fc" id="L831">          claimResource.addInformation(informationComponent);</span>
+<span class="fc" id="L832">          claimItem.addInformationLinkId(informationSequence);</span>
+<span class="fc" id="L833">          claimItem.setService(claimResource.getType());</span>
+
+<span class="fc" id="L835">          informationSequence++;</span>
+        }
+<span class="fc" id="L837">        claimResource.addItem(claimItem);</span>
+<span class="fc" id="L838">      } else {</span>
+        // assume it's a Condition, we don't have a Condition class specifically
+        // add diagnosisComponent to claim
+<span class="fc" id="L841">        Reference diagnosisReference = new Reference(item.fullUrl);</span>
+<span class="fc" id="L842">        org.hl7.fhir.dstu3.model.Claim.DiagnosisComponent diagnosisComponent =</span>
+            new org.hl7.fhir.dstu3.model.Claim.DiagnosisComponent(
+                new PositiveIntType(conditionSequence), diagnosisReference);
+<span class="fc" id="L845">        claimResource.addDiagnosis(diagnosisComponent);</span>
+
+        // update claimItems with diagnosis
+<span class="fc" id="L848">        ItemComponent diagnosisItem = new ItemComponent(new PositiveIntType(itemSequence));</span>
+<span class="fc" id="L849">        diagnosisItem.addDiagnosisLinkId(conditionSequence);</span>
+<span class="fc" id="L850">        claimResource.addItem(diagnosisItem);</span>
+
+<span class="fc" id="L852">        conditionSequence++;</span>
+      }
+<span class="fc" id="L854">      itemSequence++;</span>
+<span class="fc" id="L855">    }</span>
+
+<span class="fc" id="L857">    Money moneyResource = new Money();</span>
+<span class="fc" id="L858">    moneyResource.setCode(&quot;USD&quot;);</span>
+<span class="fc" id="L859">    moneyResource.setSystem(&quot;urn:iso:std:iso:4217&quot;);</span>
+<span class="fc" id="L860">    moneyResource.setValue(claim.total());</span>
+<span class="fc" id="L861">    claimResource.setTotal(moneyResource);</span>
+
+<span class="fc" id="L863">    return newEntry(bundle, claimResource);</span>
+  }
+
+  /**
+   * Create an extension in with a valueMoney in USD.
+   * @param url The url of the extension.
+   * @param value The value in USD.
+   * @return the Extension
+   */
+  private static Extension createMoneyExtension(String url, double value) {
+<span class="fc" id="L873">    Money money = new Money();</span>
+<span class="fc" id="L874">    money.setValue(value);</span>
+<span class="fc" id="L875">    money.setSystem(&quot;urn:iso:std:iso:4217&quot;);</span>
+<span class="fc" id="L876">    money.setCode(&quot;USD&quot;);</span>
+
+<span class="fc" id="L878">    Extension extension = new Extension();</span>
+<span class="fc" id="L879">    extension.setUrl(url);</span>
+<span class="fc" id="L880">    extension.setValue(money);</span>
+
+<span class="fc" id="L882">    return extension;</span>
+  }
+
+  /**
+   * Create an explanation of benefit resource for each claim, detailing insurance
+   * information.
+   *
+   * @param personEntry Entry for the person
+   * @param bundle The Bundle to add to
+   * @param encounterEntry The current Encounter
+   * @param claim the Claim object
+   * @param person the person the health record belongs to
+   * @param encounter the current Encounter as an object
+   * @return the added entry
+   */
+  private static BundleEntryComponent explanationOfBenefit(BundleEntryComponent personEntry,
+                                           Bundle bundle, BundleEntryComponent encounterEntry,
+                                           Person person, BundleEntryComponent claimEntry,
+                                           Encounter encounter) {
+<span class="fc" id="L901">    boolean inpatient = false;</span>
+<span class="fc" id="L902">    boolean outpatient = false;</span>
+<span class="fc" id="L903">    EncounterType type = EncounterType.fromString(encounter.type);</span>
+<span class="fc bfc" id="L904" title="All 2 branches covered.">    if (type == EncounterType.INPATIENT) {</span>
+<span class="fc" id="L905">      inpatient = true;</span>
+      // Provider enum doesn't include outpatient, but it can still be
+      // an encounter type.
+<span class="fc bfc" id="L908" title="All 2 branches covered.">    } else if (type == EncounterType.AMBULATORY) {</span>
+<span class="fc" id="L909">      outpatient = true;</span>
+    }
+<span class="fc" id="L911">    ExplanationOfBenefit eob = new ExplanationOfBenefit();</span>
+<span class="fc" id="L912">    org.hl7.fhir.dstu3.model.Encounter encounterResource =</span>
+<span class="fc" id="L913">        (org.hl7.fhir.dstu3.model.Encounter) encounterEntry.getResource();</span>
+
+<span class="fc" id="L915">    Meta meta = new Meta();</span>
+<span class="fc bfc" id="L916" title="All 2 branches covered.">    if (inpatient) {</span>
+<span class="fc" id="L917">      meta.addProfile(&quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-claim&quot;);</span>
+<span class="fc bfc" id="L918" title="All 2 branches covered.">    }  else if (outpatient) {</span>
+<span class="fc" id="L919">      meta.addProfile(&quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-outpatient-claim&quot;);</span>
+    }
+<span class="fc" id="L921">    eob.setMeta(meta);</span>
+
+    // First add the extensions
+    // will have to deal with different claim types (e.g. inpatient vs outpatient)
+<span class="fc bfc" id="L925" title="All 2 branches covered.">    if (inpatient) {</span>
+      //https://www.cms.gov/Medicare/Medicare-Fee-for-Service-Payment/AcuteInpatientPPS/Indirect-Medical-Education-IME
+      // Extra cost for educational hospitals
+<span class="fc" id="L928">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-ime-op-clm-val-amt-extension&quot;,
+          400));
+
+      // DSH payment-- Massachusetts does not make DSH payments at all, so set to 0 for now
+      // https://www.cms.gov/Medicare/Medicare-Fee-for-Service-Payment/AcuteInpatientPPS/dsh
+<span class="fc" id="L934">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-dsh-op-clm-val-amt-extension&quot;,
+          0));
+
+      // The pass through per diem rate
+      // not really defined by CMS
+<span class="fc" id="L940">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-clm-pass-thru-per-diem-amt-extension&quot;,
+          0));
+
+      // Professional charge
+<span class="fc" id="L945">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-nch-profnl-cmpnt-chrg-amt-extension&quot;,
+          0));
+
+      // total claim PPS charge
+<span class="fc" id="L950">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-clm-tot-pps-cptl-amt-extension&quot;,
+          0));
+
+      // Deductible Amount
+<span class="fc" id="L955">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-nch-bene-ip-ddctbl-amt-extension&quot;,
+          0));
+
+      // Coinsurance Liability
+<span class="fc" id="L960">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-nch-bene-pta-coinsrnc-lblty-amt-extension&quot;,
+          0));
+
+      // Non-covered Charge Amount
+<span class="fc" id="L965">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-nch-ip-ncvrd-chrg-amt-extension&quot;,
+          0));
+
+      // Total Deductible/Coinsurance Amount
+<span class="fc" id="L970">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-nch-ip-tot-ddctn-amt-extension&quot;,
+          0));
+
+      // PPS Capital DSH Amount
+<span class="fc" id="L975">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-clm-pps-cptl-dsprprtnt-shr-amt-extension&quot;,
+          0));
+
+      // PPS Capital Exception Amount
+<span class="fc" id="L980">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-clm-pps-cptl-excptn-amt-extension&quot;,
+          0));
+
+      // PPS FSP
+<span class="fc" id="L985">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-clm-pps-cptl-fsp-amt-extension&quot;,
+          0));
+
+      // PPS IME
+<span class="fc" id="L990">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-clm-pps-cptl-ime-amt-extension&quot;,
+          400));
+
+      // PPS Capital Outlier Amount
+<span class="fc" id="L995">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-clm-pps-cptl-outlier-amt-extension&quot;,
+          0));
+
+      // Old capital hold harmless amount
+<span class="fc" id="L1000">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-clm-pps-old-cptl-hld-hrmls-amt-extension&quot;,
+          0));
+
+      // NCH DRG Outlier Approved Payment Amount
+<span class="fc" id="L1005">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-nch-drg-outlier-aprvd-pmt-amt-extension&quot;,
+          0));
+
+      // NCH Beneficiary Blood Deductible Liability Amount
+<span class="fc" id="L1010">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-nch-bene-blood-ddctbl-lblty-am-extension&quot;,
+          0));
+
+      // Non-payment reason
+<span class="fc" id="L1015">      eob.addExtension()</span>
+<span class="fc" id="L1016">          .setUrl(&quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-clm-mdcr-non-pmt-rsn-cd-extension&quot;)</span>
+<span class="fc" id="L1017">          .setValue(new Coding()</span>
+<span class="fc" id="L1018">              .setSystem(&quot;https://bluebutton.cms.gov/assets/ig/CodeSystem-clm-mdcr-non-pmt-rsn-cd&quot;)</span>
+<span class="fc" id="L1019">              .setDisplay(&quot;All other reasons for non-payment&quot;)</span>
+<span class="fc" id="L1020">              .setCode(&quot;N&quot;));</span>
+
+      // Prepayment
+<span class="fc" id="L1023">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-prpayamt-extension&quot;,
+          0));
+
+      // FI or MAC number
+<span class="fc" id="L1028">      eob.addExtension()</span>
+<span class="fc" id="L1029">          .setUrl(&quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-fi-num-extension&quot;)</span>
+<span class="fc" id="L1030">          .setValue(new Identifier()</span>
+<span class="fc" id="L1031">              .setValue(&quot;002000&quot;)</span>
+              // No system page exists yet
+<span class="fc" id="L1033">              .setSystem(&quot;https://bluebutton.cms.gov/assets/ig/CodeSystem-fi-num&quot;));</span>
+<span class="fc bfc" id="L1034" title="All 2 branches covered.">    } else if (outpatient) {</span>
+      // Professional component charge amount
+<span class="fc" id="L1036">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-outpatient-nch-profnl-cmpnt-chrg-amt-extension&quot;,
+          0));
+
+      // Deductible amount
+<span class="fc" id="L1041">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-outpatient-nch-bene-ptb-ddctbl-amt-extension&quot;,
+          0));
+
+      // Coinsurance amount
+<span class="fc" id="L1046">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-outpatient-nch-bene-ptb-coinsrnc-amt-extension&quot;,
+          0));
+
+      // Provider Payment
+<span class="fc" id="L1051">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-outpatient-clm-op-prvdr-pmt-amt-extension&quot;,
+          0));
+
+      // Beneficiary payment
+<span class="fc" id="L1056">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-outpatient-clm-op-bene-pmt-amt-extension&quot;,
+          0));
+
+      // Beneficiary Blood Deductible Liability Amount
+<span class="fc" id="L1061">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-outpatient-nch-bene-blood-ddctbl-lblty-am-extension&quot;,
+          0));
+
+      // Claim Medicare Non Payment Reason Code
+<span class="fc" id="L1066">      eob.addExtension()</span>
+<span class="fc" id="L1067">          .setUrl(&quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-outpatient-clm-mdcr-non-pmt-rsn-cd-extension&quot;)</span>
+<span class="fc" id="L1068">          .setValue(new Coding()</span>
+<span class="fc" id="L1069">              .setDisplay(&quot;All other reasons for non-payment&quot;)</span>
+<span class="fc" id="L1070">              .setSystem(&quot;https://bluebutton.cms.gov/assets/ig/CodeSystem-clm-mdcr-non-pmt-rsn-cd&quot;)</span>
+<span class="fc" id="L1071">              .setCode(&quot;N&quot;));</span>
+
+      // NCH Primary Payer Claim Paid Amount
+<span class="fc" id="L1074">      eob.addExtension(createMoneyExtension(</span>
+          &quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-outpatient-prpayamt-extension&quot;,
+          0));
+
+      // FI or MAC number
+<span class="fc" id="L1079">      eob.addExtension()</span>
+<span class="fc" id="L1080">          .setUrl(&quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-outpatient-fi-num-extension&quot;)</span>
+<span class="fc" id="L1081">          .setValue(new Identifier()</span>
+<span class="fc" id="L1082">              .setValue(&quot;002000&quot;)</span>
+              // No system page exists yet
+<span class="fc" id="L1084">              .setSystem(&quot;https://bluebutton.cms.gov/assets/ig/CodeSystem-fi-num&quot;));</span>
+    }
+
+    // according to CMS guidelines claims have 12 months to be
+    // billed, so we set the billable period to 1 year after
+    // services have ended (the encounter ends).
+<span class="fc" id="L1090">    Calendar cal = Calendar.getInstance();</span>
+<span class="fc" id="L1091">    cal.setTime(encounterResource.getPeriod().getEnd());</span>
+<span class="fc" id="L1092">    cal.add(Calendar.YEAR,1);</span>
+
+<span class="fc" id="L1094">    Period billablePeriod = new Period()</span>
+<span class="fc" id="L1095">        .setStart(encounterResource</span>
+<span class="fc" id="L1096">            .getPeriod()</span>
+<span class="fc" id="L1097">            .getEnd())</span>
+<span class="fc" id="L1098">        .setEnd(cal.getTime());</span>
+<span class="fc bfc" id="L1099" title="All 2 branches covered.">    if (inpatient) {</span>
+<span class="fc" id="L1100">      billablePeriod.addExtension(new Extension()</span>
+<span class="fc" id="L1101">          .setUrl(&quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-claim-query-cd-extension&quot;)</span>
+<span class="fc" id="L1102">          .setValue(new Coding()</span>
+<span class="fc" id="L1103">              .setCode(&quot;3&quot;)</span>
+<span class="fc" id="L1104">              .setSystem(&quot;https://bluebutton.cms.gov/assets/ig/ValueSet-claim-query-cd&quot;)</span>
+<span class="fc" id="L1105">              .setDisplay(&quot;Final Bill&quot;)));</span>
+<span class="fc bfc" id="L1106" title="All 2 branches covered.">    } else if (outpatient) {</span>
+<span class="fc" id="L1107">      billablePeriod.addExtension(new Extension()</span>
+<span class="fc" id="L1108">          .setUrl(&quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-outpatient-claim-query-cd-extension&quot;)</span>
+<span class="fc" id="L1109">          .setValue(new Coding()</span>
+<span class="fc" id="L1110">              .setCode(&quot;3&quot;)</span>
+<span class="fc" id="L1111">              .setSystem(&quot;https://bluebutton.cms.gov/assets/ig/ValueSet-claim-query-cd&quot;)</span>
+<span class="fc" id="L1112">              .setDisplay(&quot;Final Bill&quot;)));</span>
+    }
+
+<span class="fc" id="L1115">    eob.setBillablePeriod(billablePeriod);</span>
+
+    // cost is hardcoded to be USD in claim so this should be fine as well
+<span class="fc" id="L1118">    Money totalCost = new Money();</span>
+<span class="fc" id="L1119">    totalCost.setSystem(&quot;urn:iso:std:iso:4217&quot;);</span>
+<span class="fc" id="L1120">    totalCost.setCode(&quot;USD&quot;);</span>
+<span class="fc" id="L1121">    totalCost.setValue(encounter.claim.total());</span>
+<span class="fc" id="L1122">    eob.setTotalCost(totalCost);</span>
+
+    // Set References
+<span class="fc" id="L1125">    eob.setPatient(new Reference(personEntry.getFullUrl()));</span>
+<span class="pc bpc" id="L1126" title="1 of 2 branches missed.">    if (encounter.provider != null) {</span>
+      // This is what should happen if BlueButton 2.0 wasn't needlessly restrictive
+      // String providerUrl = findProviderUrl(encounter.provider, bundle);
+      // eob.setOrganization(new Reference().setReference(providerUrl));
+      // Instead, we'll create the BlueButton 2.0 reference via identifier...
+<span class="fc" id="L1131">      Identifier identifier = new Identifier();</span>
+<span class="fc" id="L1132">      identifier.setValue(encounter.provider.getResourceID());</span>
+<span class="fc" id="L1133">      eob.setOrganization(new Reference().setIdentifier(identifier));</span>
+    }
+
+    // get the insurance info at the time that the encounter happened
+<span class="fc" id="L1137">    String insurance = HealthInsuranceModule.getCurrentInsurance(person, encounter.start);</span>
+<span class="fc" id="L1138">    Coverage coverage = new Coverage();</span>
+<span class="fc" id="L1139">    coverage.setId(&quot;coverage&quot;);</span>
+<span class="fc" id="L1140">    coverage.setType(new CodeableConcept().setText(insurance));</span>
+<span class="fc" id="L1141">    eob.addContained(coverage);</span>
+<span class="fc" id="L1142">    ExplanationOfBenefit.InsuranceComponent insuranceComponent =</span>
+        new ExplanationOfBenefit.InsuranceComponent();
+<span class="fc" id="L1144">    insuranceComponent.setCoverage(new Reference(&quot;#coverage&quot;));</span>
+<span class="fc" id="L1145">    eob.setInsurance(insuranceComponent);</span>
+
+<span class="fc" id="L1147">    org.hl7.fhir.dstu3.model.Claim claim =</span>
+<span class="fc" id="L1148">        (org.hl7.fhir.dstu3.model.Claim) claimEntry.getResource();</span>
+<span class="fc" id="L1149">    eob.addIdentifier()</span>
+<span class="fc" id="L1150">        .setSystem(&quot;https://bluebutton.cms.gov/resources/variables/clm_id&quot;)</span>
+<span class="fc" id="L1151">        .setValue(claim.getId());</span>
+    // Hardcoded group id
+<span class="fc" id="L1153">    eob.addIdentifier()</span>
+<span class="fc" id="L1154">        .setSystem(&quot;https://bluebutton.cms.gov/resources/identifier/claim-group&quot;)</span>
+<span class="fc" id="L1155">        .setValue(&quot;99999999999&quot;);</span>
+
+<span class="fc" id="L1157">    eob.setStatus(org.hl7.fhir.dstu3.model.ExplanationOfBenefit.ExplanationOfBenefitStatus.ACTIVE);</span>
+<span class="fc bfc" id="L1158" title="All 4 branches covered.">    if (!inpatient &amp;&amp; !outpatient) {</span>
+<span class="fc" id="L1159">      eob.setClaim(new Reference()</span>
+<span class="fc" id="L1160">          .setReference(claimEntry.getFullUrl()));</span>
+<span class="fc" id="L1161">      eob.setReferral(new Reference(&quot;#1&quot;));</span>
+<span class="fc" id="L1162">      eob.setCreated(encounterResource.getPeriod().getEnd());</span>
+    }
+<span class="fc" id="L1164">    eob.setType(claim.getType());</span>
+
+<span class="fc" id="L1166">    List&lt;ExplanationOfBenefit.DiagnosisComponent&gt; eobDiag = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L1167" title="All 2 branches covered.">    for (org.hl7.fhir.dstu3.model.Claim.DiagnosisComponent claimDiagnosis : claim.getDiagnosis()) {</span>
+<span class="fc" id="L1168">      ExplanationOfBenefit.DiagnosisComponent diagnosisComponent =</span>
+          new ExplanationOfBenefit.DiagnosisComponent();
+<span class="fc" id="L1170">      diagnosisComponent.setDiagnosis(claimDiagnosis.getDiagnosis());</span>
+<span class="fc" id="L1171">      diagnosisComponent.getType().add(new CodeableConcept()</span>
+<span class="fc" id="L1172">          .addCoding(new Coding()</span>
+<span class="fc" id="L1173">              .setCode(&quot;principal&quot;)</span>
+<span class="fc" id="L1174">              .setSystem(&quot;https://bluebutton.cms.gov/resources/codesystem/diagnosis-type&quot;)));</span>
+<span class="fc" id="L1175">      diagnosisComponent.setSequence(claimDiagnosis.getSequence());</span>
+<span class="fc" id="L1176">      diagnosisComponent.setPackageCode(claimDiagnosis.getPackageCode());</span>
+<span class="fc" id="L1177">      diagnosisComponent.addExtension()</span>
+<span class="fc" id="L1178">          .setUrl(&quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-clm-poa-ind-sw1-extension&quot;)</span>
+<span class="fc" id="L1179">          .setValue(new Coding()</span>
+<span class="fc" id="L1180">              .setCode(&quot;Y&quot;)</span>
+<span class="fc" id="L1181">              .setSystem(&quot;https://bluebutton.cms.gov/assets/ig/CodeSystem-clm-poa-ind-sw1&quot;)</span>
+<span class="fc" id="L1182">              .setDisplay(&quot;Diagnosis present at time of admission&quot;));</span>
+<span class="fc" id="L1183">      eobDiag.add(diagnosisComponent);</span>
+<span class="fc" id="L1184">    }</span>
+<span class="fc" id="L1185">    eob.setDiagnosis(eobDiag);</span>
+
+<span class="fc" id="L1187">    List&lt;ExplanationOfBenefit.ProcedureComponent&gt; eobProc = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L1188" title="All 2 branches covered.">    for (ProcedureComponent proc : claim.getProcedure()) {</span>
+<span class="fc" id="L1189">      ExplanationOfBenefit.ProcedureComponent p = new ExplanationOfBenefit.ProcedureComponent();</span>
+<span class="fc" id="L1190">      p.setDate(proc.getDate());</span>
+<span class="fc" id="L1191">      p.setSequence(proc.getSequence());</span>
+<span class="fc" id="L1192">      p.setProcedure(proc.getProcedure());</span>
+<span class="fc" id="L1193">    }</span>
+<span class="fc" id="L1194">    eob.setProcedure(eobProc);</span>
+
+<span class="fc" id="L1196">    List&lt;ExplanationOfBenefit.ItemComponent&gt; eobItem = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L1197">    double totalPayment = 0;</span>
+    // Get all the items info from the claim
+
+<span class="fc bfc" id="L1200" title="All 2 branches covered.">    for (ItemComponent item : claim.getItem()) {</span>
+
+<span class="fc" id="L1202">      ExplanationOfBenefit.ItemComponent itemComponent = new ExplanationOfBenefit.ItemComponent();</span>
+
+<span class="fc" id="L1204">      itemComponent.setSequence(item.getSequence());</span>
+<span class="fc" id="L1205">      itemComponent.setQuantity(item.getQuantity());</span>
+<span class="fc" id="L1206">      itemComponent.setUnitPrice(item.getUnitPrice());</span>
+<span class="fc" id="L1207">      itemComponent.setCareTeamLinkId(item.getCareTeamLinkId());</span>
+
+<span class="fc bfc" id="L1209" title="All 2 branches covered.">      if (item.hasService()) {</span>
+<span class="fc" id="L1210">        itemComponent</span>
+<span class="fc" id="L1211">            .setService(item</span>
+<span class="fc" id="L1212">                .getService());</span>
+      }
+<span class="fc bfc" id="L1214" title="All 4 branches covered.">      if (!inpatient &amp;&amp; !outpatient) {</span>
+<span class="fc" id="L1215">        itemComponent.setDiagnosisLinkId(item.getDiagnosisLinkId());</span>
+<span class="fc" id="L1216">        itemComponent.setInformationLinkId(item.getInformationLinkId());</span>
+<span class="fc" id="L1217">        itemComponent.setNet(item.getNet());</span>
+<span class="fc" id="L1218">        itemComponent.setEncounter(item.getEncounter());</span>
+<span class="fc" id="L1219">        itemComponent.setServiced(encounterResource.getPeriod());</span>
+<span class="fc" id="L1220">        itemComponent.setCategory(new CodeableConcept().addCoding(new Coding()</span>
+<span class="fc" id="L1221">            .setSystem(&quot;https://bluebutton.cms.gov/resources/variables/line_cms_type_srvc_cd&quot;)</span>
+<span class="fc" id="L1222">            .setCode(&quot;1&quot;)</span>
+<span class="fc" id="L1223">            .setDisplay(&quot;Medical care&quot;)));</span>
+      }
+<span class="fc bfc" id="L1225" title="All 2 branches covered.">      if (inpatient) {</span>
+<span class="fc" id="L1226">        itemComponent.addExtension(new Extension()</span>
+<span class="fc" id="L1227">            .setUrl(&quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-inpatient-rev-cntr-ndc-qty-extension&quot;)</span>
+<span class="fc" id="L1228">            .setValue(new Quantity().setValue(0)));</span>
+<span class="fc bfc" id="L1229" title="All 2 branches covered.">      } else if (outpatient) {</span>
+<span class="fc" id="L1230">        itemComponent.addExtension(new Extension()</span>
+<span class="fc" id="L1231">            .setUrl(&quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-outpatient-rev-cntr-ndc-qty-extension&quot;)</span>
+<span class="fc" id="L1232">            .setValue(new Quantity().setValue(0)));</span>
+<span class="fc bfc" id="L1233" title="All 2 branches covered.">        if (itemComponent.hasService()) {</span>
+<span class="fc" id="L1234">          itemComponent.getService().addExtension(new Extension()</span>
+<span class="fc" id="L1235">              .setUrl(&quot;https://bluebutton.cms.gov/assets/ig/StructureDefinition-bluebutton-outpatient-rev-cntr-ide-ndc-upc-num-extension&quot;)</span>
+<span class="fc" id="L1236">              .setValue(new Coding()</span>
+<span class="fc" id="L1237">                  .setSystem(&quot;https://www.accessdata.fda.gov/scripts/cder/ndc&quot;)</span>
+<span class="fc" id="L1238">                  .setDisplay(&quot;Dummy&quot;)</span>
+<span class="fc" id="L1239">                  .setCode(&quot;0624&quot;)));</span>
+        }
+      }
+
+      // Location of service, can use switch statement based on
+      // encounter type
+      String code;
+      String display;
+<span class="fc" id="L1247">      CodeableConcept location = new CodeableConcept();</span>
+<span class="fc" id="L1248">      EncounterType encounterType = EncounterType.fromString(encounter.type);</span>
+<span class="fc bfc" id="L1249" title="All 6 branches covered.">      switch (encounterType) {</span>
+        case AMBULATORY:
+<span class="fc" id="L1251">          code = &quot;21&quot;;</span>
+<span class="fc" id="L1252">          display = &quot;Inpatient Hospital&quot;;</span>
+<span class="fc" id="L1253">          break;</span>
+        case EMERGENCY:
+<span class="fc" id="L1255">          code = &quot;23&quot;;</span>
+<span class="fc" id="L1256">          display = &quot;Emergency Room&quot;;</span>
+<span class="fc" id="L1257">          break;</span>
+        case INPATIENT:
+<span class="fc" id="L1259">          code = &quot;21&quot;;</span>
+<span class="fc" id="L1260">          display = &quot;Inpatient Hospital&quot;;</span>
+<span class="fc" id="L1261">          break;</span>
+        case URGENTCARE:
+<span class="fc" id="L1263">          code = &quot;20&quot;;</span>
+<span class="fc" id="L1264">          display = &quot;Urgent Care Facility&quot;;</span>
+<span class="fc" id="L1265">          break;</span>
+        case WELLNESS:
+<span class="fc" id="L1267">          code = &quot;22&quot;;</span>
+<span class="fc" id="L1268">          display = &quot;Outpatient Hospital&quot;;</span>
+<span class="fc" id="L1269">          break;</span>
+        default:
+<span class="fc" id="L1271">          code = &quot;21&quot;;</span>
+<span class="fc" id="L1272">          display = &quot;Inpatient Hospital&quot;;</span>
+      }
+<span class="fc" id="L1274">      location.addCoding()</span>
+<span class="fc" id="L1275">          .setCode(code)</span>
+          //.setSystem(&quot;http://hl7.org/fhir/ValueSet/service-place&quot;) &gt; if we wanted hl7
+<span class="fc" id="L1277">          .setSystem(&quot;https://bluebutton.cms.gov/resources/variables/line_place_of_srvc_cd&quot;)</span>
+<span class="fc" id="L1278">          .setDisplay(display);</span>
+<span class="fc" id="L1279">      itemComponent.setLocation(location);</span>
+
+      // Adjudication
+<span class="fc bfc" id="L1282" title="All 2 branches covered.">      if (item.hasNet()) {</span>
+
+        // Assume that the patient has already paid deductible and
+        // has 20/80 coinsurance
+<span class="fc" id="L1286">        ExplanationOfBenefit.AdjudicationComponent coinsuranceAmount =</span>
+            new ExplanationOfBenefit.AdjudicationComponent();
+<span class="fc" id="L1288">        coinsuranceAmount.getCategory()</span>
+<span class="fc" id="L1289">            .getCoding()</span>
+<span class="fc" id="L1290">            .add(new Coding()</span>
+<span class="fc" id="L1291">                .setCode(&quot;https://bluebutton.cms.gov/resources/variables/line_coinsrnc_amt&quot;)</span>
+<span class="fc" id="L1292">                .setSystem(&quot;https://bluebutton.cms.gov/resources/codesystem/adjudication&quot;)</span>
+<span class="fc" id="L1293">                .setDisplay(&quot;Line Beneficiary Coinsurance Amount&quot;));</span>
+<span class="fc" id="L1294">        coinsuranceAmount.getAmount()</span>
+<span class="fc" id="L1295">            .setValue(0.2 * item.getNet().getValue().doubleValue()) //20% coinsurance</span>
+<span class="fc" id="L1296">            .setSystem(&quot;urn:iso:std:iso:4217&quot;) //USD</span>
+<span class="fc" id="L1297">            .setCode(&quot;USD&quot;);</span>
+
+<span class="fc" id="L1299">        ExplanationOfBenefit.AdjudicationComponent lineProviderAmount =</span>
+            new ExplanationOfBenefit.AdjudicationComponent();
+<span class="fc" id="L1301">        lineProviderAmount.getCategory()</span>
+<span class="fc" id="L1302">            .getCoding()</span>
+<span class="fc" id="L1303">            .add(new Coding()</span>
+<span class="fc" id="L1304">                .setCode(&quot;https://bluebutton.cms.gov/resources/variables/line_prvdr_pmt_amt&quot;)</span>
+<span class="fc" id="L1305">                .setSystem(&quot;https://bluebutton.cms.gov/resources/codesystem/adjudication&quot;)</span>
+<span class="fc" id="L1306">                .setDisplay(&quot;Line Provider Payment Amount&quot;));</span>
+<span class="fc" id="L1307">        lineProviderAmount.getAmount()</span>
+<span class="fc" id="L1308">            .setValue(0.8 * item.getNet().getValue().doubleValue())</span>
+<span class="fc" id="L1309">            .setSystem(&quot;urn:iso:std:iso:4217&quot;)</span>
+<span class="fc" id="L1310">            .setCode(&quot;USD&quot;);</span>
+
+        // assume the allowed and submitted amounts are the same for now
+<span class="fc" id="L1313">        ExplanationOfBenefit.AdjudicationComponent submittedAmount =</span>
+            new ExplanationOfBenefit.AdjudicationComponent();
+<span class="fc" id="L1315">        submittedAmount.getCategory()</span>
+<span class="fc" id="L1316">            .getCoding()</span>
+<span class="fc" id="L1317">            .add(new Coding()</span>
+<span class="fc" id="L1318">                .setCode(&quot;https://bluebutton.cms.gov/resources/variables/line_sbmtd_chrg_amt&quot;)</span>
+<span class="fc" id="L1319">                .setSystem(&quot;https://bluebutton.cms.gov/resources/codesystem/adjudication&quot;)</span>
+<span class="fc" id="L1320">                .setDisplay(&quot;Line Submitted Charge Amount&quot;));</span>
+<span class="fc" id="L1321">        submittedAmount.getAmount()</span>
+<span class="fc" id="L1322">            .setValue(item.getNet().getValue())</span>
+<span class="fc" id="L1323">            .setSystem(&quot;urn:iso:std:iso:4217&quot;)</span>
+<span class="fc" id="L1324">            .setCode(&quot;USD&quot;);</span>
+
+<span class="fc" id="L1326">        ExplanationOfBenefit.AdjudicationComponent allowedAmount =</span>
+            new ExplanationOfBenefit.AdjudicationComponent();
+<span class="fc" id="L1328">        allowedAmount.getCategory()</span>
+<span class="fc" id="L1329">            .getCoding()</span>
+<span class="fc" id="L1330">            .add(new Coding()</span>
+<span class="fc" id="L1331">                .setCode(&quot;https://bluebutton.cms.gov/resources/variables/line_alowd_chrg_amt&quot;)</span>
+<span class="fc" id="L1332">                .setSystem(&quot;https://bluebutton.cms.gov/resources/codesystem/adjudication&quot;)</span>
+<span class="fc" id="L1333">                .setDisplay(&quot;Line Allowed Charge Amount&quot;));</span>
+<span class="fc" id="L1334">        allowedAmount.getAmount()</span>
+<span class="fc" id="L1335">            .setValue(item.getNet().getValue())</span>
+<span class="fc" id="L1336">            .setSystem(&quot;urn:iso:std:iso:4217&quot;)</span>
+<span class="fc" id="L1337">            .setCode(&quot;USD&quot;);</span>
+
+<span class="fc" id="L1339">        ExplanationOfBenefit.AdjudicationComponent indicatorCode =</span>
+            new ExplanationOfBenefit.AdjudicationComponent();
+<span class="fc" id="L1341">        indicatorCode.getCategory()</span>
+<span class="fc" id="L1342">            .getCoding()</span>
+<span class="fc" id="L1343">            .add(new Coding()</span>
+<span class="fc" id="L1344">                .setCode(&quot;https://bluebutton.cms.gov/resources/variables/line_prcsg_ind_cd&quot;)</span>
+<span class="fc" id="L1345">                .setSystem(&quot;https://bluebutton.cms.gov/resources/codesystem/adjudication&quot;)</span>
+<span class="fc" id="L1346">                .setDisplay(&quot;Line Processing Indicator Code&quot;));</span>
+
+<span class="fc bfc" id="L1348" title="All 4 branches covered.">        if (!inpatient &amp;&amp; !outpatient) {</span>
+<span class="fc" id="L1349">          indicatorCode.getReason()</span>
+<span class="fc" id="L1350">              .addCoding()</span>
+<span class="fc" id="L1351">              .setCode(&quot;A&quot;)</span>
+<span class="fc" id="L1352">              .setSystem(&quot;https://bluebutton.cms.gov/resources/variables/line_prcsg_ind_cd&quot;);</span>
+<span class="fc" id="L1353">          indicatorCode</span>
+<span class="fc" id="L1354">              .getReason()</span>
+<span class="fc" id="L1355">              .getCodingFirstRep()</span>
+<span class="fc" id="L1356">              .setDisplay(&quot;Allowed&quot;);</span>
+        }
+
+        // assume deductible is 0
+<span class="fc" id="L1360">        ExplanationOfBenefit.AdjudicationComponent deductibleAmount =</span>
+            new ExplanationOfBenefit.AdjudicationComponent();
+<span class="fc" id="L1362">        deductibleAmount.getCategory()</span>
+<span class="fc" id="L1363">            .getCoding()</span>
+<span class="fc" id="L1364">            .add(new Coding()</span>
+<span class="fc" id="L1365">                .setCode(&quot;https://bluebutton.cms.gov/resources/variables/line_bene_ptb_ddctbl_amt&quot;)</span>
+<span class="fc" id="L1366">                .setSystem(&quot;https://bluebutton.cms.gov/resources/codesystem/adjudication&quot;)</span>
+<span class="fc" id="L1367">                .setDisplay(&quot;Line Beneficiary Part B Deductible Amount&quot;));</span>
+<span class="fc" id="L1368">        deductibleAmount.getAmount()</span>
+<span class="fc" id="L1369">            .setValue(0)</span>
+<span class="fc" id="L1370">            .setSystem(&quot;urn:iso:std:iso:4217&quot;)</span>
+<span class="fc" id="L1371">            .setCode(&quot;USD&quot;);</span>
+
+<span class="fc" id="L1373">        List&lt;ExplanationOfBenefit.AdjudicationComponent&gt; adjudicationComponents = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L1374">        adjudicationComponents.add(coinsuranceAmount);</span>
+<span class="fc" id="L1375">        adjudicationComponents.add(lineProviderAmount);</span>
+<span class="fc" id="L1376">        adjudicationComponents.add(submittedAmount);</span>
+<span class="fc" id="L1377">        adjudicationComponents.add(allowedAmount);</span>
+<span class="fc" id="L1378">        adjudicationComponents.add(deductibleAmount);</span>
+<span class="fc" id="L1379">        adjudicationComponents.add(indicatorCode);</span>
+
+<span class="fc" id="L1381">        itemComponent.setAdjudication(adjudicationComponents);</span>
+        // the total payment is what the insurance ends up paying
+<span class="fc" id="L1383">        totalPayment += 0.8 * item.getNet().getValue().doubleValue();</span>
+      }
+<span class="fc" id="L1385">      eobItem.add(itemComponent);</span>
+<span class="fc" id="L1386">    }</span>
+
+<span class="fc" id="L1388">    eob.setItem(eobItem);</span>
+
+    // This will throw a validation error no matter what.  The
+    // payment section is required, and it requires a value.
+    // The validator will complain that if there is a value, the payment
+    // needs a code, but it will also complain if there is a code.
+    // There is no way to resolve this error.
+<span class="fc" id="L1395">    Money payment = new Money();</span>
+<span class="fc" id="L1396">    payment.setValue(totalPayment)</span>
+<span class="fc" id="L1397">        .setSystem(&quot;urn:iso:std:iso:4217&quot;)</span>
+<span class="fc" id="L1398">        .setCode(&quot;USD&quot;);</span>
+<span class="fc" id="L1399">    eob.setPayment(new ExplanationOfBenefit.PaymentComponent()</span>
+<span class="fc" id="L1400">        .setAmount(payment));</span>
+
+    // Hardcoded
+<span class="fc" id="L1403">    List&lt;Reference&gt; recipientList = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L1404">    recipientList.add(new Reference()</span>
+<span class="fc" id="L1405">        .setIdentifier(new Identifier()</span>
+<span class="fc" id="L1406">        .setSystem(&quot;http://hl7.org/fhir/sid/us-npi&quot;)</span>
+<span class="fc" id="L1407">        .setValue(&quot;99999999&quot;)));</span>
+<span class="fc" id="L1408">    eob.addContained(new ReferralRequest()</span>
+<span class="fc" id="L1409">        .setStatus(ReferralRequest.ReferralRequestStatus.COMPLETED)</span>
+<span class="fc" id="L1410">        .setIntent(ReferralRequest.ReferralCategory.ORDER)</span>
+<span class="fc" id="L1411">        .setSubject(new Reference(personEntry.getFullUrl()))</span>
+<span class="fc" id="L1412">        .setRequester(new ReferralRequest.ReferralRequestRequesterComponent()</span>
+<span class="fc" id="L1413">            .setAgent(new Reference()</span>
+<span class="fc" id="L1414">                .setIdentifier(new Identifier()</span>
+<span class="fc" id="L1415">                    .setSystem(&quot;http://hl7.org/fhir/sid/us-npi&quot;)</span>
+<span class="fc" id="L1416">                    .setValue(&quot;99999999&quot;))))</span>
+<span class="fc" id="L1417">        .setRecipient(recipientList)</span>
+<span class="fc" id="L1418">        .setId(&quot;1&quot;));</span>
+
+<span class="pc bpc" id="L1420" title="1 of 2 branches missed.">    if (encounter.clinician != null) {</span>
+      // This is what should happen if BlueButton 2.0 wasn't needlessly restrictive
+      // String practitionerFullUrl = findPractitioner(encounter.clinician, bundle);
+      // eob.setProvider(new Reference().setReference(practitionerFullUrl));
+      // Instead, we'll create the BlueButton 2.0 reference via identifier...
+<span class="fc" id="L1425">      Identifier identifier = new Identifier();</span>
+<span class="fc" id="L1426">      identifier.setValue(encounter.clinician.getResourceID());</span>
+<span class="fc" id="L1427">      eob.setProvider(new Reference().setIdentifier(identifier));</span>
+<span class="fc" id="L1428">    } else {</span>
+<span class="nc" id="L1429">      Identifier identifier = new Identifier();</span>
+<span class="nc" id="L1430">      identifier.setValue(&quot;Unknown&quot;);</span>
+<span class="nc" id="L1431">      eob.setProvider(new Reference().setIdentifier(identifier));</span>
+    }
+
+<span class="fc" id="L1434">    eob.addCareTeam(new ExplanationOfBenefit.CareTeamComponent()</span>
+<span class="fc" id="L1435">        .setSequence(1)</span>
+<span class="fc" id="L1436">        .setProvider(new Reference()</span>
+            // .setReference(findProviderUrl(provider, bundle))
+<span class="fc" id="L1438">            .setIdentifier(new Identifier()</span>
+<span class="fc" id="L1439">                .setSystem(&quot;http://hl7.org/fhir/sid/us-npi&quot;)</span>
+                // providers don't have an npi
+<span class="fc" id="L1441">                .setValue(&quot;99999999&quot;)))</span>
+<span class="fc" id="L1442">        .setRole(new CodeableConcept().addCoding(new Coding()</span>
+<span class="fc" id="L1443">            .setCode(&quot;primary&quot;)</span>
+<span class="fc" id="L1444">            .setSystem(&quot;http://hl7.org/fhir/claimcareteamrole&quot;)</span>
+<span class="fc" id="L1445">            .setDisplay(&quot;Primary Care Practitioner&quot;))));</span>
+
+<span class="fc" id="L1447">    eob.setType(new CodeableConcept()</span>
+<span class="fc" id="L1448">        .addCoding(new Coding()</span>
+<span class="fc" id="L1449">            .setSystem(&quot;https://bluebutton.cms.gov/resources/variables/nch_clm_type_cd&quot;)</span>
+            // The code should be chosen from the
+            // claim type, which is different from
+            // the encounter type apparently.
+<span class="fc" id="L1453">            .setCode(&quot;71&quot;)</span>
+<span class="fc" id="L1454">            .setDisplay(&quot;Local carrier non-durable medical equipment, prosthetics, orthotics, &quot;</span>
+                + &quot;and supplies (DMEPOS) claim&quot;))
+<span class="fc" id="L1456">        .addCoding(new Coding()</span>
+<span class="fc" id="L1457">            .setSystem(&quot;https://bluebutton.cms.gov/resources/codesystem/eob-type&quot;)</span>
+            // the code is chosen directly as
+            // a result of the nch_clm_type_cd.
+<span class="fc" id="L1460">            .setCode(&quot;CARRIER&quot;)</span>
+<span class="fc" id="L1461">            .setDisplay(&quot;EOB Type&quot;))</span>
+<span class="fc" id="L1462">        .addCoding(new Coding()</span>
+<span class="fc" id="L1463">            .setSystem(&quot;http://hl7.org/fhir/ex-claimtype&quot;)</span>
+            // the ex-claimtype is also directly dependent on
+            // the eob-type, making the clm_type the only real
+            // category that needs to be dynamically chosen
+<span class="fc" id="L1467">            .setCode(&quot;professional&quot;)</span>
+<span class="fc" id="L1468">            .setDisplay(&quot;Claim Type&quot;))</span>
+<span class="fc" id="L1469">        .addCoding(new Coding()</span>
+<span class="fc" id="L1470">            .setSystem(&quot;https://bluebutton.cms.gov/resources/variables/nch_near_line_rec_ident_cd&quot;)</span>
+            // also dependent on clm-type
+<span class="fc" id="L1472">            .setCode(&quot;O&quot;)</span>
+<span class="fc" id="L1473">            .setDisplay(&quot;Part B physician/supplier claim record (processed by local &quot;</span>
+                      + &quot;carriers; can include DMEPOS services)&quot;)));
+
+<span class="fc" id="L1476">    return newEntry(bundle,eob);</span>
+  }
+
+  /**
+   * Map the Condition into a FHIR Condition resource, and add it to the given Bundle.
+   *
+   * @param personEntry The Entry for the Person
+   * @param bundle The Bundle to add to
+   * @param encounterEntry The current Encounter entry
+   * @param condition The Condition
+   * @return The added Entry
+   */
+  private static BundleEntryComponent condition(BundleEntryComponent personEntry, Bundle bundle,
+      BundleEntryComponent encounterEntry, HealthRecord.Entry condition) {
+<span class="fc" id="L1490">    Condition conditionResource = new Condition();</span>
+
+<span class="fc" id="L1492">    conditionResource.setSubject(new Reference(personEntry.getFullUrl()));</span>
+<span class="fc" id="L1493">    conditionResource.setContext(new Reference(encounterEntry.getFullUrl()));</span>
+
+<span class="fc" id="L1495">    Code code = condition.codes.get(0);</span>
+<span class="fc" id="L1496">    conditionResource.setCode(mapCodeToCodeableConcept(code, SNOMED_URI));</span>
+
+<span class="fc" id="L1498">    conditionResource.setVerificationStatus(ConditionVerificationStatus.CONFIRMED);</span>
+<span class="fc" id="L1499">    conditionResource.setClinicalStatus(ConditionClinicalStatus.ACTIVE);</span>
+
+<span class="fc" id="L1501">    conditionResource.setOnset(convertFhirDateTime(condition.start, true));</span>
+<span class="fc" id="L1502">    conditionResource.setAssertedDate(new Date(condition.start));</span>
+
+<span class="fc bfc" id="L1504" title="All 2 branches covered.">    if (condition.stop != 0) {</span>
+<span class="fc" id="L1505">      conditionResource.setAbatement(convertFhirDateTime(condition.stop, true));</span>
+<span class="fc" id="L1506">      conditionResource.setClinicalStatus(ConditionClinicalStatus.RESOLVED);</span>
+    }
+
+<span class="pc bpc" id="L1509" title="1 of 2 branches missed.">    if (USE_SHR_EXTENSIONS) {</span>
+      // TODO: use different categories. would need to add a &quot;category&quot; to GMF Condition state
+      // also potentially use Injury profile here,
+      // once different codes map to different categories
+
+<span class="fc" id="L1514">      conditionResource.addCategory(new CodeableConcept().addCoding(new Coding(</span>
+          &quot;http://standardhealthrecord.org/shr/condition/vs/ConditionCategoryVS&quot;, &quot;disease&quot;,
+          &quot;Disease&quot;)));
+<span class="fc" id="L1517">      conditionResource.setMeta(new Meta().addProfile(SHR_EXT + &quot;shr-condition-Condition&quot;));</span>
+      // required fields for this profile are clinicalStatus, assertedDate, category
+    }
+
+<span class="fc" id="L1521">    BundleEntryComponent conditionEntry = newEntry(bundle, conditionResource);</span>
+
+<span class="fc" id="L1523">    condition.fullUrl = conditionEntry.getFullUrl();</span>
+
+<span class="fc" id="L1525">    return conditionEntry;</span>
+  }
+
+  /**
+   * Map the Condition into a FHIR AllergyIntolerance resource, and add it to the given Bundle.
+   *
+   * @param personEntry The Entry for the Person
+   * @param bundle The Bundle to add to
+   * @param encounterEntry The current Encounter entry
+   * @param allergy The Allergy Entry
+   * @return The added Entry
+   */
+  private static BundleEntryComponent allergy(BundleEntryComponent personEntry, Bundle bundle,
+      BundleEntryComponent encounterEntry, HealthRecord.Entry allergy) {
+
+<span class="fc" id="L1540">    AllergyIntolerance allergyResource = new AllergyIntolerance();</span>
+
+<span class="fc" id="L1542">    allergyResource.setAssertedDate(new Date(allergy.start));</span>
+
+<span class="pc bpc" id="L1544" title="1 of 2 branches missed.">    if (allergy.stop == 0) {</span>
+<span class="fc" id="L1545">      allergyResource.setClinicalStatus(AllergyIntoleranceClinicalStatus.ACTIVE);</span>
+    } else {
+<span class="nc" id="L1547">      allergyResource.setClinicalStatus(AllergyIntoleranceClinicalStatus.INACTIVE);</span>
+    }
+
+<span class="fc" id="L1550">    allergyResource.setType(AllergyIntoleranceType.ALLERGY);</span>
+<span class="fc" id="L1551">    AllergyIntoleranceCategory category = AllergyIntoleranceCategory.FOOD;</span>
+<span class="fc" id="L1552">    allergyResource.addCategory(category); // TODO: allergy categories in GMF</span>
+<span class="fc" id="L1553">    allergyResource.setCriticality(AllergyIntoleranceCriticality.LOW);</span>
+<span class="fc" id="L1554">    allergyResource.setVerificationStatus(AllergyIntoleranceVerificationStatus.CONFIRMED);</span>
+<span class="fc" id="L1555">    allergyResource.setPatient(new Reference(personEntry.getFullUrl()));</span>
+<span class="fc" id="L1556">    Code code = allergy.codes.get(0);</span>
+<span class="fc" id="L1557">    allergyResource.setCode(mapCodeToCodeableConcept(code, SNOMED_URI));</span>
+
+<span class="pc bpc" id="L1559" title="1 of 2 branches missed.">    if (USE_SHR_EXTENSIONS) {</span>
+<span class="fc" id="L1560">      Meta meta = new Meta();</span>
+<span class="fc" id="L1561">      meta.addProfile(SHR_EXT + &quot;shr-allergy-AllergyIntolerance&quot;);</span>
+      // required fields for AllergyIntolerance profile are:
+      // verificationStatus, code, patient, assertedDate
+<span class="fc" id="L1564">      allergyResource.setMeta(meta);</span>
+    }
+<span class="fc" id="L1566">    BundleEntryComponent allergyEntry = newEntry(bundle, allergyResource);</span>
+<span class="fc" id="L1567">    allergy.fullUrl = allergyEntry.getFullUrl();</span>
+<span class="fc" id="L1568">    return allergyEntry;</span>
+  }
+
+
+  /**
+   * Map the given Observation into a FHIR Observation resource, and add it to the given Bundle.
+   *
+   * @param personEntry The Person Entry
+   * @param bundle The Bundle to add to
+   * @param encounterEntry The current Encounter entry
+   * @param observation The Observation
+   * @return The added Entry
+   */
+  private static BundleEntryComponent observation(BundleEntryComponent personEntry, Bundle bundle,
+      BundleEntryComponent encounterEntry, Observation observation) {
+<span class="fc" id="L1583">    org.hl7.fhir.dstu3.model.Observation observationResource =</span>
+        new org.hl7.fhir.dstu3.model.Observation();
+
+<span class="fc" id="L1586">    observationResource.setSubject(new Reference(personEntry.getFullUrl()));</span>
+<span class="fc" id="L1587">    observationResource.setContext(new Reference(encounterEntry.getFullUrl()));</span>
+
+<span class="fc" id="L1589">    observationResource.setStatus(ObservationStatus.FINAL);</span>
+
+<span class="fc" id="L1591">    Code code = observation.codes.get(0);</span>
+<span class="fc" id="L1592">    observationResource.setCode(mapCodeToCodeableConcept(code, LOINC_URI));</span>
+
+<span class="fc" id="L1594">    observationResource.addCategory().addCoding().setCode(observation.category)</span>
+<span class="fc" id="L1595">        .setSystem(&quot;http://hl7.org/fhir/observation-category&quot;).setDisplay(observation.category);</span>
+
+<span class="fc bfc" id="L1597" title="All 2 branches covered.">    if (observation.value != null) {</span>
+<span class="fc" id="L1598">      Type value = mapValueToFHIRType(observation.value, observation.unit);</span>
+<span class="fc" id="L1599">      observationResource.setValue(value);</span>
+<span class="pc bpc" id="L1600" title="2 of 4 branches missed.">    } else if (observation.observations != null &amp;&amp; !observation.observations.isEmpty()) {</span>
+      // multi-observation (ex blood pressure)
+<span class="fc bfc" id="L1602" title="All 2 branches covered.">      for (Observation subObs : observation.observations) {</span>
+<span class="fc" id="L1603">        ObservationComponentComponent comp = new ObservationComponentComponent();</span>
+<span class="fc" id="L1604">        comp.setCode(mapCodeToCodeableConcept(subObs.codes.get(0), LOINC_URI));</span>
+<span class="fc" id="L1605">        Type value = mapValueToFHIRType(subObs.value, subObs.unit);</span>
+<span class="fc" id="L1606">        comp.setValue(value);</span>
+<span class="fc" id="L1607">        observationResource.addComponent(comp);</span>
+<span class="fc" id="L1608">      }</span>
+    }
+
+<span class="fc" id="L1611">    observationResource.setEffective(convertFhirDateTime(observation.start, true));</span>
+<span class="fc" id="L1612">    observationResource.setIssued(new Date(observation.start));</span>
+
+<span class="pc bpc" id="L1614" title="1 of 2 branches missed.">    if (USE_SHR_EXTENSIONS) {</span>
+<span class="fc" id="L1615">      Meta meta = new Meta();</span>
+<span class="fc" id="L1616">      meta.addProfile(SHR_EXT + &quot;shr-finding-Observation&quot;); // all Observations are Observations</span>
+<span class="fc bfc" id="L1617" title="All 2 branches covered.">      if (&quot;vital-signs&quot;.equals(observation.category)) {</span>
+<span class="fc" id="L1618">        meta.addProfile(SHR_EXT + &quot;shr-vital-VitalSign&quot;);</span>
+      }
+      // add the specific profile based on code
+<span class="fc" id="L1621">      String codeMappingUri = SHR_MAPPING.get(LOINC_URI, code.code);</span>
+<span class="fc bfc" id="L1622" title="All 2 branches covered.">      if (codeMappingUri != null) {</span>
+<span class="fc" id="L1623">        meta.addProfile(codeMappingUri);</span>
+      }
+<span class="fc" id="L1625">      observationResource.setMeta(meta);</span>
+    }
+
+<span class="fc" id="L1628">    BundleEntryComponent entry = newEntry(bundle, observationResource);</span>
+<span class="fc" id="L1629">    observation.fullUrl = entry.getFullUrl();</span>
+<span class="fc" id="L1630">    return entry;</span>
+  }
+
+  private static Type mapValueToFHIRType(Object value, String unit) {
+<span class="pc bpc" id="L1634" title="1 of 2 branches missed.">    if (value == null) {</span>
+<span class="nc" id="L1635">      return null;</span>
+
+<span class="pc bpc" id="L1637" title="1 of 2 branches missed.">    } else if (value instanceof Condition) {</span>
+<span class="nc" id="L1638">      Code conditionCode = ((HealthRecord.Entry) value).codes.get(0);</span>
+<span class="nc" id="L1639">      return mapCodeToCodeableConcept(conditionCode, SNOMED_URI);</span>
+
+<span class="fc bfc" id="L1641" title="All 2 branches covered.">    } else if (value instanceof Code) {</span>
+<span class="fc" id="L1642">      return mapCodeToCodeableConcept((Code) value, SNOMED_URI);</span>
+
+<span class="pc bpc" id="L1644" title="1 of 2 branches missed.">    } else if (value instanceof String) {</span>
+<span class="nc" id="L1645">      return new StringType((String) value);</span>
+
+<span class="pc bpc" id="L1647" title="1 of 2 branches missed.">    } else if (value instanceof Number) {</span>
+<span class="fc" id="L1648">      return new Quantity().setValue(((Number) value).doubleValue())</span>
+<span class="fc" id="L1649">          .setCode(unit).setSystem(UNITSOFMEASURE_URI)</span>
+<span class="fc" id="L1650">          .setUnit(unit);</span>
+    } else {
+<span class="nc" id="L1652">      throw new IllegalArgumentException(&quot;unexpected observation value class: &quot;</span>
+<span class="nc" id="L1653">          + value.getClass().toString() + &quot;; &quot; + value);</span>
+    }
+  }
+
+  /**
+   * Map the given Procedure into a FHIR Procedure resource, and add it to the given Bundle.
+   *
+   * @param personEntry The Person entry
+   * @param bundle Bundle to add to
+   * @param encounterEntry The current Encounter entry
+   * @param procedure  The Procedure
+   * @return The added Entry
+   */
+  private static BundleEntryComponent procedure(BundleEntryComponent personEntry, Bundle bundle,
+      BundleEntryComponent encounterEntry, Procedure procedure) {
+<span class="fc" id="L1668">    org.hl7.fhir.dstu3.model.Procedure procedureResource = new org.hl7.fhir.dstu3.model.Procedure();</span>
+
+<span class="fc" id="L1670">    procedureResource.setStatus(ProcedureStatus.COMPLETED);</span>
+<span class="fc" id="L1671">    procedureResource.setSubject(new Reference(personEntry.getFullUrl()));</span>
+<span class="fc" id="L1672">    procedureResource.setContext(new Reference(encounterEntry.getFullUrl()));</span>
+
+<span class="fc" id="L1674">    Code code = procedure.codes.get(0);</span>
+<span class="fc" id="L1675">    CodeableConcept procCode = mapCodeToCodeableConcept(code, SNOMED_URI);</span>
+<span class="fc" id="L1676">    procedureResource.setCode(procCode);</span>
+
+<span class="pc bpc" id="L1678" title="1 of 2 branches missed.">    if (procedure.stop != 0L) {</span>
+<span class="fc" id="L1679">      Date startDate = new Date(procedure.start);</span>
+<span class="fc" id="L1680">      Date endDate = new Date(procedure.stop);</span>
+<span class="fc" id="L1681">      procedureResource.setPerformed(new Period().setStart(startDate).setEnd(endDate));</span>
+<span class="fc" id="L1682">    } else {</span>
+<span class="nc" id="L1683">      procedureResource.setPerformed(convertFhirDateTime(procedure.start, true));</span>
+    }
+
+<span class="fc bfc" id="L1686" title="All 2 branches covered.">    if (!procedure.reasons.isEmpty()) {</span>
+<span class="fc" id="L1687">      Code reason = procedure.reasons.get(0); // Only one element in list</span>
+<span class="fc bfc" id="L1688" title="All 2 branches covered.">      for (BundleEntryComponent entry : bundle.getEntry()) {</span>
+<span class="fc bfc" id="L1689" title="All 2 branches covered.">        if (entry.getResource().fhirType().equals(&quot;Condition&quot;)) {</span>
+<span class="fc" id="L1690">          Condition condition = (Condition) entry.getResource();</span>
+<span class="fc" id="L1691">          Coding coding = condition.getCode().getCoding().get(0); // Only one element in list</span>
+<span class="fc bfc" id="L1692" title="All 2 branches covered.">          if (reason.code.equals(coding.getCode())) {</span>
+<span class="fc" id="L1693">            procedureResource.addReasonReference().setReference(entry.getFullUrl())</span>
+<span class="fc" id="L1694">                .setDisplay(reason.display);</span>
+          }
+        }
+<span class="fc" id="L1697">      }</span>
+    }
+
+<span class="pc bpc" id="L1700" title="1 of 2 branches missed.">    if (USE_SHR_EXTENSIONS) {</span>
+<span class="fc" id="L1701">      procedureResource.setMeta(</span>
+<span class="fc" id="L1702">          new Meta().addProfile(SHR_EXT + &quot;shr-procedure-ProcedurePerformed&quot;));</span>
+      // required fields for this profile are action-PerformedContext-extension,
+      // status, code, subject, performed[x]
+
+<span class="fc" id="L1706">      Extension performedContext = new Extension();</span>
+<span class="fc" id="L1707">      performedContext.setUrl(SHR_EXT + &quot;shr-action-PerformedContext-extension&quot;);</span>
+<span class="fc" id="L1708">      performedContext.addExtension(</span>
+          SHR_EXT + &quot;shr-action-Status-extension&quot;,
+          new CodeType(&quot;completed&quot;));
+
+<span class="fc" id="L1712">      procedureResource.addExtension(performedContext);</span>
+    }
+
+<span class="fc" id="L1715">    BundleEntryComponent procedureEntry = newEntry(bundle, procedureResource);</span>
+<span class="fc" id="L1716">    procedure.fullUrl = procedureEntry.getFullUrl();</span>
+
+<span class="fc" id="L1718">    return procedureEntry;</span>
+  }
+
+  private static BundleEntryComponent immunization(BundleEntryComponent personEntry, Bundle bundle,
+      BundleEntryComponent encounterEntry, HealthRecord.Entry immunization) {
+<span class="fc" id="L1723">    Immunization immResource = new Immunization();</span>
+<span class="fc" id="L1724">    immResource.setStatus(ImmunizationStatus.COMPLETED);</span>
+<span class="fc" id="L1725">    immResource.setDate(new Date(immunization.start));</span>
+<span class="fc" id="L1726">    immResource.setVaccineCode(mapCodeToCodeableConcept(immunization.codes.get(0), CVX_URI));</span>
+<span class="fc" id="L1727">    immResource.setNotGiven(false);</span>
+<span class="fc" id="L1728">    immResource.setPrimarySource(true);</span>
+<span class="fc" id="L1729">    immResource.setPatient(new Reference(personEntry.getFullUrl()));</span>
+<span class="fc" id="L1730">    immResource.setEncounter(new Reference(encounterEntry.getFullUrl()));</span>
+
+<span class="pc bpc" id="L1732" title="1 of 2 branches missed.">    if (USE_SHR_EXTENSIONS) {</span>
+<span class="fc" id="L1733">      immResource.setMeta(new Meta().addProfile(SHR_EXT + &quot;shr-immunization-ImmunizationGiven&quot;));</span>
+      // profile requires action-PerformedContext-extension, status, notGiven, vaccineCode, patient,
+      // date, primarySource
+
+<span class="fc" id="L1737">      Extension performedContext = new Extension();</span>
+<span class="fc" id="L1738">      performedContext.setUrl(SHR_EXT + &quot;shr-action-PerformedContext-extension&quot;);</span>
+<span class="fc" id="L1739">      performedContext.addExtension(</span>
+          SHR_EXT + &quot;shr-action-Status-extension&quot;,
+          new CodeType(&quot;completed&quot;));
+
+<span class="fc" id="L1743">      immResource.addExtension(performedContext);</span>
+    }
+
+<span class="fc" id="L1746">    BundleEntryComponent immunizationEntry = newEntry(bundle, immResource);</span>
+<span class="fc" id="L1747">    immunization.fullUrl = immunizationEntry.getFullUrl();</span>
+
+<span class="fc" id="L1749">    return immunizationEntry;</span>
+  }
+
+  /**
+   * Map the given Medication to a FHIR MedicationRequest resource, and add it to the given Bundle.
+   *
+   * @param personEntry The Entry for the Person
+   * @param bundle Bundle to add the Medication to
+   * @param encounterEntry Current Encounter entry
+   * @param medication The Medication
+   * @return The added Entry
+   */
+  private static BundleEntryComponent medication(BundleEntryComponent personEntry, Bundle bundle,
+      BundleEntryComponent encounterEntry, Medication medication) {
+<span class="fc" id="L1763">    MedicationRequest medicationResource = new MedicationRequest();</span>
+
+<span class="fc" id="L1765">    medicationResource.setSubject(new Reference(personEntry.getFullUrl()));</span>
+<span class="fc" id="L1766">    medicationResource.setContext(new Reference(encounterEntry.getFullUrl()));</span>
+
+<span class="fc" id="L1768">    medicationResource.setMedication(mapCodeToCodeableConcept(medication.codes.get(0), RXNORM_URI));</span>
+
+<span class="fc" id="L1770">    medicationResource.setAuthoredOn(new Date(medication.start));</span>
+<span class="fc" id="L1771">    medicationResource.setIntent(MedicationRequestIntent.ORDER);</span>
+<span class="fc" id="L1772">    org.hl7.fhir.dstu3.model.Encounter encounter =</span>
+<span class="fc" id="L1773">        (org.hl7.fhir.dstu3.model.Encounter) encounterEntry.getResource();</span>
+<span class="fc" id="L1774">    MedicationRequestRequesterComponent requester = new MedicationRequestRequesterComponent();</span>
+<span class="fc" id="L1775">    requester.setAgent(encounter.getParticipantFirstRep().getIndividual());</span>
+<span class="fc" id="L1776">    requester.setOnBehalfOf(encounter.getServiceProvider());</span>
+<span class="fc" id="L1777">    medicationResource.setRequester(requester);</span>
+
+<span class="fc bfc" id="L1779" title="All 2 branches covered.">    if (medication.stop != 0L) {</span>
+<span class="fc" id="L1780">      medicationResource.setStatus(MedicationRequestStatus.STOPPED);</span>
+    } else {
+<span class="fc" id="L1782">      medicationResource.setStatus(MedicationRequestStatus.ACTIVE);</span>
+    }
+
+<span class="fc bfc" id="L1785" title="All 2 branches covered.">    if (!medication.reasons.isEmpty()) {</span>
+      // Only one element in list
+<span class="fc" id="L1787">      Code reason = medication.reasons.get(0);</span>
+<span class="fc bfc" id="L1788" title="All 2 branches covered.">      for (BundleEntryComponent entry : bundle.getEntry()) {</span>
+<span class="fc bfc" id="L1789" title="All 2 branches covered.">        if (entry.getResource().fhirType().equals(&quot;Condition&quot;)) {</span>
+<span class="fc" id="L1790">          Condition condition = (Condition) entry.getResource();</span>
+          // Only one element in list
+<span class="fc" id="L1792">          Coding coding = condition.getCode().getCoding().get(0);</span>
+<span class="fc bfc" id="L1793" title="All 2 branches covered.">          if (reason.code.equals(coding.getCode())) {</span>
+<span class="fc" id="L1794">            medicationResource.addReasonReference()</span>
+<span class="fc" id="L1795">                .setReference(entry.getFullUrl());</span>
+          }
+        }
+<span class="fc" id="L1798">      }</span>
+    }
+
+<span class="fc bfc" id="L1801" title="All 2 branches covered.">    if (medication.prescriptionDetails != null) {</span>
+<span class="fc" id="L1802">      JsonObject rxInfo = medication.prescriptionDetails;</span>
+<span class="fc" id="L1803">      Dosage dosage = new Dosage();</span>
+
+<span class="fc" id="L1805">      dosage.setSequence(1);</span>
+      // as_needed is true if present
+<span class="fc" id="L1807">      dosage.setAsNeeded(new BooleanType(rxInfo.has(&quot;as_needed&quot;)));</span>
+
+      // as_needed is true if present
+<span class="pc bpc" id="L1810" title="1 of 4 branches missed.">      if ((rxInfo.has(&quot;dosage&quot;)) &amp;&amp; (!rxInfo.has(&quot;as_needed&quot;))) {</span>
+<span class="fc" id="L1811">        Timing timing = new Timing();</span>
+<span class="fc" id="L1812">        TimingRepeatComponent timingRepeatComponent = new TimingRepeatComponent();</span>
+<span class="fc" id="L1813">        timingRepeatComponent.setFrequency(</span>
+<span class="fc" id="L1814">            rxInfo.get(&quot;dosage&quot;).getAsJsonObject().get(&quot;frequency&quot;).getAsInt());</span>
+<span class="fc" id="L1815">        timingRepeatComponent.setPeriod(</span>
+<span class="fc" id="L1816">            rxInfo.get(&quot;dosage&quot;).getAsJsonObject().get(&quot;period&quot;).getAsDouble());</span>
+<span class="fc" id="L1817">        timingRepeatComponent.setPeriodUnit(</span>
+<span class="fc" id="L1818">            convertUcumCode(rxInfo.get(&quot;dosage&quot;).getAsJsonObject().get(&quot;unit&quot;).getAsString()));</span>
+<span class="fc" id="L1819">        timing.setRepeat(timingRepeatComponent);</span>
+<span class="fc" id="L1820">        dosage.setTiming(timing);</span>
+
+<span class="fc" id="L1822">        Quantity dose = new SimpleQuantity().setValue(</span>
+<span class="fc" id="L1823">            rxInfo.get(&quot;dosage&quot;).getAsJsonObject().get(&quot;amount&quot;).getAsDouble());</span>
+<span class="fc" id="L1824">        dosage.setDose(dose);</span>
+
+<span class="pc bpc" id="L1826" title="1 of 2 branches missed.">        if (rxInfo.has(&quot;instructions&quot;)) {</span>
+<span class="nc bnc" id="L1827" title="All 2 branches missed.">          for (JsonElement instructionElement : rxInfo.get(&quot;instructions&quot;).getAsJsonArray()) {</span>
+<span class="nc" id="L1828">            JsonObject instruction = instructionElement.getAsJsonObject();</span>
+<span class="nc" id="L1829">            Code instructionCode = new Code(</span>
+                SNOMED_URI,
+<span class="nc" id="L1831">                instruction.get(&quot;code&quot;).getAsString(),</span>
+<span class="nc" id="L1832">                instruction.get(&quot;display&quot;).getAsString()</span>
+            );
+
+<span class="nc" id="L1835">            dosage.addAdditionalInstruction(mapCodeToCodeableConcept(instructionCode, SNOMED_URI));</span>
+<span class="nc" id="L1836">          }</span>
+        }
+      }
+
+<span class="fc" id="L1840">      List&lt;Dosage&gt; dosageInstruction = new ArrayList&lt;Dosage&gt;();</span>
+<span class="fc" id="L1841">      dosageInstruction.add(dosage);</span>
+<span class="fc" id="L1842">      medicationResource.setDosageInstruction(dosageInstruction);</span>
+    }
+
+<span class="pc bpc" id="L1845" title="1 of 2 branches missed.">    if (USE_SHR_EXTENSIONS) {</span>
+
+<span class="fc" id="L1847">      medicationResource.addExtension()</span>
+<span class="fc" id="L1848">        .setUrl(SHR_EXT + &quot;shr-base-ActionCode-extension&quot;)</span>
+<span class="fc" id="L1849">        .setValue(PRESCRIPTION_OF_DRUG_CC);</span>
+
+<span class="fc" id="L1851">      medicationResource.setMeta(new Meta()</span>
+<span class="fc" id="L1852">          .addProfile(SHR_EXT + &quot;shr-medication-MedicationRequested&quot;));</span>
+      // required fields for this profile are status, action-RequestedContext-extension,
+      // medication[x]subject, authoredOn, requester
+
+<span class="fc" id="L1856">      Extension requestedContext = new Extension();</span>
+<span class="fc" id="L1857">      requestedContext.setUrl(SHR_EXT + &quot;shr-action-RequestedContext-extension&quot;);</span>
+<span class="fc" id="L1858">      requestedContext.addExtension(</span>
+          SHR_EXT + &quot;shr-action-Status-extension&quot;,
+          new CodeType(&quot;completed&quot;));
+<span class="fc" id="L1861">      requestedContext.addExtension(</span>
+          SHR_EXT + &quot;shr-action-RequestIntent-extension&quot;,
+          new CodeType(&quot;original-order&quot;));
+
+<span class="fc" id="L1865">      medicationResource.addExtension(requestedContext);</span>
+    }
+
+<span class="fc" id="L1868">    BundleEntryComponent medicationEntry = newEntry(bundle, medicationResource);</span>
+    // create new claim for medication
+<span class="fc" id="L1870">    medicationClaim(personEntry, bundle, encounterEntry, medication.claim, medicationEntry);</span>
+
+<span class="fc" id="L1872">    return medicationEntry;</span>
+  }
+
+<span class="fc" id="L1875">  private static final Code PRESCRIPTION_OF_DRUG_CODE =</span>
+      new Code(&quot;SNOMED-CT&quot;,&quot;33633005&quot;,&quot;Prescription of drug (procedure)&quot;);
+<span class="fc" id="L1877">  private static final CodeableConcept PRESCRIPTION_OF_DRUG_CC =</span>
+<span class="fc" id="L1878">      mapCodeToCodeableConcept(PRESCRIPTION_OF_DRUG_CODE, SNOMED_URI);</span>
+
+
+  /**
+   * Map the given Report to a FHIR DiagnosticReport resource, and add it to the given Bundle.
+   *
+   * @param personEntry The Entry for the Person
+   * @param bundle Bundle to add the Report to
+   * @param encounterEntry Current Encounter entry
+   * @param report The Report
+   * @return The added Entry
+   */
+  private static BundleEntryComponent report(BundleEntryComponent personEntry, Bundle bundle,
+      BundleEntryComponent encounterEntry, Report report) {
+<span class="fc" id="L1892">    DiagnosticReport reportResource = new DiagnosticReport();</span>
+<span class="fc" id="L1893">    reportResource.setStatus(DiagnosticReportStatus.FINAL);</span>
+<span class="fc" id="L1894">    reportResource.setCode(mapCodeToCodeableConcept(report.codes.get(0), LOINC_URI));</span>
+<span class="fc" id="L1895">    reportResource.setSubject(new Reference(personEntry.getFullUrl()));</span>
+<span class="fc" id="L1896">    reportResource.setContext(new Reference(encounterEntry.getFullUrl()));</span>
+<span class="fc" id="L1897">    reportResource.setEffective(convertFhirDateTime(report.start, true));</span>
+<span class="fc" id="L1898">    reportResource.setIssued(new Date(report.start));</span>
+<span class="fc bfc" id="L1899" title="All 2 branches covered.">    for (Observation observation : report.observations) {</span>
+<span class="fc" id="L1900">      Reference reference = new Reference(observation.fullUrl);</span>
+<span class="fc" id="L1901">      reference.setDisplay(observation.codes.get(0).display);</span>
+<span class="fc" id="L1902">      reportResource.addResult(reference);</span>
+<span class="fc" id="L1903">    }</span>
+
+    // no SHR profile for DiagnosticReport
+
+<span class="fc" id="L1907">    return newEntry(bundle, reportResource);</span>
+  }
+
+  /**
+   * Map the given CarePlan to a FHIR CarePlan resource, and add it to the given Bundle.
+   *
+   * @param personEntry The Entry for the Person
+   * @param bundle Bundle to add the CarePlan to
+   * @param encounterEntry Current Encounter entry
+   * @param carePlan The CarePlan to map to FHIR and add to the bundle
+   * @return The added Entry
+   */
+  private static BundleEntryComponent careplan(BundleEntryComponent personEntry, Bundle bundle,
+      BundleEntryComponent encounterEntry, CarePlan carePlan) {
+<span class="fc" id="L1921">    org.hl7.fhir.dstu3.model.CarePlan careplanResource = new org.hl7.fhir.dstu3.model.CarePlan();</span>
+<span class="fc" id="L1922">    careplanResource.setIntent(CarePlanIntent.ORDER);</span>
+<span class="fc" id="L1923">    careplanResource.setSubject(new Reference(personEntry.getFullUrl()));</span>
+<span class="fc" id="L1924">    careplanResource.setContext(new Reference(encounterEntry.getFullUrl()));</span>
+
+<span class="fc" id="L1926">    Code code = carePlan.codes.get(0);</span>
+<span class="fc" id="L1927">    careplanResource.addCategory(mapCodeToCodeableConcept(code, SNOMED_URI));</span>
+
+    CarePlanActivityStatus activityStatus;
+    GoalStatus goalStatus;
+
+<span class="fc" id="L1932">    Period period = new Period().setStart(new Date(carePlan.start));</span>
+<span class="fc" id="L1933">    careplanResource.setPeriod(period);</span>
+<span class="fc bfc" id="L1934" title="All 2 branches covered.">    if (carePlan.stop != 0L) {</span>
+<span class="fc" id="L1935">      period.setEnd(new Date(carePlan.stop));</span>
+<span class="fc" id="L1936">      careplanResource.setStatus(CarePlanStatus.COMPLETED);</span>
+<span class="fc" id="L1937">      activityStatus = CarePlanActivityStatus.COMPLETED;</span>
+<span class="fc" id="L1938">      goalStatus = GoalStatus.ACHIEVED;</span>
+    } else {
+<span class="fc" id="L1940">      careplanResource.setStatus(CarePlanStatus.ACTIVE);</span>
+<span class="fc" id="L1941">      activityStatus = CarePlanActivityStatus.INPROGRESS;</span>
+<span class="fc" id="L1942">      goalStatus = GoalStatus.INPROGRESS;</span>
+    }
+
+<span class="pc bpc" id="L1945" title="1 of 2 branches missed.">    if (!carePlan.activities.isEmpty()) {</span>
+<span class="fc bfc" id="L1946" title="All 2 branches covered.">      for (Code activity : carePlan.activities) {</span>
+<span class="fc" id="L1947">        CarePlanActivityComponent activityComponent = new CarePlanActivityComponent();</span>
+<span class="fc" id="L1948">        CarePlanActivityDetailComponent activityDetailComponent =</span>
+            new CarePlanActivityDetailComponent();
+
+<span class="fc" id="L1951">        activityDetailComponent.setStatus(activityStatus);</span>
+
+<span class="fc" id="L1953">        activityDetailComponent.setCode(mapCodeToCodeableConcept(activity, SNOMED_URI));</span>
+<span class="fc" id="L1954">        activityComponent.setDetail(activityDetailComponent);</span>
+
+<span class="fc" id="L1956">        careplanResource.addActivity(activityComponent);</span>
+<span class="fc" id="L1957">      }</span>
+    }
+
+<span class="fc bfc" id="L1960" title="All 2 branches covered.">    if (!carePlan.reasons.isEmpty()) {</span>
+      // Only one element in list
+<span class="fc" id="L1962">      Code reason = carePlan.reasons.get(0);</span>
+<span class="fc bfc" id="L1963" title="All 2 branches covered.">      for (BundleEntryComponent entry : bundle.getEntry()) {</span>
+<span class="fc bfc" id="L1964" title="All 2 branches covered.">        if (entry.getResource().fhirType().equals(&quot;Condition&quot;)) {</span>
+<span class="fc" id="L1965">          Condition condition = (Condition) entry.getResource();</span>
+          // Only one element in list
+<span class="fc" id="L1967">          Coding coding = condition.getCode().getCoding().get(0);</span>
+<span class="fc bfc" id="L1968" title="All 2 branches covered.">          if (reason.code.equals(coding.getCode())) {</span>
+<span class="fc" id="L1969">            careplanResource.addAddresses().setReference(entry.getFullUrl());</span>
+          }
+        }
+<span class="fc" id="L1972">      }</span>
+    }
+
+<span class="fc bfc" id="L1975" title="All 2 branches covered.">    for (JsonObject goal : carePlan.goals) {</span>
+<span class="fc" id="L1976">      BundleEntryComponent goalEntry = caregoal(bundle, goalStatus, goal);</span>
+<span class="fc" id="L1977">      careplanResource.addGoal().setReference(goalEntry.getFullUrl());</span>
+<span class="fc" id="L1978">    }</span>
+
+<span class="fc" id="L1980">    return newEntry(bundle, careplanResource);</span>
+  }
+
+  /**
+   * Map the given ImagingStudy to a FHIR ImagingStudy resource, and add it to the given Bundle.
+   *
+   * @param personEntry The Entry for the Person
+   * @param bundle Bundle to add the ImagingStudy to
+   * @param encounterEntry Current Encounter entry
+   * @param imagingStudy The ImagingStudy to map to FHIR and add to the bundle
+   * @return The added Entry
+   */
+  private static BundleEntryComponent imagingStudy(BundleEntryComponent personEntry, Bundle bundle,
+      BundleEntryComponent encounterEntry, ImagingStudy imagingStudy) {
+<span class="nc" id="L1994">    org.hl7.fhir.dstu3.model.ImagingStudy imagingStudyResource =</span>
+        new org.hl7.fhir.dstu3.model.ImagingStudy();
+
+<span class="nc" id="L1997">    imagingStudyResource.setUid(&quot;urn:oid:&quot; + imagingStudy.dicomUid);</span>
+<span class="nc" id="L1998">    imagingStudyResource.setPatient(new Reference(personEntry.getFullUrl()));</span>
+<span class="nc" id="L1999">    imagingStudyResource.setContext(new Reference(encounterEntry.getFullUrl()));</span>
+
+<span class="nc" id="L2001">    Date startDate = new Date(imagingStudy.start);</span>
+<span class="nc" id="L2002">    imagingStudyResource.setStarted(startDate);</span>
+
+    // Convert the series into their FHIR equivalents
+<span class="nc" id="L2005">    int numberOfSeries = imagingStudy.series.size();</span>
+<span class="nc" id="L2006">    imagingStudyResource.setNumberOfSeries(numberOfSeries);</span>
+
+<span class="nc" id="L2008">    List&lt;ImagingStudySeriesComponent&gt; seriesResourceList =</span>
+        new ArrayList&lt;ImagingStudySeriesComponent&gt;();
+
+<span class="nc" id="L2011">    int totalNumberOfInstances = 0;</span>
+<span class="nc" id="L2012">    int seriesNo = 1;</span>
+
+<span class="nc bnc" id="L2014" title="All 2 branches missed.">    for (ImagingStudy.Series series : imagingStudy.series) {</span>
+<span class="nc" id="L2015">      ImagingStudySeriesComponent seriesResource = new ImagingStudySeriesComponent();</span>
+<span class="nc" id="L2016">      seriesResource.setUid(&quot;urn:oid:&quot; + series.dicomUid);</span>
+<span class="nc" id="L2017">      seriesResource.setNumber(seriesNo);</span>
+<span class="nc" id="L2018">      seriesResource.setStarted(startDate);</span>
+<span class="nc" id="L2019">      seriesResource.setAvailability(InstanceAvailability.UNAVAILABLE);</span>
+
+<span class="nc" id="L2021">      CodeableConcept modalityConcept = mapCodeToCodeableConcept(series.modality, DICOM_DCM_URI);</span>
+<span class="nc" id="L2022">      seriesResource.setModality(modalityConcept.getCoding().get(0));</span>
+
+<span class="nc" id="L2024">      CodeableConcept bodySiteConcept = mapCodeToCodeableConcept(series.bodySite, SNOMED_URI);</span>
+<span class="nc" id="L2025">      seriesResource.setBodySite(bodySiteConcept.getCoding().get(0));</span>
+
+      // Convert the images in each series into their FHIR equivalents
+<span class="nc" id="L2028">      int numberOfInstances = series.instances.size();</span>
+<span class="nc" id="L2029">      seriesResource.setNumberOfInstances(numberOfInstances);</span>
+<span class="nc" id="L2030">      totalNumberOfInstances += numberOfInstances;</span>
+
+<span class="nc" id="L2032">      List&lt;ImagingStudySeriesInstanceComponent&gt; instanceResourceList =</span>
+          new ArrayList&lt;ImagingStudySeriesInstanceComponent&gt;();
+
+<span class="nc" id="L2035">      int instanceNo = 1;</span>
+
+<span class="nc bnc" id="L2037" title="All 2 branches missed.">      for (ImagingStudy.Instance instance : series.instances) {</span>
+<span class="nc" id="L2038">        ImagingStudySeriesInstanceComponent instanceResource =</span>
+            new ImagingStudySeriesInstanceComponent();
+<span class="nc" id="L2040">        instanceResource.setUid(&quot;urn:oid:&quot; + instance.dicomUid);</span>
+<span class="nc" id="L2041">        instanceResource.setTitle(instance.title);</span>
+<span class="nc" id="L2042">        instanceResource.setSopClass(&quot;urn:oid:&quot; + instance.sopClass.code);</span>
+<span class="nc" id="L2043">        instanceResource.setNumber(instanceNo);</span>
+
+<span class="nc" id="L2045">        instanceResourceList.add(instanceResource);</span>
+<span class="nc" id="L2046">        instanceNo += 1;</span>
+<span class="nc" id="L2047">      }</span>
+
+<span class="nc" id="L2049">      seriesResource.setInstance(instanceResourceList);</span>
+<span class="nc" id="L2050">      seriesResourceList.add(seriesResource);</span>
+<span class="nc" id="L2051">      seriesNo += 1;</span>
+<span class="nc" id="L2052">    }</span>
+
+<span class="nc" id="L2054">    imagingStudyResource.setSeries(seriesResourceList);</span>
+<span class="nc" id="L2055">    imagingStudyResource.setNumberOfInstances(totalNumberOfInstances);</span>
+<span class="nc" id="L2056">    return newEntry(bundle, imagingStudyResource);</span>
+  }
+
+  /**
+   * Map the Provider into a FHIR Organization resource, and add it to the given Bundle.
+   * @param bundle The Bundle to add to
+   * @param provider The Provider
+   * @return The added Entry
+   */
+  protected static BundleEntryComponent provider(Bundle bundle, Provider provider) {
+<span class="fc" id="L2066">    org.hl7.fhir.dstu3.model.Organization organizationResource =</span>
+        new org.hl7.fhir.dstu3.model.Organization();
+
+<span class="fc" id="L2069">    List&lt;CodeableConcept&gt; organizationType = new ArrayList&lt;CodeableConcept&gt;();</span>
+<span class="fc" id="L2070">    organizationType.add(</span>
+<span class="fc" id="L2071">        mapCodeToCodeableConcept(</span>
+            new Code(
+                &quot;http://hl7.org/fhir/organization-type&quot;,
+                &quot;prov&quot;,
+                &quot;Healthcare Provider&quot;),
+            &quot;http://hl7.org/fhir/organization-type&quot;));
+
+<span class="fc" id="L2078">    organizationResource.addIdentifier().setSystem(&quot;https://github.com/synthetichealth/synthea&quot;)</span>
+<span class="fc" id="L2079">    .setValue((String) provider.getResourceID());</span>
+
+<span class="fc" id="L2081">    organizationResource.setId(provider.getResourceID());</span>
+<span class="fc" id="L2082">    organizationResource.setName(provider.name);</span>
+<span class="fc" id="L2083">    organizationResource.setType(organizationType);</span>
+
+<span class="fc" id="L2085">    Address address = new Address()</span>
+<span class="fc" id="L2086">        .addLine(provider.address)</span>
+<span class="fc" id="L2087">        .setCity(provider.city)</span>
+<span class="fc" id="L2088">        .setPostalCode(provider.zip)</span>
+<span class="fc" id="L2089">        .setState(provider.state);</span>
+<span class="pc bpc" id="L2090" title="1 of 2 branches missed.">    if (COUNTRY_CODE != null) {</span>
+<span class="fc" id="L2091">      address.setCountry(COUNTRY_CODE);</span>
+    }
+<span class="fc" id="L2093">    organizationResource.addAddress(address);</span>
+
+<span class="pc bpc" id="L2095" title="2 of 4 branches missed.">    if (provider.phone != null &amp;&amp; !provider.phone.isEmpty()) {</span>
+<span class="fc" id="L2096">      ContactPoint contactPoint = new ContactPoint()</span>
+<span class="fc" id="L2097">          .setSystem(ContactPointSystem.PHONE)</span>
+<span class="fc" id="L2098">          .setValue(provider.phone);</span>
+<span class="fc" id="L2099">      organizationResource.addTelecom(contactPoint);</span>
+    }
+
+<span class="pc bpc" id="L2102" title="1 of 2 branches missed.">    if (USE_SHR_EXTENSIONS) {</span>
+<span class="fc" id="L2103">      organizationResource.setMeta(new Meta().addProfile(SHR_EXT + &quot;shr-entity-Organization&quot;));</span>
+      // required fields for this profile are identifier, type, address, and contact
+
+<span class="fc" id="L2106">      organizationResource.addIdentifier()</span>
+<span class="fc" id="L2107">          .setSystem(&quot;urn:ietf:rfc:3986&quot;)</span>
+<span class="fc" id="L2108">          .setValue(provider.getResourceID());</span>
+<span class="fc" id="L2109">      organizationResource.addContact().setName(new HumanName().setText(&quot;Synthetic Provider&quot;));</span>
+    }
+
+<span class="fc" id="L2112">    return newEntry(bundle, organizationResource, provider.getResourceID());</span>
+  }
+
+  /**
+   * Map the clinician into a FHIR Practitioner resource, and add it to the given Bundle.
+   * @param bundle The Bundle to add to
+   * @param clinician The clinician
+   * @return The added Entry
+   */
+  protected static BundleEntryComponent practitioner(Bundle bundle, Clinician clinician) {
+<span class="fc" id="L2122">    Practitioner practitionerResource = new Practitioner();</span>
+
+<span class="fc" id="L2124">    practitionerResource.addIdentifier().setSystem(&quot;http://hl7.org/fhir/sid/us-npi&quot;)</span>
+<span class="fc" id="L2125">    .setValue(&quot;&quot; + clinician.seed);</span>
+<span class="fc" id="L2126">    practitionerResource.setActive(true);</span>
+<span class="fc" id="L2127">    practitionerResource.addName().setFamily(</span>
+<span class="fc" id="L2128">        (String) clinician.attributes.get(Clinician.LAST_NAME))</span>
+<span class="fc" id="L2129">      .addGiven((String) clinician.attributes.get(Clinician.FIRST_NAME))</span>
+<span class="fc" id="L2130">      .addPrefix((String) clinician.attributes.get(Clinician.NAME_PREFIX));</span>
+
+<span class="fc" id="L2132">    Address address = new Address()</span>
+<span class="fc" id="L2133">        .addLine((String) clinician.attributes.get(Clinician.ADDRESS))</span>
+<span class="fc" id="L2134">        .setCity((String) clinician.attributes.get(Clinician.CITY))</span>
+<span class="fc" id="L2135">        .setPostalCode((String) clinician.attributes.get(Clinician.ZIP))</span>
+<span class="fc" id="L2136">        .setState((String) clinician.attributes.get(Clinician.STATE));</span>
+<span class="pc bpc" id="L2137" title="1 of 2 branches missed.">    if (COUNTRY_CODE != null) {</span>
+<span class="fc" id="L2138">      address.setCountry(COUNTRY_CODE);</span>
+    }
+<span class="fc" id="L2140">    practitionerResource.addAddress(address);</span>
+
+<span class="fc bfc" id="L2142" title="All 2 branches covered.">    if (clinician.attributes.get(Person.GENDER).equals(&quot;M&quot;)) {</span>
+<span class="fc" id="L2143">      practitionerResource.setGender(AdministrativeGender.MALE);</span>
+<span class="pc bpc" id="L2144" title="1 of 2 branches missed.">    } else if (clinician.attributes.get(Person.GENDER).equals(&quot;F&quot;)) {</span>
+<span class="fc" id="L2145">      practitionerResource.setGender(AdministrativeGender.FEMALE);</span>
+    }
+
+<span class="fc" id="L2148">    return newEntry(bundle, practitionerResource, clinician.getResourceID());</span>
+  }
+
+  /**
+   * Map the JsonObject into a FHIR Goal resource, and add it to the given Bundle.
+   * @param bundle The Bundle to add to
+   * @param goalStatus The GoalStatus
+   * @param goal The JsonObject
+   * @return The added Entry
+   */
+  private static BundleEntryComponent caregoal(
+      Bundle bundle, GoalStatus goalStatus, JsonObject goal) {
+<span class="fc" id="L2160">    String resourceID = UUID.randomUUID().toString();</span>
+
+<span class="fc" id="L2162">    org.hl7.fhir.dstu3.model.Goal goalResource =</span>
+        new org.hl7.fhir.dstu3.model.Goal();
+<span class="fc" id="L2164">    goalResource.setStatus(goalStatus);</span>
+<span class="fc" id="L2165">    goalResource.setId(resourceID);</span>
+
+<span class="fc bfc" id="L2167" title="All 2 branches covered.">    if (goal.has(&quot;text&quot;)) {</span>
+<span class="fc" id="L2168">      CodeableConcept descriptionCodeableConcept = new CodeableConcept();</span>
+
+<span class="fc" id="L2170">      descriptionCodeableConcept.setText(goal.get(&quot;text&quot;).getAsString());</span>
+<span class="fc" id="L2171">      goalResource.setDescription(descriptionCodeableConcept);</span>
+<span class="pc bpc" id="L2172" title="1 of 2 branches missed.">    } else if (goal.has(&quot;codes&quot;)) {</span>
+<span class="nc" id="L2173">      CodeableConcept descriptionCodeableConcept = new CodeableConcept();</span>
+
+<span class="nc" id="L2175">      JsonObject code =</span>
+<span class="nc" id="L2176">          goal.get(&quot;codes&quot;).getAsJsonArray().get(0).getAsJsonObject();</span>
+<span class="nc" id="L2177">      descriptionCodeableConcept.addCoding()</span>
+<span class="nc" id="L2178">        .setSystem(LOINC_URI)</span>
+<span class="nc" id="L2179">        .setCode(code.get(&quot;code&quot;).getAsString())</span>
+<span class="nc" id="L2180">        .setDisplay(code.get(&quot;display&quot;).getAsString());</span>
+
+<span class="nc" id="L2182">      descriptionCodeableConcept.setText(code.get(&quot;display&quot;).getAsString());</span>
+<span class="nc" id="L2183">      goalResource.setDescription(descriptionCodeableConcept);</span>
+<span class="pc bpc" id="L2184" title="1 of 2 branches missed.">    } else if (goal.has(&quot;observation&quot;)) {</span>
+<span class="fc" id="L2185">      CodeableConcept descriptionCodeableConcept = new CodeableConcept();</span>
+
+      // build up our own text from the observation condition, similar to the graphviz logic
+<span class="fc" id="L2188">      JsonObject logic = goal.get(&quot;observation&quot;).getAsJsonObject();</span>
+
+<span class="fc" id="L2190">      String[] text = {</span>
+<span class="fc" id="L2191">        logic.get(&quot;codes&quot;).getAsJsonArray().get(0)</span>
+<span class="fc" id="L2192">            .getAsJsonObject().get(&quot;display&quot;).getAsString(),</span>
+<span class="fc" id="L2193">        logic.get(&quot;operator&quot;).getAsString(),</span>
+<span class="fc" id="L2194">        logic.get(&quot;value&quot;).getAsString()</span>
+      };
+
+<span class="fc" id="L2197">      descriptionCodeableConcept.setText(String.join(&quot; &quot;, text));</span>
+<span class="fc" id="L2198">      goalResource.setDescription(descriptionCodeableConcept);</span>
+    }
+
+<span class="pc bpc" id="L2201" title="1 of 2 branches missed.">    if (goal.has(&quot;addresses&quot;)) {</span>
+<span class="fc bfc" id="L2202" title="All 2 branches covered.">      for (JsonElement reasonElement : goal.get(&quot;addresses&quot;).getAsJsonArray()) {</span>
+<span class="pc bpc" id="L2203" title="1 of 2 branches missed.">        if (reasonElement instanceof JsonObject) {</span>
+<span class="nc" id="L2204">          JsonObject reasonObject = reasonElement.getAsJsonObject();</span>
+<span class="nc" id="L2205">          String reasonCode =</span>
+<span class="nc" id="L2206">              reasonObject.get(&quot;codes&quot;)</span>
+<span class="nc" id="L2207">                  .getAsJsonObject()</span>
+<span class="nc" id="L2208">                  .get(&quot;SNOMED-CT&quot;)</span>
+<span class="nc" id="L2209">                  .getAsJsonArray()</span>
+<span class="nc" id="L2210">                  .get(0)</span>
+<span class="nc" id="L2211">                  .getAsString();</span>
+
+<span class="nc bnc" id="L2213" title="All 2 branches missed.">          for (BundleEntryComponent entry : bundle.getEntry()) {</span>
+<span class="nc bnc" id="L2214" title="All 2 branches missed.">            if (entry.getResource().fhirType().equals(&quot;Condition&quot;)) {</span>
+<span class="nc" id="L2215">              Condition condition = (Condition) entry.getResource();</span>
+              // Only one element in list
+<span class="nc" id="L2217">              Coding coding = condition.getCode().getCoding().get(0);</span>
+<span class="nc bnc" id="L2218" title="All 2 branches missed.">              if (reasonCode.equals(coding.getCode())) {</span>
+<span class="nc" id="L2219">                goalResource.addAddresses()</span>
+<span class="nc" id="L2220">                    .setReference(entry.getFullUrl());</span>
+              }
+            }
+<span class="nc" id="L2223">          }</span>
+        }
+<span class="fc" id="L2225">      }</span>
+    }
+
+<span class="fc" id="L2228">    return newEntry(bundle, goalResource);</span>
+  }
+
+  /**
+   * Convert the unit into a UnitsOfTime.
+   *
+   * @param unit unit String
+   * @return a UnitsOfTime representing the given unit
+   */
+  private static UnitsOfTime convertUcumCode(String unit) {
+    // From: http://hl7.org/fhir/ValueSet/units-of-time
+<span class="pc bpc" id="L2239" title="7 of 8 branches missed.">    switch (unit) {</span>
+      case &quot;seconds&quot;:
+<span class="nc" id="L2241">        return UnitsOfTime.S;</span>
+      case &quot;minutes&quot;:
+<span class="nc" id="L2243">        return UnitsOfTime.MIN;</span>
+      case &quot;hours&quot;:
+<span class="nc" id="L2245">        return UnitsOfTime.H;</span>
+      case &quot;days&quot;:
+<span class="fc" id="L2247">        return UnitsOfTime.D;</span>
+      case &quot;weeks&quot;:
+<span class="nc" id="L2249">        return UnitsOfTime.WK;</span>
+      case &quot;months&quot;:
+<span class="nc" id="L2251">        return UnitsOfTime.MO;</span>
+      case &quot;years&quot;:
+<span class="nc" id="L2253">        return UnitsOfTime.A;</span>
+      default:
+<span class="nc" id="L2255">        return null;</span>
+    }
+  }
+
+  /**
+   * Convert the timestamp into a FHIR DateType or DateTimeType.
+   *
+   * @param datetime Timestamp
+   * @param time If true, return a DateTime; if false, return a Date.
+   * @return a DateType or DateTimeType representing the given timestamp
+   */
+  private static Type convertFhirDateTime(long datetime, boolean time) {
+<span class="fc" id="L2267">    Date date = new Date(datetime);</span>
+
+<span class="pc bpc" id="L2269" title="1 of 2 branches missed.">    if (time) {</span>
+<span class="fc" id="L2270">      return new DateTimeType(date);</span>
+    } else {
+<span class="nc" id="L2272">      return new DateType(date);</span>
+    }
+  }
+
+  /**
+   * Helper function to convert a Code into a CodeableConcept. Takes an optional system, which
+   * replaces the Code.system in the resulting CodeableConcept if not null.
+   *
+   * @param from The Code to create a CodeableConcept from.
+   * @param system The system identifier, such as a URI. Optional; may be null.
+   * @return The converted CodeableConcept
+   */
+  private static CodeableConcept mapCodeToCodeableConcept(Code from, String system) {
+<span class="fc" id="L2285">    CodeableConcept to = new CodeableConcept();</span>
+
+<span class="pc bpc" id="L2287" title="1 of 2 branches missed.">    if (from.display != null) {</span>
+<span class="fc" id="L2288">      to.setText(from.display);</span>
+    }
+
+<span class="fc" id="L2291">    Coding coding = new Coding();</span>
+<span class="fc" id="L2292">    coding.setCode(from.code);</span>
+<span class="fc" id="L2293">    coding.setDisplay(from.display);</span>
+<span class="pc bpc" id="L2294" title="1 of 2 branches missed.">    if (system == null) {</span>
+<span class="nc" id="L2295">      coding.setSystem(from.system);</span>
+    } else {
+<span class="fc" id="L2297">      coding.setSystem(system);</span>
+    }
+
+<span class="fc" id="L2300">    to.addCoding(coding);</span>
+
+<span class="fc" id="L2302">    return to;</span>
+  }
+
+  /**
+   * Helper function to create an Entry for the given Resource within the given Bundle. Sets the
+   * resourceID to a random UUID, sets the entry's fullURL to that resourceID, and adds the entry to
+   * the bundle.
+   *
+   * @param bundle The Bundle to add the Entry to
+   * @param resource Resource the new Entry should contain
+   * @return the created Entry
+   */
+  private static BundleEntryComponent newEntry(Bundle bundle, Resource resource) {
+<span class="fc" id="L2315">    String resourceID = UUID.randomUUID().toString();</span>
+<span class="fc" id="L2316">    return newEntry(bundle, resource, resourceID);</span>
+  }
+
+  /**
+   * Helper function to create an Entry for the given Resource within the given Bundle.
+   * Sets the entry's fullURL to resourceID, and adds the entry to the bundle.
+   *
+   * @param bundle The Bundle to add the Entry to
+   * @param resource Resource the new Entry should contain
+   * @param resourceID The Resource ID to assign
+   * @return the created Entry
+   */
+  private static BundleEntryComponent newEntry(Bundle bundle, Resource resource,
+      String resourceID) {
+<span class="fc" id="L2330">    BundleEntryComponent entry = bundle.addEntry();</span>
+
+<span class="fc" id="L2332">    resource.setId(resourceID);</span>
+<span class="fc" id="L2333">    entry.setFullUrl(&quot;urn:uuid:&quot; + resourceID);</span>
+<span class="fc" id="L2334">    entry.setResource(resource);</span>
+
+<span class="fc bfc" id="L2336" title="All 2 branches covered.">    if (TRANSACTION_BUNDLE) {</span>
+<span class="fc" id="L2337">      BundleEntryRequestComponent request = entry.getRequest();</span>
+<span class="fc" id="L2338">      request.setMethod(HTTPVerb.POST);</span>
+<span class="fc" id="L2339">      request.setUrl(resource.getResourceType().name());</span>
+<span class="fc" id="L2340">      entry.setRequest(request);</span>
+    }
+
+<span class="fc" id="L2343">    return entry;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

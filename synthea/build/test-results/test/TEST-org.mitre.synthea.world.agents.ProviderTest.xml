@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.world.agents.ProviderTest" tests="15" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:17:18" hostname="ryan-B250M-HD3" time="60.675">
+  <properties/>
+  <testcase name="testNearestInpatientInState" classname="org.mitre.synthea.world.agents.ProviderTest" time="3.071"/>
+  <testcase name="testAllFiles" classname="org.mitre.synthea.world.agents.ProviderTest" time="3.276"/>
+  <testcase name="testVaFacilityOnlyAcceptsVeteran" classname="org.mitre.synthea.world.agents.ProviderTest" time="3.857"/>
+  <testcase name="testGenerateClinicianByState" classname="org.mitre.synthea.world.agents.ProviderTest" time="3.101"/>
+  <testcase name="testNearestEmergencyInCity" classname="org.mitre.synthea.world.agents.ProviderTest" time="2.927"/>
+  <testcase name="testNearestUrgentCareInState" classname="org.mitre.synthea.world.agents.ProviderTest" time="3.099"/>
+  <testcase name="testLoadProvidersByStateName" classname="org.mitre.synthea.world.agents.ProviderTest" time="3.581"/>
+  <testcase name="testNearestAmbulatoryInState" classname="org.mitre.synthea.world.agents.ProviderTest" time="3.058"/>
+  <testcase name="testGenerateClinicianByAbbreviation" classname="org.mitre.synthea.world.agents.ProviderTest" time="3.862"/>
+  <testcase name="testNearestUrgentCareInCity" classname="org.mitre.synthea.world.agents.ProviderTest" time="2.667"/>
+  <testcase name="testNearestAmbulatoryInCity" classname="org.mitre.synthea.world.agents.ProviderTest" time="3.066"/>
+  <testcase name="testNearestEmergencyInState" classname="org.mitre.synthea.world.agents.ProviderTest" time="3.031"/>
+  <testcase name="testNearestInpatientInCity" classname="org.mitre.synthea.world.agents.ProviderTest" time="3.097"/>
+  <testcase name="testLoadProvidersByAbbreviation" classname="org.mitre.synthea.world.agents.ProviderTest" time="3.007"/>
+  <testcase name="testAllFacilitiesHaveAnId" classname="org.mitre.synthea.world.agents.ProviderTest" time="3.646"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -14,9 +14,9 @@ from preprocessing import centered_sample_covariance_matrix
 # Gaussian Mechanism functions
 def gaussian_mechanism(x, scale):
     if any([isinstance(x, float), isinstance(x, int)]):
-        M = x + numpy.random.normal(loc=0, scale=scale)
+        M = x + numpy.random.normal(loc=0, scale=scale) 
     else:
-        M = x + numpy.random.normal(loc=0, scale=scale, size=len(x))
+        M = x + numpy.random.normal(loc=0, scale=scale, size=x.shape)
     return M
 
 
@@ -46,12 +46,17 @@ def gaussian_mechanism_matrix_sample(data,
                                      sensitivity,
                                      symmetric=False,
                                      scale_sample=True,
-                                     verbose=False):
+                                     verbose=False,
+                                     simple_sensitivity=False):
 
     n, m = data.shape
     values = data.values
 
-    if symmetric:
+    if simple_sensitivity:
+        adjusted_epsilon = epsilon
+        adjusted_delta = delta
+ 
+    elif symmetric:
         adjusted_epsilon = 2 * epsilon / (pow(n, 2) + n)
         adjusted_delta = 2 * delta / (pow(n, 2) + n)
     else:
@@ -87,13 +92,8 @@ def gaussian_mechanism_matrix_sample(data,
             if not(x == y):
                 sample[y, x] = sample[x, y]
     else:
-        sample = numpy.array([
-            numpy.array([
-                gaussian_mechanism(v, gaussian_mechanism_scale)
-                for v in x
-            ])
-            for x in values
-        ])
+        sample = gaussian_mechanism(values, 
+                                    gaussian_mechanism_scale)
 
     if scale_sample and not(symmetric):
         # rescale to match scaled data set
@@ -106,7 +106,7 @@ def gaussian_mechanism_matrix_sample(data,
                             target_bounds=sample_bounds,
                             data_bounds=None)
     else:
-        result = sample
+        result = pandas.DataFrame(sample, columns=data.columns.values)
 
     return result
 
@@ -150,7 +150,7 @@ def matrixvariate_gaussian_mechanism_sample(data,
             target_bounds=sample_bounds,
             data_bounds=None)
     else:
-        result = sample
+        result = pandas.DataFrame(sample, columns=data.columns.values)
 
     return result
 

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.world.concepts.BirthStatisticsTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:17:13" hostname="ryan-B250M-HD3" time="0.001">
+  <properties/>
+  <testcase name="testBirthStatistics" classname="org.mitre.synthea.world.concepts.BirthStatisticsTest" time="0.001"/>
+  <testcase name="testNoFathersAreMothers" classname="org.mitre.synthea.world.concepts.BirthStatisticsTest" time="0.0"/>
+  <testcase name="testNoStatisticsForWomenWhoAreNotPregnant" classname="org.mitre.synthea.world.concepts.BirthStatisticsTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

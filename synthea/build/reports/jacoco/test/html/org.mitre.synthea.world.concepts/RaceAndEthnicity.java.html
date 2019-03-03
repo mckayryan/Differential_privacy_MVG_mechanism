@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RaceAndEthnicity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.world.concepts</a> &gt; <span class="el_source">RaceAndEthnicity.java</span></div><h1>RaceAndEthnicity.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.world.concepts;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
+<span class="nc" id="L7">public class RaceAndEthnicity {</span>
+<span class="fc" id="L8">  public static final Map&lt;String, String&gt; LOOK_UP = createLookup();</span>
+<span class="fc" id="L9">  public static final Map&lt;String, String&gt; LOOK_UP_CDC_RACE = createCDCRaceLookup();</span>
+<span class="fc" id="L10">  public static final Map&lt;String, String&gt; LOOK_UP_CDC_ETHNICITY_CODE = createCDCEthnicityLookup();</span>
+<span class="fc" id="L11">  public static final Map&lt;String, String&gt; LOOK_UP_CDC_ETHNICITY_DISPLAY = </span>
+<span class="fc" id="L12">      createCDCEthnicityDisplayLookup();</span>
+
+  private static Map&lt;String, String&gt; createLookup() {
+<span class="fc" id="L15">    Map&lt;String, String&gt; result = new HashMap&lt;String, String&gt;();</span>
+<span class="fc" id="L16">    result.put(&quot;white&quot;, &quot;2106-3&quot;);</span>
+<span class="fc" id="L17">    result.put(&quot;hispanic&quot;, &quot;2135-2&quot;);</span>
+<span class="fc" id="L18">    result.put(&quot;black&quot;, &quot;2054-5&quot;);</span>
+<span class="fc" id="L19">    result.put(&quot;asian&quot;, &quot;2028-9&quot;);</span>
+<span class="fc" id="L20">    result.put(&quot;native&quot;, &quot;1002-5&quot;);</span>
+<span class="fc" id="L21">    result.put(&quot;other&quot;, &quot;2131-1&quot;);</span>
+<span class="fc" id="L22">    result.put(&quot;irish&quot;, &quot;2113-9&quot;);</span>
+<span class="fc" id="L23">    result.put(&quot;italian&quot;, &quot;2114-7&quot;);</span>
+<span class="fc" id="L24">    result.put(&quot;english&quot;, &quot;2110-5&quot;);</span>
+<span class="fc" id="L25">    result.put(&quot;french&quot;, &quot;2111-3&quot;);</span>
+<span class="fc" id="L26">    result.put(&quot;german&quot;, &quot;2112-1&quot;);</span>
+<span class="fc" id="L27">    result.put(&quot;polish&quot;, &quot;2115-4&quot;);</span>
+<span class="fc" id="L28">    result.put(&quot;portuguese&quot;, &quot;2131-1&quot;);</span>
+<span class="fc" id="L29">    result.put(&quot;american&quot;, &quot;2131-1&quot;);</span>
+<span class="fc" id="L30">    result.put(&quot;french_canadian&quot;, &quot;2131-1&quot;);</span>
+<span class="fc" id="L31">    result.put(&quot;scottish&quot;, &quot;2116-2&quot;);</span>
+<span class="fc" id="L32">    result.put(&quot;russian&quot;, &quot;2131-1&quot;);</span>
+<span class="fc" id="L33">    result.put(&quot;swedish&quot;, &quot;2131-1&quot;);</span>
+<span class="fc" id="L34">    result.put(&quot;greek&quot;, &quot;2131-1&quot;);</span>
+<span class="fc" id="L35">    result.put(&quot;puerto_rican&quot;, &quot;2180-8&quot;);</span>
+<span class="fc" id="L36">    result.put(&quot;mexican&quot;, &quot;2148-5&quot;);</span>
+<span class="fc" id="L37">    result.put(&quot;central_american&quot;, &quot;2155-0&quot;);</span>
+<span class="fc" id="L38">    result.put(&quot;south_american&quot;, &quot;2165-9&quot;);</span>
+<span class="fc" id="L39">    result.put(&quot;african&quot;, &quot;2058-6&quot;);</span>
+<span class="fc" id="L40">    result.put(&quot;dominican&quot;, &quot;2069-3&quot;);</span>
+<span class="fc" id="L41">    result.put(&quot;chinese&quot;, &quot;2034-7&quot;);</span>
+<span class="fc" id="L42">    result.put(&quot;west_indian&quot;, &quot;2075-0&quot;);</span>
+<span class="fc" id="L43">    result.put(&quot;asian_indian&quot;, &quot;2029-7&quot;);</span>
+<span class="fc" id="L44">    result.put(&quot;american_indian&quot;, &quot;1004-1&quot;);</span>
+<span class="fc" id="L45">    result.put(&quot;arab&quot;, &quot;2129-5&quot;);</span>
+<span class="fc" id="L46">    result.put(&quot;nonhispanic&quot;, &quot;2186-5&quot;);</span>
+<span class="fc" id="L47">    return Collections.unmodifiableMap(result);</span>
+  }
+
+  private static Map&lt;String, String&gt; createCDCRaceLookup() {
+<span class="fc" id="L51">    Map&lt;String, String&gt; result = new HashMap&lt;String, String&gt;();</span>
+<span class="fc" id="L52">    result.put(&quot;white&quot;, &quot;2106-3&quot;); // white</span>
+<span class="fc" id="L53">    result.put(&quot;hispanic&quot;, &quot;2106-3&quot;); // white</span>
+<span class="fc" id="L54">    result.put(&quot;black&quot;, &quot;2054-5&quot;); // black</span>
+<span class="fc" id="L55">    result.put(&quot;asian&quot;, &quot;2028-9&quot;); // asian</span>
+<span class="fc" id="L56">    result.put(&quot;native&quot;, &quot;1002-5&quot;); // american indian or alaska native</span>
+<span class="fc" id="L57">    result.put(&quot;other&quot;, &quot;2076-8&quot;); // native hawaiian or pacific islander</span>
+<span class="fc" id="L58">    return Collections.unmodifiableMap(result);</span>
+  }
+
+  private static Map&lt;String, String&gt; createCDCEthnicityLookup() {
+<span class="fc" id="L62">    Map&lt;String, String&gt; result = new HashMap&lt;String, String&gt;();</span>
+<span class="fc" id="L63">    result.put(&quot;white&quot;, &quot;2186-5&quot;); // non-hispanic</span>
+<span class="fc" id="L64">    result.put(&quot;hispanic&quot;, &quot;2135-2&quot;); // hispanic</span>
+<span class="fc" id="L65">    result.put(&quot;black&quot;, &quot;2186-5&quot;); // non-hispanic</span>
+<span class="fc" id="L66">    result.put(&quot;asian&quot;, &quot;2186-5&quot;); // non-hispanic</span>
+<span class="fc" id="L67">    result.put(&quot;native&quot;, &quot;2186-5&quot;); // non-hispanic</span>
+<span class="fc" id="L68">    result.put(&quot;other&quot;, &quot;2186-5&quot;); // non-hispanic</span>
+<span class="fc" id="L69">    return Collections.unmodifiableMap(result);</span>
+  }
+
+  private static Map&lt;String, String&gt; createCDCEthnicityDisplayLookup() {
+<span class="fc" id="L73">    Map&lt;String, String&gt; result = new HashMap&lt;String, String&gt;();</span>
+<span class="fc" id="L74">    result.put(&quot;white&quot;, &quot;non-hispanic&quot;);</span>
+<span class="fc" id="L75">    result.put(&quot;hispanic&quot;, &quot;hispanic&quot;);</span>
+<span class="fc" id="L76">    result.put(&quot;black&quot;, &quot;non-hispanic&quot;);</span>
+<span class="fc" id="L77">    result.put(&quot;asian&quot;, &quot;non-hispanic&quot;);</span>
+<span class="fc" id="L78">    result.put(&quot;native&quot;, &quot;non-hispanic&quot;);</span>
+<span class="fc" id="L79">    result.put(&quot;other&quot;, &quot;non-hispanic&quot;);</span>
+<span class="fc" id="L80">    return Collections.unmodifiableMap(result);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

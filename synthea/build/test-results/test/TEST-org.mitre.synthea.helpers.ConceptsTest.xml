@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.helpers.ConceptsTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:18:19" hostname="ryan-B250M-HD3" time="0.062">
+  <properties/>
+  <testcase name="testInventoryModule" classname="org.mitre.synthea.helpers.ConceptsTest" time="0.003"/>
+  <testcase name="testInventoryCodes" classname="org.mitre.synthea.helpers.ConceptsTest" time="0.0"/>
+  <testcase name="testInventoryState" classname="org.mitre.synthea.helpers.ConceptsTest" time="0.0"/>
+  <testcase name="testConcepts" classname="org.mitre.synthea.helpers.ConceptsTest" time="0.058"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

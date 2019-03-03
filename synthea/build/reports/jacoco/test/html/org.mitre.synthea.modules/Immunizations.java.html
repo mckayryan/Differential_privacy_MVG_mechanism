@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Immunizations.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.modules</a> &gt; <span class="el_source">Immunizations.java</span></div><h1>Immunizations.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.modules;
+
+import com.google.gson.Gson;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
+import org.mitre.synthea.helpers.Utilities;
+import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.concepts.HealthRecord;
+import org.mitre.synthea.world.concepts.HealthRecord.Code;
+
+/**
+ * This is a complete, but fairly simplistic approach to synthesizing immunizations. It is encounter
+ * driven; whenever an encounter occurs, the doctor checks for due immunizations and gives them. In
+ * at least one case (HPV) this means that the immunization schedule isn't strictly followed since
+ * the encounter schedule doesn't match the immunization schedule (e.g., 11yrs, 11yrs2mo, 11yrs6mo)
+ * -- but in most cases they do line up. This module also assumes perfect doctors and compliant
+ * patients. Every patient eventually receives every recommended immunization (unless they die
+ * first). This module also does not implement any deviations or contraindications based on patient
+ * conditions. For now, we've avoided specific brand names, preferring the general CVX codes.
+ */
+<span class="nc" id="L28">public class Immunizations {</span>
+  public static final String IMMUNIZATIONS = &quot;immunizations&quot;;
+
+  @SuppressWarnings({ &quot;unchecked&quot;, &quot;rawtypes&quot; })
+<span class="fc" id="L32">  private static final Map&lt;String, Map&gt; immunizationSchedule = loadImmunizationSchedule();</span>
+
+  @SuppressWarnings(&quot;rawtypes&quot;)
+  private static Map loadImmunizationSchedule() {
+<span class="fc" id="L36">    String filename = &quot;immunization_schedule.json&quot;;</span>
+    try {
+<span class="fc" id="L38">      String json = Utilities.readResource(filename);</span>
+<span class="fc" id="L39">      Gson g = new Gson();</span>
+<span class="fc" id="L40">      return g.fromJson(json, HashMap.class);</span>
+<span class="nc" id="L41">    } catch (Exception e) {</span>
+<span class="nc" id="L42">      System.err.println(&quot;ERROR: unable to load json: &quot; + filename);</span>
+<span class="nc" id="L43">      e.printStackTrace();</span>
+<span class="nc" id="L44">      throw new ExceptionInInitializerError(e);</span>
+    }
+  }
+
+  @SuppressWarnings({ &quot;unchecked&quot;, &quot;rawtypes&quot; })
+  public static void performEncounter(Person person, long time) {
+    Map&lt;String, List&lt;Long&gt;&gt; immunizationsGiven;
+<span class="fc bfc" id="L51" title="All 2 branches covered.">    if (person.attributes.containsKey(IMMUNIZATIONS)) {</span>
+<span class="fc" id="L52">      immunizationsGiven = (Map&lt;String, List&lt;Long&gt;&gt;) person.attributes.get(IMMUNIZATIONS);</span>
+    } else {
+<span class="fc" id="L54">      immunizationsGiven = new HashMap&lt;String, List&lt;Long&gt;&gt;();</span>
+<span class="fc" id="L55">      person.attributes.put(IMMUNIZATIONS, immunizationsGiven);</span>
+    }
+
+<span class="fc bfc" id="L58" title="All 2 branches covered.">    for (String immunization : immunizationSchedule.keySet()) {</span>
+<span class="fc" id="L59">      int series = immunizationDue(immunization, person, time, immunizationsGiven);</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">      if (series &gt; 0) {</span>
+<span class="fc" id="L61">        List&lt;Long&gt; history = immunizationsGiven.get(immunization);</span>
+<span class="fc" id="L62">        history.add(time);</span>
+<span class="fc" id="L63">        HealthRecord.Immunization entry = person.record.immunization(time, immunization);</span>
+<span class="fc" id="L64">        Map code = (Map) immunizationSchedule.get(immunization).get(&quot;code&quot;);</span>
+<span class="fc" id="L65">        HealthRecord.Code immCode = new HealthRecord.Code(code.get(&quot;system&quot;).toString(),</span>
+<span class="fc" id="L66">            code.get(&quot;code&quot;).toString(), code.get(&quot;display&quot;).toString());</span>
+<span class="fc" id="L67">        entry.codes.add(immCode);</span>
+<span class="fc" id="L68">        entry.series = series;</span>
+      }
+<span class="fc" id="L70">    }</span>
+<span class="fc" id="L71">  }</span>
+
+  /**
+   * Return whether or not the specified immunization is due.
+   *
+   * @param immunization The immunization to give
+   * @param person The person to receive the immunization
+   * @param time The time the immunization would be given
+   * @param immunizationsGiven The history of immunizations
+   * @return -1 if the immunization should not be given, otherwise a positive integer,
+   *     where the value is the series. For example, 1 if this is the first time the
+   *     vaccine was administered; 2 if this is the second time, et cetera.
+   */
+  @SuppressWarnings({ &quot;rawtypes&quot;, &quot;unchecked&quot; })
+  public static int immunizationDue(String immunization, Person person, long time,
+      Map&lt;String, List&lt;Long&gt;&gt; immunizationsGiven) {
+<span class="fc" id="L87">    int ageInMonths = person.ageInMonths(time);</span>
+
+<span class="fc" id="L89">    List&lt;Long&gt; history = null;</span>
+<span class="fc bfc" id="L90" title="All 2 branches covered.">    if (immunizationsGiven.containsKey(immunization)) {</span>
+<span class="fc" id="L91">      history = immunizationsGiven.get(immunization);</span>
+    } else {
+<span class="fc" id="L93">      history = new ArrayList&lt;Long&gt;();</span>
+<span class="fc" id="L94">      immunizationsGiven.put(immunization, history);</span>
+    }
+
+    // Don't administer if the immunization wasn't historically available at the date of the
+    // encounter
+<span class="fc" id="L99">    Map schedule = immunizationSchedule.get(immunization);</span>
+<span class="fc" id="L100">    Double firstAvailable = (Double) schedule.getOrDefault(&quot;first_available&quot;, 1900);</span>
+<span class="fc bfc" id="L101" title="All 2 branches covered.">    if (time &lt; Utilities.convertCalendarYearsToTime(firstAvailable.intValue())) {</span>
+<span class="fc" id="L102">      return -1;</span>
+    }
+
+    // Don't administer if all recommended doses have already been given
+<span class="fc" id="L106">    List atMonths = new ArrayList((List) schedule.get(&quot;at_months&quot;));</span>
+<span class="fc bfc" id="L107" title="All 2 branches covered.">    if (history.size() &gt;= atMonths.size()) {</span>
+<span class="fc" id="L108">      return -1;</span>
+    }
+
+    // See if the patient should receive a dose based on their current age and the recommended dose
+    // ages;
+    // we can't just see if greater than the recommended age for the next dose they haven't received
+    // because i.e. we don't want to administer the HPV vaccine to someone who turns 90 in 2006 when
+    // the
+    // vaccine is released; we can't just use a simple test of, say, within 4 years after the
+    // recommended
+    // age for the next dose they haven't received because i.e. PCV13 is given to kids and seniors
+    // but was
+    // only available starting in 2010, so a senior in 2012 who has never received a dose should get
+    // one,
+    // but only one; what we do is:
+
+    // 1) eliminate any recommended doses that are not within 4 years of the patient's age
+    // at_months = at_months.reject { |am| age_in_months - am &gt;= 48 }
+<span class="fc bfc" id="L126" title="All 2 branches covered.">    Predicate&lt;Double&gt; notWithinFourYears = p -&gt; ((ageInMonths - p) &gt;= 48);</span>
+<span class="fc" id="L127">    atMonths.removeIf(notWithinFourYears);</span>
+<span class="fc bfc" id="L128" title="All 2 branches covered.">    if (atMonths.isEmpty()) {</span>
+<span class="fc" id="L129">      return -1;</span>
+    }
+
+    // 2) eliminate recommended doses that were actually administered
+<span class="fc bfc" id="L133" title="All 2 branches covered.">    for (Long date : history) {</span>
+<span class="fc" id="L134">      int ageAtDate = person.ageInMonths(date);</span>
+<span class="fc" id="L135">      double recommendedAge = (double) atMonths.get(0);</span>
+<span class="pc bpc" id="L136" title="1 of 4 branches missed.">      if (ageAtDate &gt;= recommendedAge &amp;&amp; ((ageAtDate - recommendedAge) &lt; 48)) {</span>
+<span class="fc" id="L137">        atMonths.remove(0);</span>
+<span class="fc bfc" id="L138" title="All 2 branches covered.">        if (atMonths.isEmpty()) {</span>
+<span class="fc" id="L139">          return -1;</span>
+        }
+      }
+<span class="fc" id="L142">    }</span>
+
+    // 3) see if there are any recommended doses remaining that this patient is old enough for
+<span class="pc bpc" id="L145" title="1 of 4 branches missed.">    if (!atMonths.isEmpty() &amp;&amp; ageInMonths &gt;= (double) atMonths.get(0)) {</span>
+<span class="fc" id="L146">      return history.size() + 1;</span>
+    }
+<span class="fc" id="L148">    return -1;</span>
+  }
+
+  /**
+   * Get all of the Codes this module uses, for inventory purposes.
+   * 
+   * @return Collection of all codes and concepts this module uses
+   */
+  @SuppressWarnings(&quot;rawtypes&quot;)
+  public static Collection&lt;Code&gt; getAllCodes() {
+<span class="fc" id="L158">    List&lt;Map&gt; rawCodes = (List&lt;Map&gt;) immunizationSchedule.values()</span>
+<span class="fc" id="L159">        .stream().map(m -&gt; (Map)m.get(&quot;code&quot;)).collect(Collectors.toList());</span>
+    
+<span class="fc" id="L161">    List&lt;Code&gt; convertedCodes = new ArrayList&lt;Code&gt;(rawCodes.size());</span>
+    
+<span class="fc bfc" id="L163" title="All 2 branches covered.">    for (Map m : rawCodes) {</span>
+<span class="fc" id="L164">      Code immCode = new Code(m.get(&quot;system&quot;).toString(),</span>
+<span class="fc" id="L165">                              m.get(&quot;code&quot;).toString(), </span>
+<span class="fc" id="L166">                              m.get(&quot;display&quot;).toString());</span>
+      
+<span class="fc" id="L168">      convertedCodes.add(immCode);</span>
+<span class="fc" id="L169">    }</span>
+
+<span class="fc" id="L171">    return convertedCodes;</span>
+  }
+
+  /**
+   * Get the maximum number of vaccine doses for a particular code.
+   * @param code The vaccine code.
+   * @return The maximum number of doses to be administered.
+   */
+  @SuppressWarnings(&quot;rawtypes&quot;)
+  public static int getMaximumDoses(String code) {
+<span class="fc bfc" id="L181" title="All 2 branches covered.">    for (String immunization : immunizationSchedule.keySet()) {</span>
+<span class="fc" id="L182">      Map icode = (Map) immunizationSchedule.get(immunization).get(&quot;code&quot;);</span>
+<span class="fc bfc" id="L183" title="All 2 branches covered.">      if (icode.get(&quot;code&quot;).equals(code)) {</span>
+<span class="fc" id="L184">        List doses = (List) immunizationSchedule.get(immunization).get(&quot;at_months&quot;);</span>
+<span class="fc" id="L185">        return doses.size();</span>
+      }
+<span class="fc" id="L187">    }</span>
+<span class="fc" id="L188">    return 1;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

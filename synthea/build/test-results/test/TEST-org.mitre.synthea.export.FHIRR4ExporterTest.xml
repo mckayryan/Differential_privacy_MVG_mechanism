@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.export.FHIRR4ExporterTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:19:35" hostname="ryan-B250M-HD3" time="8.694">
+  <properties/>
+  <testcase name="testFHIRR4Export" classname="org.mitre.synthea.export.FHIRR4ExporterTest" time="8.694"/>
+  <system-out><![CDATA[Running with options:
+Population: 10
+Seed: 1551093575082
+Location: Massachusetts
+Min Age: 0
+Max Age: 140
+1 -- Barrett790 Bergstrom287 (19 y/o M) Fall River, Massachusetts 
+2 -- Chan58 Metz686 (39 y/o F) Winchester, Massachusetts 
+3 -- Coleen678 Turcotte120 (16 y/o F) Townsend, Massachusetts 
+4 -- Rob341 Osinski784 (47 y/o M) Holyoke, Massachusetts 
+5 -- Chas63 Blanda868 (63 y/o M) Montague, Massachusetts 
+6 -- Sammie902 Beer512 (62 y/o M) Plymouth, Massachusetts 
+7 -- Ignacio928 Zayas20 (10 y/o M) Brookline, Massachusetts 
+8 -- Keith571 Hilll811 (44 y/o M) Groton, Massachusetts 
+9 -- Lance203 Jenkins714 (7 y/o M) Newton, Massachusetts 
+10 -- Elvira561 Prosacco716 (27 y/o F) Boston, Massachusetts 
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

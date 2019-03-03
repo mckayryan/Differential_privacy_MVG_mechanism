@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TrendingValueGenerator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.helpers</a> &gt; <span class="el_source">TrendingValueGenerator.java</span></div><h1>TrendingValueGenerator.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.helpers;
+
+import static com.google.common.base.Preconditions.checkArgument;
+
+import java.security.SecureRandom;
+import java.util.Random;
+
+import org.mitre.synthea.world.agents.Person;
+
+
+/**
+ * A ValueGenerator for generation of trending values. 
+ * It has the following properties:
+ * - values will start at a time beginTime at a starting mean beginMean
+ * - values will end at a time endTime at an ending mean endMean 
+ * - values will be bounded by a minimum and maximum value 
+ * - values will be distributed with a given standard deviation
+ */
+public class TrendingValueGenerator extends ValueGenerator {
+
+  // TODO: How do I properly seed this prng?
+  // Can I have more guarantees for reproducability if I use person or beginTime to seed?
+<span class="fc" id="L23">  private static final Random prng = new SecureRandom();</span>
+
+  private double standardDeviation;
+  private Double minimumValue;
+  private Double maximumValue;
+
+  private double beginMean;
+  private double endMean;
+  private long beginTime;
+  private long endTime;
+
+  /**
+   * A ValueGenerator that generates values which follow a trend.
+   * 
+   * @param person the person for which the values should be generated
+   * @param standardDeviation the SD of the generated values
+   * @param beginMean the mean at the begin time
+   * @param endMean the mean at the end time
+   * @param beginTime the begin time (in millis)
+   * @param endTime the end time (in millis)
+   * @param minimumValue a lower bound for the generated values
+   * @param maximumValue an upper bound for the generated values.
+   */
+  public TrendingValueGenerator(Person person, double standardDeviation, 
+      double beginMean, double endMean, long beginTime, long endTime, 
+      Double minimumValue, Double maximumValue) {
+<span class="fc" id="L49">    super(person);</span>
+
+<span class="pc bpc" id="L51" title="1 of 2 branches missed.">    checkArgument(standardDeviation &gt;= 0);</span>
+<span class="pc bpc" id="L52" title="2 of 6 branches missed.">    checkArgument(minimumValue == null || maximumValue == null || minimumValue &lt;= maximumValue);</span>
+
+<span class="fc" id="L54">    this.standardDeviation = standardDeviation;</span>
+<span class="fc" id="L55">    this.beginMean = beginMean;</span>
+<span class="fc" id="L56">    this.endMean = endMean;</span>
+<span class="fc" id="L57">    this.beginTime = beginTime;</span>
+<span class="fc" id="L58">    this.endTime = endTime;</span>
+<span class="fc" id="L59">    this.minimumValue = minimumValue;</span>
+<span class="fc" id="L60">    this.maximumValue = maximumValue;</span>
+<span class="fc" id="L61">  }</span>
+
+  public long getBeginTime() {
+<span class="fc" id="L64">    return this.beginTime;</span>
+  }
+
+  public long getEndTime() {
+<span class="fc" id="L68">    return this.endTime;</span>
+  }
+
+  /**
+   * Return the value at the given time.
+   * For times before beginTime, the beginMean is used.
+   * For times after endTime, the endMean is used.
+   * 
+   * @param time the timestamp for which the value is requested
+   * @return the value
+   */
+  public double getValue(long time) {
+<span class="fc bfc" id="L80" title="All 2 branches covered.">    if (time &lt; beginTime) {</span>
+<span class="fc" id="L81">      return nextValue(beginMean);</span>
+<span class="fc bfc" id="L82" title="All 2 branches covered.">    } else if (time &gt; endTime) {</span>
+<span class="fc" id="L83">      return nextValue(endMean);</span>
+    } else {
+<span class="fc" id="L85">      return nextValue(beginMean + (endMean - beginMean) * (time - beginTime)</span>
+          / (endTime - beginTime));
+    }
+  }
+
+  /**
+   * Return a next value for the given mean.
+   * This will be close to the mean, but with a deviation.
+   * It will be bounded by minimumValue and maximumValue.
+   * 
+   * @param mean the mean of the random variable
+   * @return the next value generated by the random variable
+   */
+  private double nextValue(double mean) {
+
+    double nextValue;
+
+    do {
+<span class="fc" id="L103">      nextValue = prng.nextGaussian() * standardDeviation + mean;</span>
+
+<span class="fc bfc" id="L105" title="All 6 branches covered.">      if ((minimumValue == null || nextValue &gt;= minimumValue) &amp;&amp; (maximumValue == null</span>
+<span class="fc bfc" id="L106" title="All 2 branches covered.">          || nextValue &lt;= maximumValue)) {</span>
+<span class="fc" id="L107">        break;</span>
+      }
+    } while (true);
+
+<span class="fc" id="L111">    return nextValue;</span>
+  }
+
+  @Override
+  public String toString() {
+
+<span class="fc" id="L117">    final StringBuilder sb = new StringBuilder(&quot;TrendingValueGenerator {&quot;);</span>
+
+<span class="fc" id="L119">    sb.append(&quot;standardDeviation=&quot;).append(standardDeviation);</span>
+<span class="fc" id="L120">    sb.append(&quot;, beginMean=&quot;).append(beginMean);</span>
+<span class="fc" id="L121">    sb.append(&quot;, endMean=&quot;).append(endMean);</span>
+<span class="fc" id="L122">    sb.append(&quot;, beginTime=&quot;).append(beginTime);</span>
+<span class="fc" id="L123">    sb.append(&quot;, endTime=&quot;).append(endTime);</span>
+<span class="fc" id="L124">    sb.append(&quot;, minimumValue=&quot;).append(minimumValue);</span>
+<span class="fc" id="L125">    sb.append(&quot;, maximumValue=&quot;).append(maximumValue);</span>
+<span class="fc" id="L126">    sb.append('}');</span>
+
+<span class="fc" id="L128">    return sb.toString();</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.engine.EventTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:15:49" hostname="ryan-B250M-HD3" time="0.006">
+  <properties/>
+  <testcase name="eventHasNoAttributes" classname="org.mitre.synthea.engine.EventTest" time="0.0"/>
+  <testcase name="eventHasAttributes" classname="org.mitre.synthea.engine.EventTest" time="0.0"/>
+  <testcase name="eventToString" classname="org.mitre.synthea.engine.EventTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

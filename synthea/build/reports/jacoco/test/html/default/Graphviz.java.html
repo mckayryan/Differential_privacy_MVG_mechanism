@@ -1,0 +1,638 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Graphviz.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">default</a> &gt; <span class="el_source">Graphviz.java</span></div><h1>Graphviz.java</h1><pre class="source lang-java linenums">import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
+
+import guru.nidi.graphviz.attribute.Color;
+import guru.nidi.graphviz.attribute.Records;
+import guru.nidi.graphviz.attribute.Style;
+import guru.nidi.graphviz.engine.Format;
+import guru.nidi.graphviz.engine.Rasterizer;
+import guru.nidi.graphviz.model.Factory;
+import guru.nidi.graphviz.model.Graph;
+import guru.nidi.graphviz.model.Label;
+import guru.nidi.graphviz.model.Link;
+import guru.nidi.graphviz.model.Node;
+
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+
+import org.mitre.synthea.export.Exporter;
+
+
+<span class="nc" id="L36">public class Graphviz {</span>
+  private static final String NEWLINE = &quot;\\l&quot;;
+
+  /**
+   * Generate the Graphviz-like graphs of the disease modules.
+   * @param args Optional path of modules to render. If not provided,
+   *     the default modules will be loaded using the ClassLoader.
+   * @throws URISyntaxException on failure to load modules.
+   */
+  public static void main(String[] args) throws URISyntaxException {
+<span class="nc" id="L46">    File folder = Exporter.getOutputFolder(&quot;graphviz&quot;, null);</span>
+
+<span class="nc" id="L48">    Path inputPath = null;</span>
+<span class="nc bnc" id="L49" title="All 4 branches missed.">    if (args != null &amp;&amp; args.length &gt; 0) {</span>
+<span class="nc" id="L50">      File file = new File(args[0]);</span>
+<span class="nc" id="L51">      inputPath = file.toPath();</span>
+<span class="nc" id="L52">    } else {</span>
+<span class="nc" id="L53">      URL modulesFolder = ClassLoader.getSystemClassLoader().getResource(&quot;modules&quot;);</span>
+<span class="nc" id="L54">      inputPath = Paths.get(modulesFolder.toURI());</span>
+    }
+
+<span class="nc" id="L57">    System.out.println(&quot;Rendering graphs to `&quot; + folder.getAbsolutePath() + &quot;`...&quot;);</span>
+
+<span class="nc" id="L59">    long start = System.currentTimeMillis();</span>
+<span class="nc" id="L60">    generateJsonModuleGraphs(inputPath, folder);</span>
+
+<span class="nc" id="L62">    System.out.println(&quot;Completed in &quot; + (System.currentTimeMillis() - start) + &quot; ms.&quot;);</span>
+<span class="nc" id="L63">  }</span>
+
+  private static void generateJsonModuleGraphs(Path inputPath, File outputFolder) {
+    // adapted from Module.loadModules()
+    try {
+<span class="nc" id="L68">      Files.walk(inputPath, Integer.MAX_VALUE)</span>
+<span class="nc" id="L69">          .filter(Files::isReadable).filter(Files::isRegularFile)</span>
+<span class="nc" id="L70">          .filter(p -&gt; p.toString().endsWith(&quot;.json&quot;)).parallel().forEach(t -&gt; {</span>
+            try {
+<span class="nc" id="L72">              JsonObject module = loadFile(t, inputPath);</span>
+<span class="nc" id="L73">              String relativePath = relativePath(t, inputPath);</span>
+<span class="nc" id="L74">              generateJsonModuleGraph(module, outputFolder, relativePath);</span>
+<span class="nc" id="L75">            } catch (IOException e) {</span>
+<span class="nc" id="L76">              e.printStackTrace();</span>
+<span class="nc" id="L77">            }</span>
+<span class="nc" id="L78">          });</span>
+<span class="nc" id="L79">    } catch (Exception e) {</span>
+<span class="nc" id="L80">      e.printStackTrace();</span>
+<span class="nc" id="L81">    }</span>
+<span class="nc" id="L82">  }</span>
+
+  private static JsonObject loadFile(Path path, Path modulesFolder) throws IOException {
+<span class="nc" id="L85">    System.out.format(&quot;Loading %s\n&quot;, path.toString());</span>
+<span class="nc" id="L86">    FileReader fileReader = new FileReader(path.toString());</span>
+<span class="nc" id="L87">    JsonReader reader = new JsonReader(fileReader);</span>
+<span class="nc" id="L88">    JsonObject object = new JsonParser().parse(reader).getAsJsonObject();</span>
+<span class="nc" id="L89">    fileReader.close();</span>
+<span class="nc" id="L90">    reader.close();</span>
+<span class="nc" id="L91">    return object;</span>
+  }
+
+  private static String relativePath(Path filePath, Path modulesFolder) {
+<span class="nc" id="L95">    String folderString = Matcher.quoteReplacement(modulesFolder.toString() + File.separator);</span>
+<span class="nc" id="L96">    return filePath.toString().replaceFirst(folderString, &quot;&quot;).replaceFirst(&quot;.json&quot;, &quot;&quot;)</span>
+<span class="nc" id="L97">        .replace(&quot;\\&quot;, &quot;/&quot;);</span>
+  }
+
+  private static void generateJsonModuleGraph(JsonObject module, File outputFolder,
+      String relativePath) throws IOException {
+    // TODO -- a lot of this uses immutable objects. refactor to use mutable ones
+<span class="nc" id="L103">    Graph g = Factory.graph().directed();</span>
+
+<span class="nc" id="L105">    JsonObject states = module.get(&quot;states&quot;).getAsJsonObject();</span>
+
+<span class="nc" id="L107">    Map&lt;String, Node&gt; nodeMap = new HashMap&lt;&gt;();</span>
+
+<span class="nc bnc" id="L109" title="All 2 branches missed.">    for (Map.Entry&lt;String, JsonElement&gt; s : states.entrySet()) {</span>
+      // first pass -- all nodes
+<span class="nc" id="L111">      String name = s.getKey();</span>
+
+<span class="nc" id="L113">      Node node = Factory.node(name).with(Style.ROUNDED);</span>
+
+<span class="nc" id="L115">      JsonObject state = s.getValue().getAsJsonObject();</span>
+<span class="nc" id="L116">      String type = state.get(&quot;type&quot;).getAsString();</span>
+
+<span class="nc bnc" id="L118" title="All 4 branches missed.">      if (type.equals(&quot;Initial&quot;) || type.equals(&quot;Terminal&quot;)) {</span>
+<span class="nc" id="L119">        node = node.with(Color.BLACK.fill()).with(Style.ROUNDED.and(Style.FILLED))</span>
+<span class="nc" id="L120">            .with(Color.WHITE.font());</span>
+      }
+
+<span class="nc" id="L123">      String details = getStateDescription(state);</span>
+<span class="nc bnc" id="L124" title="All 2 branches missed.">      if (details.isEmpty()) {</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        if (type.equals(name)) {</span>
+<span class="nc" id="L126">          node = node.with(&quot;label&quot;, name);</span>
+        } else {
+<span class="nc" id="L128">          node = node.with(Records.mLabel(Records.turn(name, type)));</span>
+        }
+      } else {
+<span class="nc" id="L131">        node = node.with(Records.mLabel(Records.turn(name, Records.turn(type, details))));</span>
+      }
+<span class="nc" id="L133">      nodeMap.put(name, node);</span>
+<span class="nc" id="L134">    }</span>
+
+<span class="nc bnc" id="L136" title="All 2 branches missed.">    for (Map.Entry&lt;String, JsonElement&gt; s : states.entrySet()) {</span>
+      // second pass -- transitions
+<span class="nc" id="L138">      String name = s.getKey();</span>
+<span class="nc" id="L139">      Node node = nodeMap.get(name);</span>
+
+<span class="nc" id="L141">      JsonObject state = s.getValue().getAsJsonObject();</span>
+<span class="nc" id="L142">      String type = state.get(&quot;type&quot;).getAsString();</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">      if (type.equals(&quot;Terminal&quot;)) {</span>
+<span class="nc" id="L144">        continue;</span>
+      }
+
+<span class="nc" id="L147">      List&lt;Link&gt; links = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L149" title="All 2 branches missed.">      if (state.has(&quot;direct_transition&quot;)) {</span>
+<span class="nc" id="L150">        String targetName = state.get(&quot;direct_transition&quot;).getAsString();</span>
+<span class="nc" id="L151">        Node target = nodeMap.get(targetName);</span>
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        if (target == null) {</span>
+<span class="nc" id="L153">          throw new RuntimeException(</span>
+              relativePath + &quot; &quot; + name + &quot; transitioning to unknown state: &quot; + targetName);
+        }
+<span class="nc" id="L156">        Link direct = Factory.to(target);</span>
+<span class="nc" id="L157">        links.add(direct);</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">      } else if (state.has(&quot;conditional_transition&quot;)) {</span>
+<span class="nc" id="L159">        JsonArray cts = state.get(&quot;conditional_transition&quot;).getAsJsonArray();</span>
+<span class="nc bnc" id="L160" title="All 2 branches missed.">        for (int i = 0; i &lt; cts.size(); i++) {</span>
+<span class="nc" id="L161">          JsonObject ct = cts.get(i).getAsJsonObject();</span>
+<span class="nc bnc" id="L162" title="All 2 branches missed.">          String cond = ct.has(&quot;condition&quot;) ? logicDetails(ct.get(&quot;condition&quot;).getAsJsonObject())</span>
+              : &quot;else&quot;;
+<span class="nc" id="L164">          String targetName = ct.get(&quot;transition&quot;).getAsString();</span>
+<span class="nc" id="L165">          Node target = nodeMap.get(targetName);</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">          if (target == null) {</span>
+<span class="nc" id="L167">            throw new RuntimeException(</span>
+                relativePath + &quot; &quot; + name + &quot; transitioning to unknown state: &quot; + targetName);
+          }
+<span class="nc" id="L170">          Link link = Factory.to(target).with(Label.of(Integer.toString(i + 1) + &quot;. &quot; + cond));</span>
+<span class="nc" id="L171">          links.add(link);</span>
+        }
+<span class="nc bnc" id="L173" title="All 2 branches missed.">      } else if (state.has(&quot;distributed_transition&quot;)) {</span>
+<span class="nc" id="L174">        JsonArray distributions = state.get(&quot;distributed_transition&quot;).getAsJsonArray();</span>
+<span class="nc" id="L175">        distributions.forEach(d -&gt; {</span>
+<span class="nc" id="L176">          JsonObject dist = d.getAsJsonObject();</span>
+          String label;
+<span class="nc" id="L178">          JsonElement dx = dist.get(&quot;distribution&quot;);</span>
+<span class="nc bnc" id="L179" title="All 2 branches missed.">          if (dx.isJsonObject()) {</span>
+            // &quot;named attribute transition&quot;
+<span class="nc" id="L181">            JsonObject distribution = dx.getAsJsonObject();</span>
+<span class="nc" id="L182">            label = &quot;p(&quot; + distribution.get(&quot;attribute&quot;).getAsString() + &quot;)&quot;;</span>
+<span class="nc bnc" id="L183" title="All 2 branches missed.">            if (distribution.has(&quot;default&quot;)) {</span>
+<span class="nc" id="L184">              double pct = distribution.get(&quot;default&quot;).getAsDouble() * 100.0;</span>
+<span class="nc" id="L185">              label = label + &quot;, default &quot; + pct + &quot;%&quot;;</span>
+            }
+<span class="nc" id="L187">          } else {</span>
+<span class="nc" id="L188">            double pct = dx.getAsDouble() * 100.0;</span>
+<span class="nc" id="L189">            label = pct + &quot;%&quot;;</span>
+          }
+<span class="nc" id="L191">          String destination = dist.get(&quot;transition&quot;).getAsString();</span>
+
+<span class="nc" id="L193">          Node target = nodeMap.get(destination);</span>
+<span class="nc bnc" id="L194" title="All 2 branches missed.">          if (target == null) {</span>
+<span class="nc" id="L195">            throw new RuntimeException(</span>
+                relativePath + &quot; &quot; + name + &quot; transitioning to unknown state: &quot; + destination);
+          }
+<span class="nc" id="L198">          Link link = Factory.to(target).with(Label.of(label));</span>
+<span class="nc" id="L199">          links.add(link);</span>
+<span class="nc" id="L200">        });</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">      } else if (state.has(&quot;complex_transition&quot;)) {</span>
+<span class="nc" id="L202">        Map&lt;String, List&lt;String&gt;&gt; transitions = new HashMap&lt;&gt;();</span>
+
+<span class="nc" id="L204">        JsonArray cts = state.get(&quot;complex_transition&quot;).getAsJsonArray();</span>
+
+<span class="nc" id="L206">        cts.forEach(c -&gt; {</span>
+<span class="nc" id="L207">          JsonObject ct = c.getAsJsonObject();</span>
+<span class="nc bnc" id="L208" title="All 2 branches missed.">          String cond = ct.has(&quot;condition&quot;) ? logicDetails(ct.get(&quot;condition&quot;).getAsJsonObject())</span>
+              : &quot;else&quot;;
+
+<span class="nc bnc" id="L211" title="All 2 branches missed.">          if (ct.has(&quot;transition&quot;)) {</span>
+<span class="nc" id="L212">            String destination = ct.get(&quot;transition&quot;).getAsString();</span>
+
+<span class="nc" id="L214">            List&lt;String&gt; ts = transitions.get(destination);</span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">            if (ts == null) {</span>
+<span class="nc" id="L216">              ts = new LinkedList&lt;&gt;();</span>
+<span class="nc" id="L217">              transitions.put(destination, ts);</span>
+            }
+
+<span class="nc" id="L220">            ts.add(cond);</span>
+
+<span class="nc bnc" id="L222" title="All 2 branches missed.">          } else if (ct.has(&quot;distributions&quot;)) {</span>
+<span class="nc" id="L223">            JsonArray distributions = ct.get(&quot;distributions&quot;).getAsJsonArray();</span>
+
+<span class="nc" id="L225">            distributions.forEach(d -&gt; {</span>
+<span class="nc" id="L226">              JsonObject dist = d.getAsJsonObject();</span>
+              String label;
+
+<span class="nc" id="L229">              JsonElement dx = dist.get(&quot;distribution&quot;);</span>
+
+<span class="nc bnc" id="L231" title="All 2 branches missed.">              if (dx.isJsonObject()) {</span>
+                // &quot;named attribute transition&quot;
+<span class="nc" id="L233">                JsonObject distribution = dx.getAsJsonObject();</span>
+<span class="nc" id="L234">                label = &quot;p(&quot; + distribution.get(&quot;attribute&quot;).getAsString() + &quot;)&quot;;</span>
+<span class="nc bnc" id="L235" title="All 2 branches missed.">                if (distribution.has(&quot;default&quot;)) {</span>
+<span class="nc" id="L236">                  double pct = distribution.get(&quot;default&quot;).getAsDouble() * 100.0;</span>
+<span class="nc" id="L237">                  label = label + &quot;, default &quot; + pct + &quot;%&quot;;</span>
+                }
+<span class="nc" id="L239">              } else {</span>
+<span class="nc" id="L240">                double pct = dx.getAsDouble() * 100.0;</span>
+<span class="nc" id="L241">                label = pct + &quot;%&quot;;</span>
+              }
+
+<span class="nc" id="L244">              String destination = dist.get(&quot;transition&quot;).getAsString();</span>
+<span class="nc" id="L245">              List&lt;String&gt; ts = transitions.get(destination);</span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">              if (ts == null) {</span>
+<span class="nc" id="L247">                ts = new LinkedList&lt;&gt;();</span>
+<span class="nc" id="L248">                transitions.put(destination, ts);</span>
+              }
+<span class="nc" id="L250">              ts.add(cond + &quot;: &quot; + label);</span>
+<span class="nc" id="L251">            });</span>
+          }
+<span class="nc" id="L253">        });</span>
+
+<span class="nc" id="L255">        transitions.forEach((targetName, labels) -&gt; {</span>
+<span class="nc" id="L256">          String label = String.join(&quot;,\n&quot;, labels);</span>
+<span class="nc" id="L257">          Node target = nodeMap.get(targetName);</span>
+<span class="nc bnc" id="L258" title="All 2 branches missed.">          if (target == null) {</span>
+<span class="nc" id="L259">            throw new RuntimeException(</span>
+                relativePath + &quot; &quot; + name + &quot; transitioning to unknown state: &quot; + targetName);
+          }
+<span class="nc" id="L262">          Link link = Factory.to(target).with(Label.of(label));</span>
+<span class="nc" id="L263">          links.add(link);</span>
+<span class="nc" id="L264">        });</span>
+      }
+<span class="nc" id="L266">      g = g.with(node.link(links.toArray(new Link[0])));</span>
+<span class="nc" id="L267">    }</span>
+
+<span class="nc" id="L269">    File outputFile = outputFolder.toPath().resolve(relativePath + &quot;.png&quot;).toFile();</span>
+<span class="nc" id="L270">    outputFile.mkdirs();</span>
+<span class="nc" id="L271">    guru.nidi.graphviz.engine.Graphviz.fromGraph(g).rasterizer(Rasterizer.BATIK)</span>
+<span class="nc" id="L272">        .render(Format.PNG).toFile(outputFile);</span>
+<span class="nc" id="L273">  }</span>
+
+  private static String getStateDescription(JsonObject state) {
+<span class="nc" id="L276">    final StringBuilder details = new StringBuilder();</span>
+
+<span class="nc" id="L278">    String type = state.get(&quot;type&quot;).getAsString();</span>
+
+<span class="nc bnc" id="L280" title="All 13 branches missed.">    switch (type) {</span>
+      case &quot;Guard&quot;:
+<span class="nc" id="L282">        details.append(&quot;Allow if &quot; + logicDetails(state.get(&quot;allow&quot;).getAsJsonObject()));</span>
+<span class="nc" id="L283">        break;</span>
+      case &quot;Delay&quot;:
+      case &quot;Death&quot;:
+<span class="nc bnc" id="L286" title="All 2 branches missed.">        if (state.has(&quot;range&quot;)) {</span>
+<span class="nc" id="L287">          JsonObject r = state.get(&quot;range&quot;).getAsJsonObject();</span>
+<span class="nc" id="L288">          String low = r.get(&quot;low&quot;).getAsString();</span>
+<span class="nc" id="L289">          String high = r.get(&quot;high&quot;).getAsString();</span>
+<span class="nc" id="L290">          String unit = r.get(&quot;unit&quot;).getAsString();</span>
+<span class="nc" id="L291">          details.append(low).append(&quot; - &quot;).append(high).append(&quot; &quot;).append(unit);</span>
+<span class="nc bnc" id="L292" title="All 2 branches missed.">        } else if (state.has(&quot;exact&quot;)) {</span>
+<span class="nc" id="L293">          JsonObject e = state.get(&quot;exact&quot;).getAsJsonObject();</span>
+<span class="nc" id="L294">          String quantity = e.get(&quot;quantity&quot;).getAsString();</span>
+<span class="nc" id="L295">          String unit = e.get(&quot;unit&quot;).getAsString();</span>
+<span class="nc" id="L296">          details.append(quantity).append(&quot; &quot;).append(unit);</span>
+<span class="nc" id="L297">        }</span>
+        break;
+      case &quot;Encounter&quot;:
+<span class="nc bnc" id="L300" title="All 2 branches missed.">        if (state.has(&quot;wellness&quot;)) {</span>
+<span class="nc" id="L301">          details.append(&quot;Wait for regularly scheduled wellness encounter&quot;);</span>
+        }
+        break;
+      case &quot;EncounterEnd&quot;:
+<span class="nc" id="L305">        details.append(&quot;End the current encounter&quot;);</span>
+<span class="nc bnc" id="L306" title="All 2 branches missed.">        if (state.has(&quot;discharge_disposition&quot;)) {</span>
+<span class="nc" id="L307">          JsonObject coding = state.get(&quot;discharge_disposition&quot;).getAsJsonObject();</span>
+<span class="nc" id="L308">          String code = coding.get(&quot;code&quot;).getAsString();</span>
+<span class="nc" id="L309">          String display = coding.get(&quot;display&quot;).getAsString();</span>
+<span class="nc" id="L310">          details.append(&quot;\\lDischarge Disposition: [&quot;).append(code).append(&quot;] &quot;).append(display);</span>
+<span class="nc" id="L311">        }</span>
+        break;
+      case &quot;SetAttribute&quot;:
+<span class="nc bnc" id="L314" title="All 2 branches missed.">        String v = state.has(&quot;value&quot;) ? state.get(&quot;value&quot;).getAsString() : null;</span>
+<span class="nc" id="L315">        details.append(&quot;Set &quot;).append(state.get(&quot;attribute&quot;).getAsString()).append(&quot; = &quot;).append(v);</span>
+<span class="nc" id="L316">        break;</span>
+      case &quot;Symptom&quot;:
+<span class="nc" id="L318">        String s = state.get(&quot;symptom&quot;).getAsString();</span>
+
+<span class="nc bnc" id="L320" title="All 2 branches missed.">        if (state.has(&quot;range&quot;)) {</span>
+<span class="nc" id="L321">          JsonObject r = state.get(&quot;range&quot;).getAsJsonObject();</span>
+<span class="nc" id="L322">          String low = r.get(&quot;low&quot;).getAsString();</span>
+<span class="nc" id="L323">          String high = r.get(&quot;high&quot;).getAsString();</span>
+<span class="nc" id="L324">          details.append(s).append(&quot;: &quot;).append(low).append(&quot; - &quot;).append(high);</span>
+<span class="nc bnc" id="L325" title="All 2 branches missed.">        } else if (state.has(&quot;exact&quot;)) {</span>
+<span class="nc" id="L326">          JsonObject e = state.get(&quot;exact&quot;).getAsJsonObject();</span>
+<span class="nc" id="L327">          String quantity = e.get(&quot;quantity&quot;).getAsString();</span>
+<span class="nc" id="L328">          details.append(s).append(&quot;: &quot;).append(quantity);</span>
+        }
+<span class="nc bnc" id="L330" title="All 2 branches missed.">        if (state.has(&quot;probability&quot;)) {</span>
+<span class="nc" id="L331">          double pct = state.get(&quot;probability&quot;).getAsDouble() * 100.0;</span>
+<span class="nc" id="L332">          String label = pct + &quot;%&quot;;</span>
+<span class="nc" id="L333">          details.append(&quot; (&quot;).append(label).append(&quot;)&quot;);</span>
+<span class="nc" id="L334">        }</span>
+        break;
+      case &quot;Observation&quot;:
+<span class="nc" id="L337">        String unit = &quot;&quot;;</span>
+<span class="nc bnc" id="L338" title="All 2 branches missed.">        if (state.has(&quot;unit&quot;)) {</span>
+<span class="nc" id="L339">          unit = &quot;in &quot; + unit.replace('{', '(').replace('}', ')');</span>
+          // replace curly braces with parens, braces can cause issues
+        }
+
+<span class="nc bnc" id="L343" title="All 2 branches missed.">        if (state.has(&quot;vital_sign&quot;)) {</span>
+<span class="nc" id="L344">          details.append(&quot;Record value from Vital Sign &quot;)</span>
+<span class="nc" id="L345">              .append(state.get(&quot;vital_sign&quot;).getAsString()).append(&quot; &quot;).append(unit)</span>
+<span class="nc" id="L346">              .append(NEWLINE);</span>
+<span class="nc bnc" id="L347" title="All 2 branches missed.">        } else if (state.has(&quot;attribute&quot;)) {</span>
+<span class="nc" id="L348">          details.append(&quot;Record value from Attribute &quot;)</span>
+<span class="nc" id="L349">              .append(state.get(&quot;attribute&quot;).getAsString()).append(&quot; &quot;).append(unit)</span>
+<span class="nc" id="L350">              .append(NEWLINE);</span>
+        }
+        break;
+      case &quot;Counter&quot;:
+<span class="nc" id="L354">        String action = state.get(&quot;action&quot;).getAsString();</span>
+<span class="nc" id="L355">        String attribute = state.get(&quot;attribute&quot;).getAsString();</span>
+<span class="nc" id="L356">        details.append(action).append(&quot; value of attribute &quot;).append(attribute).append(&quot; by 1&quot;);</span>
+<span class="nc" id="L357">        break;</span>
+      case &quot;VitalSign&quot;:
+<span class="nc" id="L359">        String vs = state.get(&quot;vital_sign&quot;).getAsString();</span>
+<span class="nc" id="L360">        unit = state.get(&quot;unit&quot;).getAsString();</span>
+
+<span class="nc bnc" id="L362" title="All 2 branches missed.">        if (state.has(&quot;range&quot;)) {</span>
+<span class="nc" id="L363">          JsonObject r = state.get(&quot;range&quot;).getAsJsonObject();</span>
+<span class="nc" id="L364">          String low = r.get(&quot;low&quot;).getAsString();</span>
+<span class="nc" id="L365">          String high = r.get(&quot;high&quot;).getAsString();</span>
+<span class="nc" id="L366">          details.append(&quot;Set &quot;).append(vs).append(&quot;: &quot;).append(low).append(&quot; - &quot;).append(high)</span>
+<span class="nc" id="L367">              .append(&quot; &quot;).append(unit);</span>
+<span class="nc bnc" id="L368" title="All 2 branches missed.">        } else if (state.has(&quot;exact&quot;)) {</span>
+<span class="nc" id="L369">          JsonObject e = state.get(&quot;exact&quot;).getAsJsonObject();</span>
+<span class="nc" id="L370">          String quantity = e.get(&quot;quantity&quot;).getAsString();</span>
+<span class="nc" id="L371">          details.append(&quot;Set &quot;).append(vs).append(&quot;: &quot;).append(quantity).append(&quot; &quot;).append(unit);</span>
+<span class="nc" id="L372">        }</span>
+
+        break;
+      case &quot;CallSubmodule&quot;:
+<span class="nc" id="L376">        details.append(&quot;Call submodule &quot;).append(state.get(&quot;submodule&quot;).getAsString());</span>
+<span class="nc" id="L377">        break;</span>
+      case &quot;MultiObservation&quot;:
+      case &quot;DiagnosticReport&quot;:
+<span class="nc" id="L380">        JsonArray observations = state.get(&quot;observations&quot;).getAsJsonArray();</span>
+
+<span class="nc bnc" id="L382" title="All 2 branches missed.">        for (int i = 0; i &lt; observations.size(); i++) {</span>
+<span class="nc" id="L383">          JsonObject obs = observations.get(i).getAsJsonObject();</span>
+
+          // force the sub-observations to Observations so we can re-use this description logic
+<span class="nc" id="L386">          obs.addProperty(&quot;type&quot;, &quot;Observation&quot;);</span>
+
+<span class="nc" id="L388">          String desc = getStateDescription(obs).replace(NEWLINE, NEWLINE + &quot;   &quot;);</span>
+<span class="nc" id="L389">          details.append(i + 1).append(&quot;. &quot;).append(desc).append(NEWLINE);</span>
+        }
+<span class="nc" id="L391">        details.append(NEWLINE); // extra space between sub-obs and details of this state</span>
+<span class="nc" id="L392">        break;</span>
+      case &quot;ImagingStudy&quot;:
+<span class="nc" id="L394">        JsonArray series = state.get(&quot;series&quot;).getAsJsonArray();</span>
+
+<span class="nc" id="L396">        JsonObject modality = series.get(0).getAsJsonObject().get(&quot;modality&quot;).getAsJsonObject();</span>
+<span class="nc" id="L397">        String modalityCode = modality.get(&quot;code&quot;).getAsString();</span>
+<span class="nc" id="L398">        String modalityDisplay = modality.get(&quot;display&quot;).getAsString();</span>
+<span class="nc" id="L399">        details.append(&quot;DICOM-DCM[&quot;).append(modalityCode).append(&quot;]: &quot;).append(modalityDisplay)</span>
+<span class="nc" id="L400">            .append(NEWLINE);</span>
+
+<span class="nc" id="L402">        JsonObject bodySite = series.get(0).getAsJsonObject().get(&quot;body_site&quot;).getAsJsonObject();</span>
+<span class="nc" id="L403">        String bodySiteCode = bodySite.get(&quot;code&quot;).getAsString();</span>
+<span class="nc" id="L404">        String bodySiteDisplay = bodySite.get(&quot;display&quot;).getAsString();</span>
+
+<span class="nc" id="L406">        details.append(&quot;SNOMED-CT[&quot;).append(bodySiteCode).append(&quot;] Body Site: &quot;)</span>
+<span class="nc" id="L407">            .append(bodySiteDisplay).append(NEWLINE);</span>
+<span class="nc" id="L408">        break;</span>
+      default:
+        // no special description
+    }
+
+    // things common to many state types
+<span class="nc bnc" id="L414" title="All 2 branches missed.">    if (state.has(&quot;codes&quot;)) {</span>
+<span class="nc" id="L415">      JsonArray codes = state.get(&quot;codes&quot;).getAsJsonArray();</span>
+<span class="nc" id="L416">      codes.forEach(c -&gt; {</span>
+<span class="nc" id="L417">        JsonObject coding = c.getAsJsonObject();</span>
+<span class="nc" id="L418">        String system = coding.get(&quot;system&quot;).getAsString();</span>
+<span class="nc" id="L419">        String code = coding.get(&quot;code&quot;).getAsString();</span>
+<span class="nc" id="L420">        String display = coding.get(&quot;display&quot;).getAsString();</span>
+<span class="nc" id="L421">        details.append(system).append(&quot;[&quot;).append(code).append(&quot;]: &quot;).append(display)</span>
+<span class="nc" id="L422">            .append(NEWLINE);</span>
+
+<span class="nc" id="L424">      });</span>
+    }
+<span class="nc bnc" id="L426" title="All 2 branches missed.">    if (state.has(&quot;target_encounter&quot;)) {</span>
+<span class="nc" id="L427">      String verb = &quot;Perform&quot;;</span>
+<span class="nc bnc" id="L428" title="All 3 branches missed.">      switch (state.get(&quot;type&quot;).getAsString()) {</span>
+        case &quot;ConditionOnset&quot;:
+        case &quot;AllergyOnset&quot;:
+<span class="nc" id="L431">          verb = &quot;Diagnose&quot;;</span>
+<span class="nc" id="L432">          break;</span>
+        case &quot;MedicationOrder&quot;:
+<span class="nc" id="L434">          verb = &quot;Prescribe&quot;;</span>
+<span class="nc" id="L435">          break;</span>
+        default:
+          // no special verb
+      }
+<span class="nc" id="L439">      details.append(verb).append(&quot; at &quot;).append(state.get(&quot;target_encounter&quot;).getAsString())</span>
+<span class="nc" id="L440">          .append(NEWLINE);</span>
+    }
+<span class="nc bnc" id="L442" title="All 2 branches missed.">    if (state.has(&quot;reason&quot;)) {</span>
+<span class="nc" id="L443">      details.append(&quot;Reason: &quot;).append(state.get(&quot;reason&quot;).getAsString()).append(NEWLINE);</span>
+    }
+<span class="nc bnc" id="L445" title="All 2 branches missed.">    if (state.has(&quot;medication_order&quot;)) {</span>
+<span class="nc" id="L446">      details.append(&quot;Prescribed at: &quot;).append(state.get(&quot;medication_order&quot;).getAsString())</span>
+<span class="nc" id="L447">          .append(NEWLINE);</span>
+    }
+<span class="nc bnc" id="L449" title="All 2 branches missed.">    if (state.has(&quot;condition_onset&quot;)) {</span>
+<span class="nc" id="L450">      details.append(&quot;Onset at: &quot;).append(state.get(&quot;condition_onset&quot;).getAsString())</span>
+<span class="nc" id="L451">          .append(NEWLINE);</span>
+    }
+<span class="nc bnc" id="L453" title="All 2 branches missed.">    if (state.has(&quot;allergy_onset&quot;)) {</span>
+<span class="nc" id="L454">      details.append(&quot;Onset at: &quot;).append(state.get(&quot;allergy_onset&quot;).getAsString()).append(NEWLINE);</span>
+    }
+<span class="nc bnc" id="L456" title="All 2 branches missed.">    if (state.has(&quot;careplan&quot;)) {</span>
+<span class="nc" id="L457">      details.append(&quot;Prescribed at: &quot;).append(state.get(&quot;careplan&quot;).getAsString()).append(NEWLINE);</span>
+    }
+<span class="nc bnc" id="L459" title="All 2 branches missed.">    if (state.has(&quot;assign_to_attribute&quot;)) {</span>
+<span class="nc" id="L460">      details.append(&quot;Assign to Attribute: &quot;).append(state.get(&quot;assign_to_attribute&quot;).getAsString())</span>
+<span class="nc" id="L461">          .append(NEWLINE);</span>
+    }
+<span class="nc bnc" id="L463" title="All 2 branches missed.">    if (state.has(&quot;referenced_by_attribute&quot;)) {</span>
+<span class="nc" id="L464">      details.append(&quot;Referenced By Attribute: &quot;)</span>
+<span class="nc" id="L465">          .append(state.get(&quot;referenced_by_attribute&quot;).getAsString()).append(NEWLINE);</span>
+    }
+<span class="nc bnc" id="L467" title="All 2 branches missed.">    if (state.has(&quot;activities&quot;)) {</span>
+<span class="nc" id="L468">      details.append(NEWLINE).append(&quot;Activities:&quot;).append(NEWLINE);</span>
+<span class="nc" id="L469">      state.get(&quot;activities&quot;).getAsJsonArray().forEach(a -&gt; {</span>
+<span class="nc" id="L470">        JsonObject coding = a.getAsJsonObject();</span>
+<span class="nc" id="L471">        String system = coding.get(&quot;system&quot;).getAsString();</span>
+<span class="nc" id="L472">        String code = coding.get(&quot;code&quot;).getAsString();</span>
+<span class="nc" id="L473">        String display = coding.get(&quot;display&quot;).getAsString();</span>
+<span class="nc" id="L474">        details.append(system).append(&quot;[&quot;).append(code).append(&quot;]: &quot;).append(display)</span>
+<span class="nc" id="L475">            .append(NEWLINE);</span>
+<span class="nc" id="L476">      });</span>
+    }
+<span class="nc bnc" id="L478" title="All 2 branches missed.">    if (state.has(&quot;goals&quot;)) {</span>
+<span class="nc" id="L479">      details.append(NEWLINE).append(&quot;Goals:&quot;).append(NEWLINE);</span>
+<span class="nc" id="L480">      state.get(&quot;goals&quot;).getAsJsonArray().forEach(gl -&gt; {</span>
+<span class="nc" id="L481">        JsonObject goal = gl.getAsJsonObject();</span>
+<span class="nc bnc" id="L482" title="All 2 branches missed.">        if (goal.has(&quot;text&quot;)) {</span>
+<span class="nc" id="L483">          details.append(goal.get(&quot;text&quot;).getAsString()).append(NEWLINE);</span>
+<span class="nc bnc" id="L484" title="All 2 branches missed.">        } else if (goal.has(&quot;codes&quot;)) {</span>
+<span class="nc" id="L485">          JsonObject coding = goal.get(&quot;codes&quot;).getAsJsonArray().get(0).getAsJsonObject();</span>
+<span class="nc" id="L486">          String system = coding.get(&quot;system&quot;).getAsString();</span>
+<span class="nc" id="L487">          String code = coding.get(&quot;code&quot;).getAsString();</span>
+<span class="nc" id="L488">          String display = coding.get(&quot;display&quot;).getAsString();</span>
+<span class="nc" id="L489">          details.append(system).append(&quot;[&quot;).append(code).append(&quot;]: &quot;).append(display)</span>
+<span class="nc" id="L490">              .append(NEWLINE);</span>
+<span class="nc bnc" id="L491" title="All 2 branches missed.">        } else if (goal.has(&quot;observation&quot;)) {</span>
+<span class="nc" id="L492">          JsonObject logic = goal.get(&quot;observation&quot;).getAsJsonObject();</span>
+<span class="nc" id="L493">          String obs = findReferencedType(logic);</span>
+<span class="nc" id="L494">          details.append(&quot;Observation &quot;).append(obs).append(&quot;\\&quot;)</span>
+<span class="nc" id="L495">              .append(logic.get(&quot;operator&quot;).getAsString()).append(&quot; &quot;)</span>
+<span class="nc" id="L496">              .append(logic.get(&quot;value&quot;).getAsString()).append(NEWLINE);</span>
+        }
+<span class="nc" id="L498">      });</span>
+    }
+<span class="nc bnc" id="L500" title="All 2 branches missed.">    if (state.has(&quot;duration&quot;)) {</span>
+<span class="nc" id="L501">      JsonObject d = state.get(&quot;duration&quot;).getAsJsonObject();</span>
+<span class="nc" id="L502">      String low = d.get(&quot;low&quot;).getAsString();</span>
+<span class="nc" id="L503">      String high = d.get(&quot;high&quot;).getAsString();</span>
+<span class="nc" id="L504">      String unit = d.get(&quot;unit&quot;).getAsString();</span>
+<span class="nc" id="L505">      details.append(NEWLINE).append(&quot;Duration: &quot;).append(low).append(&quot; - &quot;).append(high)</span>
+<span class="nc" id="L506">          .append(&quot; &quot;).append(unit).append(NEWLINE);</span>
+    }
+<span class="nc bnc" id="L508" title="All 2 branches missed.">    if (state.has(&quot;category&quot;)) {</span>
+<span class="nc" id="L509">      details.append(&quot;Category: &quot;).append(state.get(&quot;category&quot;)).append(NEWLINE);</span>
+    }
+
+<span class="nc" id="L512">    return details.toString();</span>
+  }
+
+  private static String logicDetails(JsonObject logic) {
+<span class="nc" id="L516">    String conditionType = logic.get(&quot;condition_type&quot;).getAsString();</span>
+
+<span class="nc bnc" id="L518" title="All 19 branches missed.">    switch (conditionType) {</span>
+      case &quot;And&quot;:
+      case &quot;Or&quot;:
+<span class="nc" id="L521">        List&lt;String&gt; subs = new LinkedList&lt;&gt;();</span>
+<span class="nc" id="L522">        logic.get(&quot;conditions&quot;).getAsJsonArray().forEach(c -&gt; {</span>
+<span class="nc" id="L523">          JsonObject cond = c.getAsJsonObject();</span>
+<span class="nc" id="L524">          String innerConditionType = cond.get(&quot;condition_type&quot;).getAsString();</span>
+<span class="nc bnc" id="L525" title="All 4 branches missed.">          if (innerConditionType.equals(&quot;And&quot;) || innerConditionType.equals(&quot;Or&quot;)) {</span>
+<span class="nc" id="L526">            subs.add(NEWLINE + logicDetails(cond) + NEWLINE);</span>
+          } else {
+<span class="nc" id="L528">            subs.add(logicDetails(cond));</span>
+          }
+<span class="nc" id="L530">        });</span>
+
+<span class="nc" id="L532">        return String.join(conditionType.toLowerCase() + &quot; &quot;, subs);</span>
+      case &quot;At Least&quot;:
+      case &quot;At Most&quot;:
+        String threshold;
+<span class="nc bnc" id="L536" title="All 2 branches missed.">        if (logic.has(&quot;minimum&quot;)) {</span>
+<span class="nc" id="L537">          threshold = logic.get(&quot;minimum&quot;).getAsString();</span>
+        } else {
+<span class="nc" id="L539">          threshold = logic.get(&quot;maximum&quot;).getAsString();</span>
+        }
+
+<span class="nc" id="L542">        subs = new LinkedList&lt;&gt;();</span>
+<span class="nc" id="L543">        logic.get(&quot;conditions&quot;).getAsJsonArray().forEach(c -&gt; {</span>
+<span class="nc" id="L544">          JsonObject cond = c.getAsJsonObject();</span>
+<span class="nc" id="L545">          String innerConditionType = cond.get(&quot;condition_type&quot;).getAsString();</span>
+<span class="nc bnc" id="L546" title="All 4 branches missed.">          if (innerConditionType.equals(&quot;And&quot;) || innerConditionType.equals(&quot;Or&quot;)) {</span>
+<span class="nc" id="L547">            subs.add(NEWLINE + logicDetails(cond) + NEWLINE);</span>
+          } else {
+<span class="nc" id="L549">            subs.add(logicDetails(cond));</span>
+          }
+<span class="nc" id="L551">        });</span>
+
+<span class="nc" id="L553">        return conditionType + &quot; &quot; + threshold + &quot; of:&quot; + NEWLINE + &quot;- &quot; + String.join(&quot;- &quot;, subs);</span>
+      case &quot;Not&quot;:
+<span class="nc" id="L555">        JsonObject c = logic.get(&quot;condition&quot;).getAsJsonObject();</span>
+<span class="nc" id="L556">        String innerConditionType = c.get(&quot;condition_type&quot;).getAsString();</span>
+<span class="nc bnc" id="L557" title="All 4 branches missed.">        if (innerConditionType.equals(&quot;And&quot;) || innerConditionType.equals(&quot;Or&quot;)) {</span>
+<span class="nc" id="L558">          return &quot;not (&quot; + NEWLINE + logicDetails(c) + &quot;)&quot; + NEWLINE;</span>
+        } else {
+<span class="nc" id="L560">          return &quot;not &quot; + logicDetails(c);</span>
+        }
+      case &quot;Gender&quot;:
+<span class="nc" id="L563">        return &quot;gender is &quot; + logic.get(&quot;gender&quot;).getAsString() + NEWLINE;</span>
+      case &quot;Age&quot;:
+<span class="nc" id="L565">        return &quot;age \\&quot; + logic.get(&quot;operator&quot;).getAsString() + &quot; &quot;</span>
+<span class="nc" id="L566">            + logic.get(&quot;quantity&quot;).getAsString() + &quot; &quot; + logic.get(&quot;unit&quot;).getAsString() + NEWLINE;</span>
+      case &quot;Socioeconomic Status&quot;:
+<span class="nc" id="L568">        return logic.get(&quot;category&quot;).getAsString() + &quot; Socioeconomic Status&quot; + NEWLINE;</span>
+      case &quot;Race&quot;:
+<span class="nc" id="L570">        return &quot;race is &quot; + logic.get(&quot;race&quot;).getAsString() + NEWLINE;</span>
+      case &quot;Date&quot;:
+<span class="nc" id="L572">        return &quot;Year is \\&quot; + logic.get(&quot;operator&quot;).getAsString() + &quot; &quot;</span>
+<span class="nc" id="L573">            + logic.get(&quot;year&quot;).getAsString() + NEWLINE;</span>
+      case &quot;Symptom&quot;:
+<span class="nc" id="L575">        return &quot;Symptom: &quot; + logic.get(&quot;symptom&quot;).getAsString() + &quot; \\&quot;</span>
+<span class="nc" id="L576">            + logic.get(&quot;operator&quot;).getAsString() + &quot; &quot; + logic.get(&quot;value&quot;).getAsString()</span>
+            + NEWLINE;
+      case &quot;PriorState&quot;:
+<span class="nc bnc" id="L579" title="All 2 branches missed.">        if (logic.has(&quot;within&quot;)) {</span>
+<span class="nc" id="L580">          JsonObject within = logic.get(&quot;within&quot;).getAsJsonObject();</span>
+<span class="nc" id="L581">          return &quot;state '&quot; + logic.get(&quot;name&quot;).getAsString() + &quot;' has been processed within &quot;</span>
+<span class="nc" id="L582">              + within.get(&quot;quantity&quot;).getAsString() + &quot; &quot; + within.get(&quot;unit&quot;).getAsString()</span>
+              + NEWLINE;
+        } else {
+<span class="nc" id="L585">          return &quot;state '&quot; + logic.get(&quot;name&quot;).getAsString() + &quot;' has been processed&quot; + NEWLINE;</span>
+        }
+      case &quot;Attribute&quot;:
+<span class="nc bnc" id="L588" title="All 2 branches missed.">        String value = logic.has(&quot;value&quot;) ? logic.get(&quot;value&quot;).getAsString() : &quot;&quot;;</span>
+<span class="nc" id="L589">        return &quot;Attribute: &quot; + logic.get(&quot;attribute&quot;).getAsString() + &quot; \\&quot;</span>
+<span class="nc" id="L590">            + logic.get(&quot;operator&quot;).getAsString() + &quot; &quot; + value + NEWLINE;</span>
+      case &quot;Observation&quot;:
+<span class="nc" id="L592">        String obs = findReferencedType(logic);</span>
+<span class="nc" id="L593">        return &quot;Observation &quot; + obs + &quot; \\&quot; + logic.get(&quot;operator&quot;).getAsString() + &quot; &quot;</span>
+<span class="nc" id="L594">            + logic.get(&quot;value&quot;).getAsString() + NEWLINE;</span>
+      case &quot;Vital Sign&quot;:
+<span class="nc" id="L596">        return &quot;Vital Sign &quot; + logic.get(&quot;vital_sign&quot;).getAsString() + &quot; \\&quot;</span>
+<span class="nc" id="L597">            + logic.get(&quot;operator&quot;).getAsString() + &quot; &quot; + logic.get(&quot;value&quot;).getAsString() + &quot;}&quot;</span>
+            + NEWLINE;
+      case &quot;Active Condition&quot;:
+<span class="nc" id="L600">        String cond = findReferencedType(logic);</span>
+<span class="nc" id="L601">        return &quot;Condition &quot; + cond + &quot; is active&quot; + NEWLINE;</span>
+      case &quot;Active CarePlan&quot;:
+<span class="nc" id="L603">        String plan = findReferencedType(logic);</span>
+<span class="nc" id="L604">        return &quot;CarePlan &quot; + plan + &quot; is active&quot; + NEWLINE;</span>
+      case &quot;Active Medication&quot;:
+<span class="nc" id="L606">        String med = findReferencedType(logic);</span>
+<span class="nc" id="L607">        return &quot;Medication &quot; + med + &quot; is active&quot; + NEWLINE;</span>
+      case &quot;Active Allergy&quot;:
+<span class="nc" id="L609">        String alg = findReferencedType(logic);</span>
+<span class="nc" id="L610">        return &quot;Allergy &quot; + alg + &quot; is active&quot; + NEWLINE;</span>
+      case &quot;True&quot;:
+      case &quot;False&quot;:
+<span class="nc" id="L613">        return conditionType;</span>
+
+      default:
+<span class="nc" id="L616">        throw new RuntimeException(&quot;Unsupported condition: &quot; + conditionType);</span>
+    }
+  }
+
+  private static String findReferencedType(JsonObject logic) {
+<span class="nc bnc" id="L621" title="All 2 branches missed.">    if (logic.has(&quot;codes&quot;)) {</span>
+<span class="nc" id="L622">      JsonObject coding = logic.get(&quot;codes&quot;).getAsJsonArray().get(0).getAsJsonObject();</span>
+<span class="nc" id="L623">      String system = coding.get(&quot;system&quot;).getAsString();</span>
+<span class="nc" id="L624">      String code = coding.get(&quot;code&quot;).getAsString();</span>
+<span class="nc" id="L625">      String display = coding.get(&quot;display&quot;).getAsString();</span>
+
+<span class="nc" id="L627">      return &quot;'&quot; + system + &quot; [&quot; + code + &quot;]: &quot; + display + &quot;'&quot;;</span>
+<span class="nc bnc" id="L628" title="All 2 branches missed.">    } else if (logic.has(&quot;referenced_by_attribute&quot;)) {</span>
+<span class="nc" id="L629">      return &quot;Referenced By Attribute: '&quot; + logic.get(&quot;referenced_by_attribute&quot;).getAsString()</span>
+          + &quot;'&quot;;
+    } else {
+<span class="nc" id="L632">      String conditionType = logic.get(&quot;condition_type&quot;).getAsString();</span>
+<span class="nc" id="L633">      throw new RuntimeException(</span>
+          conditionType + &quot; condition must be specified by code or attribute&quot;);
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

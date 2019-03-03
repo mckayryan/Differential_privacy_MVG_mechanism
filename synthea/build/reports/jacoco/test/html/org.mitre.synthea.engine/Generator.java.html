@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Generator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.engine</a> &gt; <span class="el_source">Generator.java</span></div><h1>Generator.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.engine;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.mitre.synthea.datastore.DataStore;
+import org.mitre.synthea.export.CDWExporter;
+import org.mitre.synthea.export.Exporter;
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.TransitionMetrics;
+import org.mitre.synthea.modules.DeathModule;
+import org.mitre.synthea.modules.EncounterModule;
+import org.mitre.synthea.modules.LifecycleModule;
+import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.agents.Provider;
+import org.mitre.synthea.world.concepts.Costs;
+import org.mitre.synthea.world.concepts.VitalSign;
+import org.mitre.synthea.world.geography.Demographics;
+import org.mitre.synthea.world.geography.Location;
+
+/**
+ * Generator creates a population by running the generic modules each timestep per Person.
+ */
+public class Generator {
+
+<span class="fc" id="L35">  public static final long ONE_HUNDRED_YEARS = 100L * TimeUnit.DAYS.toMillis(365);</span>
+  public static final int MAX_TRIES = 10;
+  public DataStore database;
+  public GeneratorOptions options;
+  private Random random;
+  public long timestep;
+  public long stop;
+  public Map&lt;String, AtomicInteger&gt; stats;
+  public Location location;
+  private AtomicInteger totalGeneratedPopulation;
+  private String logLevel;
+  private boolean onlyDeadPatients;
+  private boolean onlyVeterans;
+  public TransitionMetrics metrics;
+  public static final String DEFAULT_STATE = &quot;Massachusetts&quot;;
+
+  /**
+   * Used only for testing and debugging. Populate this field to keep track of all patients
+   * generated, living or dead, during a simulation. Note that this may result in significantly
+   * increased memory usage as patients cannot be GC'ed.
+   */
+  List&lt;Person&gt; internalStore;
+  
+  private static final String TARGET_AGE = &quot;target_age&quot;;
+  
+  /**
+   * Helper class following the &quot;Parameter Object&quot; pattern.
+   * This class provides the default values for Generator, or alternatives may be set.
+   */
+<span class="fc" id="L64">  public static class GeneratorOptions {</span>
+<span class="fc" id="L65">    public int population = Integer.parseInt(Config.get(&quot;generate.default_population&quot;, &quot;1&quot;));</span>
+<span class="fc" id="L66">    public long seed = System.currentTimeMillis();</span>
+    /** Population as exclusively live persons or including deceased.
+     * True for live, false includes deceased */
+<span class="fc" id="L69">    public boolean overflow = true;</span>
+    /** Gender to be generated. M for Male, F for Female, null for any. */
+    public String gender;
+    /** Age range applies. */
+<span class="fc" id="L73">    public boolean ageSpecified = false;</span>
+    /** Minimum age of people to be generated. Defaults to zero. */
+<span class="fc" id="L75">    public int minAge = 0;</span>
+    /** Maximum age of people to be generated. Defaults to 140. */
+<span class="fc" id="L77">    public int maxAge = 140;</span>
+    public String city;
+    public String state;
+  }
+  
+  /**
+   * Create a Generator, using all default settings.
+   */
+  public Generator() {
+<span class="fc" id="L86">    this(new GeneratorOptions());</span>
+<span class="fc" id="L87">  }</span>
+
+  /**
+   * Create a Generator, with the given population size.
+   * All other settings are left as defaults.
+   * 
+   * @param population Target population size
+   */
+<span class="fc" id="L95">  public Generator(int population) {</span>
+<span class="fc" id="L96">    GeneratorOptions options = new GeneratorOptions();</span>
+<span class="fc" id="L97">    options.population = population;</span>
+<span class="fc" id="L98">    init(options);</span>
+<span class="fc" id="L99">  }</span>
+  
+  /**
+   * Create a Generator, with the given population size and seed.
+   * All other settings are left as defaults.
+   * 
+   * @param population Target population size
+   * @param seed Seed used for randomness
+   */
+<span class="fc" id="L108">  public Generator(int population, long seed) {</span>
+<span class="fc" id="L109">    GeneratorOptions options = new GeneratorOptions();</span>
+<span class="fc" id="L110">    options.population = population;</span>
+<span class="fc" id="L111">    options.seed = seed;</span>
+<span class="fc" id="L112">    init(options);</span>
+<span class="fc" id="L113">  }</span>
+
+  /**
+   * Create a Generator, with the given options.
+   * @param o Desired configuration options
+   */
+<span class="fc" id="L119">  public Generator(GeneratorOptions o) {</span>
+<span class="fc" id="L120">    init(o);</span>
+<span class="fc" id="L121">  }</span>
+
+  private void init(GeneratorOptions o) {
+<span class="fc" id="L124">    String dbType = Config.get(&quot;generate.database_type&quot;);</span>
+
+<span class="pc bpc" id="L126" title="2 of 4 branches missed.">    switch (dbType) {</span>
+      case &quot;in-memory&quot;:
+<span class="fc" id="L128">        this.database = new DataStore(false);</span>
+<span class="fc" id="L129">        break;</span>
+      case &quot;file&quot;:
+<span class="nc" id="L131">        this.database = new DataStore(true);</span>
+<span class="nc" id="L132">        break;</span>
+      case &quot;none&quot;:
+<span class="fc" id="L134">        this.database = null;</span>
+<span class="fc" id="L135">        break;</span>
+      default:
+<span class="nc" id="L137">        throw new IllegalArgumentException(</span>
+            &quot;Unexpected value for config setting generate.database_type: '&quot; + dbType
+                + &quot;' . Valid values are file, in-memory, or none.&quot;);
+    }
+
+<span class="fc bfc" id="L142" title="All 2 branches covered.">    if (o.state == null) {</span>
+<span class="fc" id="L143">      o.state = DEFAULT_STATE;</span>
+    }
+<span class="fc" id="L145">    int stateIndex = Location.getIndex(o.state);</span>
+<span class="fc bfc" id="L146" title="All 2 branches covered.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.cdw.export&quot;))) {</span>
+<span class="fc" id="L147">      CDWExporter.getInstance().setKeyStart((stateIndex * 1_000_000) + 1);</span>
+    }
+
+<span class="fc" id="L150">    this.options = o;</span>
+<span class="fc" id="L151">    this.random = new Random(o.seed);</span>
+<span class="fc" id="L152">    this.timestep = Long.parseLong(Config.get(&quot;generate.timestep&quot;));</span>
+<span class="fc" id="L153">    this.stop = System.currentTimeMillis();</span>
+
+<span class="fc" id="L155">    this.location = new Location(o.state, o.city);</span>
+
+<span class="fc" id="L157">    this.logLevel = Config.get(&quot;generate.log_patients.detail&quot;, &quot;simple&quot;);</span>
+<span class="fc" id="L158">    this.onlyDeadPatients = Boolean.parseBoolean(Config.get(&quot;generate.only_dead_patients&quot;));</span>
+<span class="fc" id="L159">    this.onlyVeterans = Boolean.parseBoolean(Config.get(&quot;generate.veteran_population_override&quot;));</span>
+<span class="fc" id="L160">    this.totalGeneratedPopulation = new AtomicInteger(0);</span>
+<span class="fc" id="L161">    this.stats = Collections.synchronizedMap(new HashMap&lt;String, AtomicInteger&gt;());</span>
+<span class="fc" id="L162">    stats.put(&quot;alive&quot;, new AtomicInteger(0));</span>
+<span class="fc" id="L163">    stats.put(&quot;dead&quot;, new AtomicInteger(0));</span>
+
+<span class="fc bfc" id="L165" title="All 2 branches covered.">    if (Boolean.parseBoolean(</span>
+<span class="fc" id="L166">          Config.get(&quot;generate.track_detailed_transition_metrics&quot;, &quot;false&quot;))) {</span>
+<span class="fc" id="L167">      this.metrics = new TransitionMetrics();</span>
+    }
+
+    // initialize hospitals
+<span class="fc" id="L171">    Provider.loadProviders(location);</span>
+<span class="fc" id="L172">    Module.getModules(); // ensure modules load early</span>
+<span class="fc" id="L173">    Costs.loadCostData(); // ensure cost data loads early</span>
+    
+    String locationName;
+<span class="fc bfc" id="L176" title="All 2 branches covered.">    if (o.city == null) {</span>
+<span class="fc" id="L177">      locationName = o.state;</span>
+    } else {
+<span class="fc" id="L179">      locationName = o.city + &quot;, &quot; + o.state;</span>
+    }
+<span class="fc" id="L181">    System.out.println(&quot;Running with options:&quot;);</span>
+<span class="fc" id="L182">    System.out.println(String.format(&quot;Population: %d\nSeed: %d\nLocation: %s&quot;,</span>
+<span class="fc" id="L183">        o.population, o.seed, locationName));</span>
+<span class="fc" id="L184">    System.out.println(String.format(&quot;Min Age: %d\nMax Age: %d&quot;,</span>
+<span class="fc" id="L185">        o.minAge, o.maxAge));</span>
+<span class="fc bfc" id="L186" title="All 2 branches covered.">    if (o.gender != null) {</span>
+<span class="fc" id="L187">      System.out.println(String.format(&quot;Gender: %s&quot;, o.gender));</span>
+    }
+<span class="fc" id="L189">  }</span>
+
+  /**
+   * Generate the population, using the currently set configuration settings.
+   */
+  public void run() {
+<span class="fc" id="L195">    ExecutorService threadPool = Executors.newFixedThreadPool(8);</span>
+
+<span class="fc bfc" id="L197" title="All 2 branches covered.">    for (int i = 0; i &lt; this.options.population; i++) {</span>
+<span class="fc" id="L198">      final int index = i;</span>
+<span class="fc" id="L199">      final long seed = this.random.nextLong();</span>
+<span class="fc" id="L200">      threadPool.submit(() -&gt; generatePerson(index, seed));</span>
+    }
+
+    try {
+<span class="fc" id="L204">      threadPool.shutdown();</span>
+<span class="fc bfc" id="L205" title="All 2 branches covered.">      while (!threadPool.awaitTermination(30, TimeUnit.SECONDS)) {</span>
+<span class="fc" id="L206">        System.out.println(&quot;Waiting for threads to finish... &quot; + threadPool);</span>
+      }
+<span class="nc" id="L208">    } catch (InterruptedException e) {</span>
+<span class="nc" id="L209">      e.printStackTrace();</span>
+<span class="fc" id="L210">    }</span>
+
+    // have to store providers at the end to correctly capture utilization #s
+    // TODO - de-dup hospitals if using a file-based database?
+<span class="fc bfc" id="L214" title="All 2 branches covered.">    if (database != null) {</span>
+<span class="fc" id="L215">      database.store(Provider.getProviderList());</span>
+    }
+
+<span class="fc" id="L218">    Exporter.runPostCompletionExports(this);</span>
+
+<span class="fc" id="L220">    System.out.println(stats);</span>
+
+<span class="fc bfc" id="L222" title="All 2 branches covered.">    if (this.metrics != null) {</span>
+<span class="fc" id="L223">      metrics.printStats(totalGeneratedPopulation.get());</span>
+    }
+<span class="fc" id="L225">  }</span>
+  
+  /**
+   * Generate a completely random Person. The returned person will be alive at the end of the
+   * simulation. This means that if in the course of the simulation the person dies, a new person
+   * will be started to replace them. 
+   * The seed used to generate the person is randomized as well.
+   * 
+   * @param index Target index in the whole set of people to generate
+   * @return generated Person
+   */
+  public Person generatePerson(int index) {
+    // System.currentTimeMillis is not unique enough
+<span class="fc" id="L238">    long personSeed = UUID.randomUUID().getMostSignificantBits() &amp; Long.MAX_VALUE;</span>
+<span class="fc" id="L239">    return generatePerson(index, personSeed);</span>
+  }
+
+  /**
+   * Generate a random Person, from the given seed. The returned person will be alive at the end of
+   * the simulation. This means that if in the course of the simulation the person dies, a new
+   * person will be started to replace them. Note also that if the person dies, the seed to produce
+   * them can't be re-used (otherwise the new person would die as well) so a new seed is picked,
+   * based on the given seed.
+   * 
+   * @param index
+   *          Target index in the whole set of people to generate
+   * @param personSeed
+   *          Seed for the random person
+   * @return generated Person
+   */
+  public Person generatePerson(int index, long personSeed) {
+<span class="fc" id="L256">    Person person = null;</span>
+    try {
+<span class="fc" id="L258">      boolean isAlive = true;</span>
+<span class="fc" id="L259">      int tryNumber = 0; // number of tries to create these demographics</span>
+<span class="fc" id="L260">      Random randomForDemographics = new Random(personSeed);</span>
+<span class="fc" id="L261">      Demographics city = location.randomCity(randomForDemographics);</span>
+      
+<span class="fc" id="L263">      Map&lt;String, Object&gt; demoAttributes = pickDemographics(randomForDemographics, city);</span>
+<span class="fc" id="L264">      long start = (long) demoAttributes.get(Person.BIRTHDATE);</span>
+
+      do {
+<span class="fc" id="L267">        List&lt;Module&gt; modules = Module.getModules();</span>
+
+<span class="fc" id="L269">        person = new Person(personSeed);</span>
+<span class="fc" id="L270">        person.populationSeed = this.options.seed;</span>
+<span class="fc" id="L271">        person.attributes.putAll(demoAttributes);</span>
+<span class="fc" id="L272">        person.attributes.put(Person.LOCATION, location);</span>
+
+<span class="fc" id="L274">        LifecycleModule.birth(person, start);</span>
+<span class="fc" id="L275">        EncounterModule encounterModule = new EncounterModule();</span>
+
+<span class="fc" id="L277">        long time = start;</span>
+<span class="fc bfc" id="L278" title="All 4 branches covered.">        while (person.alive(time) &amp;&amp; time &lt; stop) {</span>
+<span class="fc" id="L279">          encounterModule.process(person, time);</span>
+<span class="fc" id="L280">          Iterator&lt;Module&gt; iter = modules.iterator();</span>
+<span class="fc bfc" id="L281" title="All 2 branches covered.">          while (iter.hasNext()) {</span>
+<span class="fc" id="L282">            Module module = iter.next();</span>
+            // System.out.format(&quot;Processing module %s\n&quot;, module.name);
+<span class="fc bfc" id="L284" title="All 2 branches covered.">            if (module.process(person, time)) {</span>
+              // System.out.format(&quot;Removing module %s\n&quot;, module.name);
+<span class="fc" id="L286">              iter.remove(); // this module has completed/terminated.</span>
+            }
+<span class="fc" id="L288">          }</span>
+<span class="fc" id="L289">          encounterModule.endWellnessEncounter(person, time);</span>
+
+<span class="fc" id="L291">          time += timestep;</span>
+<span class="fc" id="L292">        }</span>
+
+<span class="fc" id="L294">        DeathModule.process(person, time);</span>
+
+<span class="fc" id="L296">        isAlive = person.alive(time);</span>
+
+<span class="fc bfc" id="L298" title="All 4 branches covered.">        if (isAlive &amp;&amp; onlyDeadPatients) {</span>
+          // rotate the seed so the next attempt gets a consistent but different one
+<span class="fc" id="L300">          personSeed = new Random(personSeed).nextLong();</span>
+<span class="fc" id="L301">          continue;</span>
+          // skip the other stuff if the patient is alive and we only want dead patients
+          // note that this skips ahead to the while check and doesn't automatically re-loop
+        }
+
+<span class="fc bfc" id="L306" title="All 2 branches covered.">        if (database != null) {</span>
+<span class="fc" id="L307">          database.store(person);</span>
+        }
+
+<span class="fc bfc" id="L310" title="All 2 branches covered.">        if (internalStore != null) {</span>
+<span class="fc" id="L311">          internalStore.add(person);</span>
+        }
+        
+<span class="fc bfc" id="L314" title="All 2 branches covered.">        if (this.metrics != null) {</span>
+<span class="fc" id="L315">          metrics.recordStats(person, time);</span>
+        }
+
+<span class="fc bfc" id="L318" title="All 2 branches covered.">        if (!this.logLevel.equals(&quot;none&quot;)) {</span>
+<span class="fc" id="L319">          writeToConsole(person, index, time, isAlive);</span>
+        }
+
+<span class="fc bfc" id="L322" title="All 2 branches covered.">        String key = isAlive ? &quot;alive&quot; : &quot;dead&quot;;</span>
+
+<span class="fc" id="L324">        AtomicInteger count = stats.get(key);</span>
+<span class="fc" id="L325">        count.incrementAndGet();</span>
+
+<span class="fc" id="L327">        totalGeneratedPopulation.incrementAndGet();</span>
+        
+<span class="fc" id="L329">        tryNumber++;</span>
+<span class="fc bfc" id="L330" title="All 2 branches covered.">        if (!isAlive) {</span>
+          // rotate the seed so the next attempt gets a consistent but different one
+<span class="fc" id="L332">          personSeed = new Random(personSeed).nextLong();</span>
+          
+          // if we've tried and failed &gt; 10 times to generate someone over age 90
+          // and the options allow for ages as low as 85
+          // reduce the age to increase the likelihood of success
+<span class="pc bpc" id="L337" title="7 of 8 branches missed.">          if (tryNumber &gt; 10 &amp;&amp; (int)person.attributes.get(TARGET_AGE) &gt; 90</span>
+              &amp;&amp; (!options.ageSpecified || options.minAge &lt;= 85)) {
+            // pick a new target age between 85 and 90
+<span class="nc" id="L340">            int newTargetAge = randomForDemographics.nextInt(5) + 85;</span>
+            // the final age bracket is 85-110, but our patients rarely break 100
+            // so reducing a target age to 85-90 shouldn't affect numbers too much
+<span class="nc" id="L343">            demoAttributes.put(TARGET_AGE, newTargetAge);</span>
+<span class="nc" id="L344">            long birthdate = birthdateFromTargetAge(newTargetAge, randomForDemographics);</span>
+<span class="nc" id="L345">            demoAttributes.put(Person.BIRTHDATE, birthdate);</span>
+<span class="nc" id="L346">            start = birthdate;</span>
+          }
+        }
+
+        // TODO - export is DESTRUCTIVE when it filters out data
+        // this means export must be the LAST THING done with the person
+<span class="fc" id="L352">        Exporter.export(person, time);</span>
+<span class="pc bpc" id="L353" title="1 of 10 branches missed.">      } while ((!isAlive &amp;&amp; !onlyDeadPatients &amp;&amp; this.options.overflow)</span>
+          || (isAlive &amp;&amp; onlyDeadPatients));
+      // if the patient is alive and we want only dead ones =&gt; loop &amp; try again
+      //  (and dont even export, see above)
+      // if the patient is dead and we only want dead ones =&gt; done
+      // if the patient is dead and we want live ones =&gt; loop &amp; try again
+      //  (but do export the record anyway)
+      // if the patient is alive and we want live ones =&gt; done
+<span class="nc" id="L361">    } catch (Throwable e) {</span>
+      // lots of fhir things throw errors for some reason
+<span class="nc" id="L363">      e.printStackTrace();</span>
+<span class="nc" id="L364">      throw e;</span>
+<span class="fc" id="L365">    }</span>
+<span class="fc" id="L366">    return person;</span>
+  }
+
+  private synchronized void writeToConsole(Person person, int index, long time, boolean isAlive) {
+    // this is synchronized to ensure all lines for a single person are always printed 
+    // consecutively
+<span class="fc bfc" id="L372" title="All 2 branches covered.">    String deceased = isAlive ? &quot;&quot; : &quot;DECEASED&quot;;</span>
+<span class="fc" id="L373">    System.out.format(&quot;%d -- %s (%d y/o %s) %s, %s %s\n&quot;, index + 1,</span>
+<span class="fc" id="L374">        person.attributes.get(Person.NAME), person.ageInYears(time),</span>
+<span class="fc" id="L375">        person.attributes.get(Person.GENDER),</span>
+<span class="fc" id="L376">        person.attributes.get(Person.CITY), person.attributes.get(Person.STATE),</span>
+        deceased);
+
+<span class="fc bfc" id="L379" title="All 2 branches covered.">    if (this.logLevel.equals(&quot;detailed&quot;)) {</span>
+<span class="fc" id="L380">      System.out.println(&quot;ATTRIBUTES&quot;);</span>
+<span class="fc bfc" id="L381" title="All 2 branches covered.">      for (String attribute : person.attributes.keySet()) {</span>
+<span class="fc" id="L382">        System.out.format(&quot;  * %s = %s\n&quot;, attribute, person.attributes.get(attribute));</span>
+<span class="fc" id="L383">      }</span>
+<span class="fc" id="L384">      System.out.format(&quot;SYMPTOMS: %d\n&quot;, person.symptomTotal());</span>
+<span class="fc" id="L385">      System.out.println(person.record.textSummary());</span>
+<span class="fc" id="L386">      System.out.println(&quot;VITAL SIGNS&quot;);</span>
+<span class="fc bfc" id="L387" title="All 2 branches covered.">      for (VitalSign vitalSign : person.vitalSigns.keySet()) {</span>
+<span class="fc" id="L388">        System.out.format(&quot;  * %25s = %6.2f\n&quot;, vitalSign,</span>
+<span class="fc" id="L389">            person.getVitalSign(vitalSign, time).doubleValue());</span>
+<span class="fc" id="L390">      }</span>
+<span class="fc" id="L391">      System.out.println(&quot;-----&quot;);</span>
+    }
+<span class="fc" id="L393">  }</span>
+
+  private Map&lt;String, Object&gt; pickDemographics(Random random, Demographics city) {
+<span class="fc" id="L396">    Map&lt;String, Object&gt; out = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L397">    out.put(Person.CITY, city.city);</span>
+<span class="fc" id="L398">    out.put(Person.STATE, city.state);</span>
+    
+<span class="fc" id="L400">    String race = city.pickRace(random);</span>
+<span class="fc" id="L401">    out.put(Person.RACE, race);</span>
+<span class="fc" id="L402">    String ethnicity = city.ethnicityFromRace(race, random);</span>
+<span class="fc" id="L403">    out.put(Person.ETHNICITY, ethnicity);</span>
+<span class="fc" id="L404">    String language = city.languageFromEthnicity(ethnicity, random);</span>
+<span class="fc" id="L405">    out.put(Person.FIRST_LANGUAGE, language);</span>
+
+<span class="fc" id="L407">    String gender = null;</span>
+<span class="fc bfc" id="L408" title="All 2 branches covered.">    if (options.gender != null) {</span>
+<span class="fc" id="L409">      gender = options.gender;</span>
+    } else {
+<span class="fc" id="L411">      gender = city.pickGender(random);</span>
+<span class="pc bpc" id="L412" title="1 of 4 branches missed.">      if (gender.equalsIgnoreCase(&quot;male&quot;) || gender.equalsIgnoreCase(&quot;M&quot;)) {</span>
+<span class="fc" id="L413">        gender = &quot;M&quot;;</span>
+      } else {
+<span class="fc" id="L415">        gender = &quot;F&quot;;</span>
+      }
+    }
+<span class="fc" id="L418">    out.put(Person.GENDER, gender);</span>
+
+    // Socioeconomic variables of education, income, and education are set.
+<span class="fc" id="L421">    String education = city.pickEducation(random);</span>
+<span class="fc" id="L422">    out.put(Person.EDUCATION, education);</span>
+<span class="fc" id="L423">    double educationLevel = city.educationLevel(education, random);</span>
+<span class="fc" id="L424">    out.put(Person.EDUCATION_LEVEL, educationLevel);</span>
+
+<span class="fc" id="L426">    int income = city.pickIncome(random);</span>
+<span class="fc" id="L427">    out.put(Person.INCOME, income);</span>
+<span class="fc" id="L428">    double incomeLevel = city.incomeLevel(income);</span>
+<span class="fc" id="L429">    out.put(Person.INCOME_LEVEL, incomeLevel);</span>
+
+<span class="fc" id="L431">    double occupation = random.nextDouble();</span>
+<span class="fc" id="L432">    out.put(Person.OCCUPATION_LEVEL, occupation);</span>
+
+<span class="fc" id="L434">    double sesScore = city.socioeconomicScore(incomeLevel, educationLevel, occupation);</span>
+<span class="fc" id="L435">    out.put(Person.SOCIOECONOMIC_SCORE, sesScore);</span>
+<span class="fc" id="L436">    out.put(Person.SOCIOECONOMIC_CATEGORY, city.socioeconomicCategory(sesScore));</span>
+
+<span class="pc bpc" id="L438" title="1 of 2 branches missed.">    if (this.onlyVeterans) {</span>
+<span class="nc" id="L439">      out.put(&quot;veteran_population_override&quot;, Boolean.TRUE);</span>
+    }
+
+    int targetAge;
+<span class="fc bfc" id="L443" title="All 2 branches covered.">    if (options.ageSpecified) {</span>
+<span class="fc" id="L444">      targetAge = </span>
+<span class="fc" id="L445">          (int) (options.minAge + ((options.maxAge - options.minAge) * random.nextDouble()));</span>
+    } else {
+<span class="fc" id="L447">      targetAge = city.pickAge(random);</span>
+    }
+<span class="fc" id="L449">    out.put(TARGET_AGE, targetAge);</span>
+
+<span class="fc" id="L451">    long birthdate = birthdateFromTargetAge(targetAge, random);</span>
+<span class="fc" id="L452">    out.put(Person.BIRTHDATE, birthdate);</span>
+    
+<span class="fc" id="L454">    return out;</span>
+  }
+  
+  private long birthdateFromTargetAge(long targetAge, Random random) {
+<span class="fc" id="L458">    long earliestBirthdate = stop - TimeUnit.DAYS.toMillis((targetAge + 1) * 365L + 1);</span>
+<span class="fc" id="L459">    long latestBirthdate = stop - TimeUnit.DAYS.toMillis(targetAge * 365L);</span>
+<span class="fc" id="L460">    return </span>
+<span class="fc" id="L461">        (long) (earliestBirthdate + ((latestBirthdate - earliestBirthdate) * random.nextDouble()));</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

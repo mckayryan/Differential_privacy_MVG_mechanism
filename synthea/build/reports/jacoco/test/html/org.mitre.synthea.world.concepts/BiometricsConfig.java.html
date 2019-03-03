@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BiometricsConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.world.concepts</a> &gt; <span class="el_source">BiometricsConfig.java</span></div><h1>BiometricsConfig.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.world.concepts;
+
+import java.util.List;
+
+import org.mitre.synthea.helpers.SimpleYML;
+import org.mitre.synthea.helpers.Utilities;
+
+/**
+ * Class exposing various configurable biometric settings, 
+ * which are set in resources/biometrics.yml.
+ * Unlike the standard &quot;Config&quot; and synthea.properties, 
+ * it is unlikely that an end-user will want to tweak these often.
+ */
+<span class="nc" id="L14">public abstract class BiometricsConfig {</span>
+
+  /**
+   * The SimpleYML containing the parsed 'biometrics.yml' file.
+   */
+<span class="fc" id="L19">  private static final SimpleYML biometrics = loadYML();</span>
+  
+  /**
+   * Load the 'biometrics.yml' resource file.
+   * 
+   * @return the parsed file
+   */
+  private static final SimpleYML loadYML() {
+    try {
+<span class="fc" id="L28">      String yml = Utilities.readResource(&quot;biometrics.yml&quot;);</span>
+<span class="fc" id="L29">      return new SimpleYML(yml);</span>
+      
+<span class="nc" id="L31">    } catch (Exception e) {</span>
+<span class="nc" id="L32">      e.printStackTrace();</span>
+<span class="nc" id="L33">      throw new ExceptionInInitializerError(e);</span>
+    } 
+  }
+  
+  /**
+   * Get the object at the given path from the YML.
+   * For example, given the following YML:&lt;pre&gt;
+   * foo:
+   *    bar: 2
+   *    baz: 4
+   *    qux:
+   *      corge: 9
+   *      grault: -1
+   *  plugh: 7
+   * &lt;/pre&gt;
+   * calling get(&quot;foo.qux.grault&quot;) will return Integer(-1)
+   * 
+   * @param path path to the desired object
+   * @return the object at path
+   */
+  public static Object get(String path) {
+<span class="fc" id="L54">    return biometrics.get(path);</span>
+  }
+  
+  /**
+   * Get the object at the given path from the YML.
+   * If not found, returns the default value.
+   * @param path path to the desired object
+   * @param defaultValue value returned if there is no object at the given path 
+   * @return the object at path, or defaultValue if not found
+   */
+  public static Object get(String path, Object defaultValue) {
+<span class="fc" id="L65">    Object result = get(path);</span>
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">    return (result == null) ? defaultValue : result;</span>
+  }
+  
+  /**
+   * Helper function to get a list of ints from a given location as an array.
+   * Note that this function does not convert doubles to integers,
+   * so if the YML contains doubles then this method may throw.
+   * 
+   * @param path path to the desired object
+   * @return parsed integer array
+   */
+  public static int[] ints(String path) {
+<span class="fc" id="L78">    List&lt;Integer&gt; ints = (List&lt;Integer&gt;)get(path);</span>
+<span class="fc" id="L79">    int[] array = ints.stream().mapToInt(i -&gt; i).toArray();</span>
+<span class="fc" id="L80">    return array;</span>
+  }
+  
+  /**
+   * Helper function to get a list of doubles from a given location as an array.
+   * This function does convert integers to doubles, so it should be preferred over ints()
+   * if the data type is unknown or may change.
+   * 
+   * @param path path to the desired object
+   * @return parsed double array
+   */
+  public static double[] doubles(String path) {
+<span class="fc" id="L92">    List&lt;Number&gt; doubles = (List&lt;Number&gt;)get(path);</span>
+<span class="fc" id="L93">    double[] array = doubles.stream().mapToDouble(i -&gt; i.doubleValue()).toArray();</span>
+<span class="fc" id="L94">    return array;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

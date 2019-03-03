@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CustomSqlReport.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.export</a> &gt; <span class="el_source">CustomSqlReport.java</span></div><h1>CustomSqlReport.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.export;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+
+import org.mitre.synthea.engine.Generator;
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.SimpleCSV;
+import org.mitre.synthea.helpers.Utilities;
+
+/**
+ * The CustomSqlReport exporter produces custom CSV reports based on arbitrary queries provided.
+ * The queries are run against the DataStore database, either file or in-memory.
+ * Queries are defined in a configurable location - specified by config setting 
+ * &quot;exporter.custom_report_queries_file&quot;.
+ * 
+ */
+<span class="nc" id="L33">public class CustomSqlReport {</span>
+  
+  /**
+   * The String that will be used in the results when the query found no rows
+   * matching the criteria.
+   */
+  public static final String NO_RESULTS = &quot;No results found.&quot;;
+  
+  /**
+   * Run the exporter to produce the custom reports based on the given population.
+   * 
+   * @param generator
+   *          The generator that was used to produce a population
+   * @throws Exception
+   *           if any exception occurs in reading the queries file, querying the database, or
+   *           writing the results to a CSV file
+   */
+  public static void export(Generator generator) throws Exception {
+<span class="nc bnc" id="L51" title="All 2 branches missed.">    if (generator.database == null) {</span>
+<span class="nc" id="L52">      System.err.println(</span>
+          &quot;Unable to generate Custom Report - No database exists to generate report from.&quot;);
+<span class="nc" id="L54">      return;</span>
+    }
+
+<span class="nc" id="L57">    File outDirectory = Exporter.getOutputFolder(&quot;reports&quot;, null);</span>
+
+<span class="nc" id="L59">    String queriesFile = Config.get(&quot;exporter.custom_report_queries_file&quot;);</span>
+<span class="nc" id="L60">    String sqlQueries = Utilities.readResource(queriesFile);</span>
+
+<span class="nc" id="L62">    try (Scanner queries = new Scanner(sqlQueries);</span>
+<span class="nc" id="L63">        Connection connection = generator.database.getConnection()) {</span>
+
+<span class="nc" id="L65">      int reportNum = 1;</span>
+      // TODO: version 1 requires queries to be on one line. 
+      // add logic to handle multi-line queries?
+<span class="nc bnc" id="L68" title="All 2 branches missed.">      while (queries.hasNextLine()) {</span>
+<span class="nc" id="L69">        String query = queries.nextLine().trim().toUpperCase();</span>
+
+<span class="nc bnc" id="L71" title="All 4 branches missed.">        if (query.isEmpty() || query.startsWith(&quot;--&quot;)) {</span>
+<span class="nc" id="L72">          continue; // empty or comment line, ignore it</span>
+        }
+
+        // TODO: allow the creation of views?
+<span class="nc bnc" id="L76" title="All 2 branches missed.">        if (!query.startsWith(&quot;SELECT&quot;)) {</span>
+<span class="nc" id="L77">          throw new IllegalArgumentException(&quot;Custom SQL query must only start with SELECT&quot;);</span>
+        }
+
+<span class="nc" id="L80">        String result = queryToCsv(connection, query);</span>
+        
+        // add the query as the first line so it's easy to see what it was
+<span class="nc" id="L83">        String newCsvData = query + System.lineSeparator() + result;</span>
+<span class="nc" id="L84">        Path outFilePath = outDirectory.toPath()</span>
+<span class="nc" id="L85">            .resolve(&quot;custom_query&quot; + reportNum + &quot;_&quot; + System.currentTimeMillis() + &quot;.csv&quot;);</span>
+
+<span class="nc" id="L87">        Files.write(outFilePath, Collections.singleton(newCsvData), StandardOpenOption.CREATE_NEW);</span>
+<span class="nc" id="L88">        reportNum++;</span>
+<span class="nc" id="L89">      }</span>
+    }
+<span class="nc" id="L91">  }</span>
+  
+  static String queryToCsv(Connection connection, String query) throws SQLException, IOException {
+<span class="fc" id="L94">    List&lt;Map&lt;String, String&gt;&gt; results = new LinkedList&lt;&gt;();</span>
+    // possibility of sql injection, but this is the user's own local DB 
+    // so it doesn't really matter if they inject themselves
+    // if we extend the DataStore to connect outside, we should take real care to only allow SELECTs
+<span class="fc" id="L98">    try (PreparedStatement stmt = connection.prepareStatement(query);</span>
+<span class="fc" id="L99">        ResultSet rs = stmt.executeQuery()) {</span>
+  
+      // get the list of column names from metadata
+<span class="fc" id="L102">      ResultSetMetaData rsmd = rs.getMetaData();</span>
+<span class="fc" id="L103">      List&lt;String&gt; columnNames = new ArrayList&lt;&gt;(rsmd.getColumnCount());</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">      for (int i = 1; i &lt;= rsmd.getColumnCount(); i++) {</span>
+<span class="fc" id="L105">        columnNames.add(rsmd.getColumnName(i));</span>
+      }
+  
+<span class="fc bfc" id="L108" title="All 2 branches covered.">      while (rs.next()) {</span>
+<span class="fc" id="L109">        Map&lt;String, String&gt; line = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">        for (String column : columnNames) {</span>
+<span class="fc" id="L111">          String value = String.valueOf(rs.getObject(column));</span>
+<span class="fc" id="L112">          line.put(column, value);</span>
+<span class="fc" id="L113">        }</span>
+<span class="fc" id="L114">        results.add(line);</span>
+<span class="fc" id="L115">      }</span>
+  
+      String resultContent;
+<span class="fc bfc" id="L118" title="All 2 branches covered.">      if (results.isEmpty()) {</span>
+<span class="fc" id="L119">        resultContent = NO_RESULTS;</span>
+      } else {
+<span class="fc" id="L121">        resultContent = SimpleCSV.unparse(results);</span>
+      }
+      
+<span class="fc" id="L124">      return resultContent;</span>
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

@@ -3,25 +3,6 @@ import random
 import pandas
 
 
-# Metric for Covariance estimation:
-# Residual Sum Squares of 'total variance captured'
-def principle_component_RSS(true, pred):
-    true_eigenvals, _ = numpy.linalg.eig(true)
-    pred_eigenvals, _ = numpy.linalg.eig(pred)
-    return numpy.sum(pow(numpy.subtract(true_eigenvals, pred_eigenvals), 2))
-
-
-def root_mean_squared_error(y_true, y_pred):
-    '''
-    Computation of evaluation metric RMSE
-    '''
-    return pow(
-        numpy.sum(pow(
-            numpy.subtract(y_pred, y_true), 2))
-        / len(y_true),
-        0.5)
-
-
 def test_train_split(y_len, test_perc):
     if test_perc >= 0.0 and test_perc <= 1.0:
         selection_pool = range(y_len)
@@ -54,15 +35,24 @@ def cross_validation_split(y_len, folds):
             yield selected, [i for i in xrange(y_len) if i not in selected]
 
 
-def record_result(results, column_names, new_data):
+def record_result(results, new_data, column_names=None):
     if results is None:
-        new = pandas.DataFrame(new_data, columns=column_names)
+        if column_names is None:
+            new = pandas.DataFrame(new_data)
+        else:
+            new = pandas.DataFrame(new_data, columns=column_names)
 
     else:
-        new = pandas.concat([
-            results,
-            pandas.DataFrame(new_data, columns=column_names)
-        ])
+        if column_names is None:
+            new = pandas.concat([
+                results,
+                pandas.DataFrame(new_data)
+            ])
+        else:
+            new = pandas.concat([
+                results,
+                pandas.DataFrame(new_data, columns=column_names)
+            ])
     return new
 
 
@@ -87,10 +77,11 @@ def bootstrap_metric(data,
         metric_function(numpy.random.choice(data, samples))
         for _ in xrange(repetitions)
     ])
-    lower_quantile = int(repetitions*(alpha/2))
-    upper_quantile = int(repetitions*(1-(alpha/2)))
-
+    
+    
     return numpy.round((
-        bootstrap_set[lower_quantile],
-        bootstrap_set[upper_quantile]
+        bootstrap_set[int(repetitions*(alpha/2))],
+        bootstrap_set[int(repetitions*0.5)],
+        bootstrap_set[int(repetitions*(1-(alpha/2)))]
     ), result_precision)
+

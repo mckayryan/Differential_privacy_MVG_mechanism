@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.export.FHIRDSTU2ExporterTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:19:43" hostname="ryan-B250M-HD3" time="5.552">
+  <properties/>
+  <testcase name="testFHIRDSTU2Export" classname="org.mitre.synthea.export.FHIRDSTU2ExporterTest" time="5.552"/>
+  <system-out><![CDATA[Running with options:
+Population: 10
+Seed: 1551093583782
+Location: Massachusetts
+Min Age: 0
+Max Age: 140
+1 -- Lyman173 Towne435 (73 y/o M) Hingham, Massachusetts 
+2 -- Orville751 Schamberger479 (68 y/o M) Eastham, Massachusetts 
+3 -- Shaunda110 Torphy630 (51 y/o F) Medfield, Massachusetts 
+4 -- Thomas756 Swaniawski813 (16 y/o M) Freetown, Massachusetts 
+5 -- Jarred626 Feest103 (44 y/o M) Springfield, Massachusetts 
+6 -- Dena356 Monahan736 (13 y/o F) Uxbridge, Massachusetts 
+7 -- Codi873 Vandervort697 (83 y/o F) Marlborough, Massachusetts 
+8 -- Vito638 Moen819 (47 y/o M) Fall River, Massachusetts 
+9 -- Tatiana738 Kris249 (21 y/o F) Boston, Massachusetts 
+10 -- Jere230 Schmeler639 (9 y/o M) Lynn, Massachusetts 
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

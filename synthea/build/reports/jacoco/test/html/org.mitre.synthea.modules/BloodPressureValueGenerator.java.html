@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BloodPressureValueGenerator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.modules</a> &gt; <span class="el_source">BloodPressureValueGenerator.java</span></div><h1>BloodPressureValueGenerator.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.modules;
+
+import org.mitre.synthea.helpers.TrendingValueGenerator;
+import org.mitre.synthea.helpers.ValueGenerator;
+import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.concepts.BiometricsConfig;
+
+/**
+ * Generate realistic blood pressure vital signs. 
+ * Can reproducibly look a few days into the past and future.
+ * 
+ * @see https://raywinstead.com/bp/thrice.htm for desired result
+ * TODO: Carve out abstract parent class to use this for additional vital signs.
+ */
+public class BloodPressureValueGenerator extends ValueGenerator {
+<span class="fc" id="L16">  public enum SysDias {</span>
+<span class="fc" id="L17">    SYSTOLIC, DIASTOLIC</span>
+  }
+
+<span class="fc" id="L20">  private static final int[] HYPERTENSIVE_SYS_BP_RANGE = BiometricsConfig</span>
+<span class="fc" id="L21">      .ints(&quot;metabolic.blood_pressure.hypertensive.systolic&quot;);</span>
+<span class="fc" id="L22">  private static final int[] HYPERTENSIVE_DIA_BP_RANGE = BiometricsConfig</span>
+<span class="fc" id="L23">      .ints(&quot;metabolic.blood_pressure.hypertensive.diastolic&quot;);</span>
+<span class="fc" id="L24">  private static final int[] NORMAL_SYS_BP_RANGE = BiometricsConfig</span>
+<span class="fc" id="L25">      .ints(&quot;metabolic.blood_pressure.normal.systolic&quot;);</span>
+<span class="fc" id="L26">  private static final int[] NORMAL_DIA_BP_RANGE = BiometricsConfig</span>
+<span class="fc" id="L27">      .ints(&quot;metabolic.blood_pressure.normal.diastolic&quot;);</span>
+
+  private static final long ONE_DAY = 1 * 24 * 60 * 60 * 1000L;
+
+  // How far into the past or into the future can this generator look reproducibly?
+  private static final long TIMETRAVEL_DURATION = 10 * ONE_DAY;
+  
+
+  // Use a ringbuffer to reproducibly travel back in time for a bit, but not keep
+  // a full history per patient.
+  private static final int RING_ENTRIES = 10;
+<span class="fc" id="L38">  private final TrendingValueGenerator[] ringBuffer = new TrendingValueGenerator[RING_ENTRIES];</span>
+<span class="fc" id="L39">  private int ringIndex = 0;</span>
+
+  private SysDias sysDias;
+
+  public BloodPressureValueGenerator(Person person, SysDias sysDias) {
+<span class="fc" id="L44">    super(person);</span>
+<span class="fc" id="L45">    this.sysDias = sysDias;</span>
+<span class="fc" id="L46">  }</span>
+
+  @Override
+  public double getValue(long time) {
+    // TODO: BP is circadian. Model change over time of day.
+<span class="fc" id="L51">    final TrendingValueGenerator trendingValueGenerator = getTrendingValueGenerator(time, true);</span>
+<span class="fc" id="L52">    return trendingValueGenerator.getValue(time);</span>
+  }
+
+
+  /**
+   * The minimum duration that the trend continues in one direction.
+   * @return the duration in days.
+   */
+  private int minTrendDuration() {
+<span class="fc" id="L61">    return 2;</span>
+  }
+
+  /**
+   * The maximum duration that the trend continues in one direction.
+   * @return the duration in days.
+   */
+  private int maxTrendDuration() {
+<span class="fc" id="L69">    return 5;</span>
+  }
+
+  /**
+   * The maximum permitted change per day.
+   * @return the maximum change per day.
+   */
+  private double maxChangePerDay() {
+<span class="fc" id="L77">    return 15.0;</span>
+  }
+
+
+  /**
+   * Return a matching value generator for the given time.
+   * 
+   * @param time find a value generator for which time stamp?
+   * @param createNewGenerators should a new generator be created when no match can be found?
+   * @return a value generator, or potentially null (if none exists and none should be created)
+   */
+  private TrendingValueGenerator getTrendingValueGenerator(long time, boolean createNewGenerators) {
+    // System.out.println(&quot;getTVG @ &quot; + time);
+
+<span class="fc bfc" id="L91" title="All 2 branches covered.">    for (int i = 0; i &lt; RING_ENTRIES; i++) {</span>
+<span class="fc" id="L92">      final TrendingValueGenerator trendingValueGenerator = ringBuffer[i];</span>
+<span class="fc bfc" id="L93" title="All 4 branches covered.">      if (trendingValueGenerator != null &amp;&amp; trendingValueGenerator.getBeginTime() &lt;= time</span>
+<span class="fc bfc" id="L94" title="All 2 branches covered.">          &amp;&amp; trendingValueGenerator.getEndTime() &gt;= time) {</span>
+<span class="fc" id="L95">        return trendingValueGenerator;</span>
+      }
+    }
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">    if (!createNewGenerators) {</span>
+<span class="nc" id="L99">      return null;</span>
+    } else {
+<span class="fc" id="L101">      createNewGenerators(time);</span>
+<span class="fc" id="L102">      return getTrendingValueGenerator(time, false);</span>
+    }
+  }
+
+  /**
+   * Fill the ring buffer with a few new trending sections.
+   * 
+   * @param time a timestamp which shall be covered by the generators in the buffer
+   * @param previousValueGenerator a previous generator, for potential continuity
+   */
+  private void createNewGenerators(long time) {
+<span class="fc" id="L113">    int endIndex = 0;</span>
+<span class="fc" id="L114">    long endTime = Long.MIN_VALUE;</span>
+<span class="fc bfc" id="L115" title="All 2 branches covered.">    for (int i = 0; i &lt; RING_ENTRIES; i++) {</span>
+<span class="fc bfc" id="L116" title="All 4 branches covered.">      if (ringBuffer[i] != null &amp;&amp; ringBuffer[i].getEndTime() &gt; endTime) {</span>
+<span class="fc" id="L117">        endIndex = i;</span>
+<span class="fc" id="L118">        endTime = ringBuffer[i].getEndTime();</span>
+      }
+    }
+
+    TrendingValueGenerator previousValueGenerator;
+<span class="fc bfc" id="L123" title="All 2 branches covered.">    if (time - endTime &lt; TIMETRAVEL_DURATION) {</span>
+      // If the last ringbuffer entry is maximum of TIMETRAVEL_DURATION days in the past,
+      // then continue from it.
+<span class="fc" id="L126">      previousValueGenerator = ringBuffer[endIndex];</span>
+    } else {
+      // Last entry is too far in the past. Start over.
+<span class="fc" id="L129">      previousValueGenerator = null;</span>
+    }
+
+    long currentTime;
+    long generatePeriod;
+    double startValue;
+<span class="fc bfc" id="L135" title="All 2 branches covered.">    if (previousValueGenerator == null) {</span>
+      // There is no recent previous buffer entry. Start from a few days in the past.
+      // System.out.println(&quot;Starting over&quot;);
+<span class="fc" id="L138">      currentTime = time - TIMETRAVEL_DURATION;</span>
+<span class="fc" id="L139">      generatePeriod = TIMETRAVEL_DURATION + TIMETRAVEL_DURATION;</span>
+<span class="fc" id="L140">      startValue = calculateMean(person, currentTime);</span>
+    } else {
+      // System.out.println(&quot;Continuing @ &quot; + endTime);
+<span class="fc" id="L143">      currentTime = endTime;</span>
+<span class="fc" id="L144">      generatePeriod = TIMETRAVEL_DURATION;</span>
+<span class="fc" id="L145">      startValue = previousValueGenerator.getValue(endTime);</span>
+    }
+
+<span class="fc bfc" id="L148" title="All 2 branches covered.">    while (generatePeriod &gt; 0L) {</span>
+<span class="fc" id="L149">      final int days = minTrendDuration() </span>
+<span class="fc" id="L150">          + person.randInt(maxTrendDuration() - minTrendDuration() + 1);</span>
+<span class="fc" id="L151">      long duration = ONE_DAY * days;</span>
+      double endValue;
+      do { // Limit the maximum rate of change.
+<span class="fc" id="L154">        endValue = calculateMean(person, currentTime + duration);</span>
+<span class="pc bpc" id="L155" title="1 of 2 branches missed.">      } while (Math.abs(startValue - endValue) &gt; maxChangePerDay() * duration);</span>
+
+<span class="fc" id="L157">      ringBuffer[ringIndex] = new TrendingValueGenerator(person, 1.0, startValue, endValue,</span>
+          currentTime, currentTime + duration, null, null);
+      // System.out.println(&quot;Filled [&quot; + ringIndex + &quot;] with: &quot; + ringBuffer[ringIndex]);
+<span class="fc" id="L160">      ringIndex++;</span>
+<span class="fc" id="L161">      ringIndex = ringIndex % RING_ENTRIES;</span>
+<span class="fc" id="L162">      currentTime = currentTime + duration + 1L;</span>
+<span class="fc" id="L163">      generatePeriod -= duration;</span>
+<span class="fc" id="L164">      startValue = endValue;</span>
+<span class="fc" id="L165">    }</span>
+<span class="fc" id="L166">  }</span>
+
+  private double calculateMean(Person person, long time) {
+    // TODO: Take additional factors into consideration: age + gender
+<span class="fc" id="L170">    boolean hypertension = (Boolean) person.attributes.getOrDefault(&quot;hypertension&quot;, false);</span>
+
+<span class="fc bfc" id="L172" title="All 2 branches covered.">    if (sysDias == SysDias.SYSTOLIC) {</span>
+<span class="fc bfc" id="L173" title="All 2 branches covered.">      if (hypertension) {</span>
+<span class="fc" id="L174">        return person.rand(HYPERTENSIVE_SYS_BP_RANGE);</span>
+      } else {
+<span class="fc" id="L176">        return person.rand(NORMAL_SYS_BP_RANGE);</span>
+      }
+    } else {
+<span class="fc bfc" id="L179" title="All 2 branches covered.">      if (hypertension) {</span>
+<span class="fc" id="L180">        return person.rand(HYPERTENSIVE_DIA_BP_RANGE);</span>
+      } else {
+<span class="fc" id="L182">        return person.rand(NORMAL_DIA_BP_RANGE);</span>
+      }
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

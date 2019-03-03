@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.helpers.UtilitiesTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:18:19" hostname="ryan-B250M-HD3" time="0.001">
+  <properties/>
+  <testcase name="testJsonPrimitiveBooleans" classname="org.mitre.synthea.helpers.UtilitiesTest" time="0.0"/>
+  <testcase name="testConvertTime" classname="org.mitre.synthea.helpers.UtilitiesTest" time="0.0"/>
+  <testcase name="testJsonPrimitiveStrings" classname="org.mitre.synthea.helpers.UtilitiesTest" time="0.0"/>
+  <testcase name="testCompareBooleans" classname="org.mitre.synthea.helpers.UtilitiesTest" time="0.0"/>
+  <testcase name="testGetYear" classname="org.mitre.synthea.helpers.UtilitiesTest" time="0.0"/>
+  <testcase name="testConvertTimeInFortnightsThrowsException" classname="org.mitre.synthea.helpers.UtilitiesTest" time="0.001"/>
+  <testcase name="testCompareDifferentTypesThrowsException" classname="org.mitre.synthea.helpers.UtilitiesTest" time="0.0"/>
+  <testcase name="testJsonPrimitiveIntegers" classname="org.mitre.synthea.helpers.UtilitiesTest" time="0.0"/>
+  <testcase name="testCompareDoubles" classname="org.mitre.synthea.helpers.UtilitiesTest" time="0.0"/>
+  <testcase name="testCompareStrings" classname="org.mitre.synthea.helpers.UtilitiesTest" time="0.0"/>
+  <testcase name="testCompareObjects" classname="org.mitre.synthea.helpers.UtilitiesTest" time="0.0"/>
+  <testcase name="testJsonPrimitiveDoubles" classname="org.mitre.synthea.helpers.UtilitiesTest" time="0.0"/>
+  <system-out><![CDATA[1103760000000
+1072875600000
+1136034000000
+]]></system-out>
+  <system-err><![CDATA[Unsupported operator: ~=
+Unsupported operator: ~=
+Unsupported operator: ~=
+]]></system-err>
+</testsuite>

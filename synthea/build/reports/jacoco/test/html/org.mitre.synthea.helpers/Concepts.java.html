@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Concepts.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.helpers</a> &gt; <span class="el_source">Concepts.java</span></div><h1>Concepts.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.helpers;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
+
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.TreeMap;
+
+import org.mitre.synthea.modules.CardiovascularDiseaseModule;
+import org.mitre.synthea.modules.DeathModule;
+import org.mitre.synthea.modules.EncounterModule;
+import org.mitre.synthea.modules.Immunizations;
+import org.mitre.synthea.modules.LifecycleModule;
+import org.mitre.synthea.world.concepts.HealthRecord.Code;
+
+/**
+ * Task class to export a report of all clinical concepts
+ * (aka Codes) that Synthea is aware of.
+ * Format is &quot;system,code,display&quot;.
+ */
+<span class="nc" id="L38">public class Concepts {</span>
+  /**
+   * Generate an output file containing all clinical concepts used in Synthea.
+   * 
+   * @param args unused
+   * @throws Exception if any error occurs in reading the module files
+   */
+  public static void main(String[] args) throws Exception {
+<span class="nc" id="L46">    System.out.println(&quot;Performing an inventory of concepts into `output/concepts.csv`...&quot;);</span>
+    
+<span class="nc" id="L48">    List&lt;String&gt; output = getConceptInventory();</span>
+    
+<span class="nc" id="L50">    Path outFilePath = new File(&quot;./output/concepts.csv&quot;).toPath();</span>
+    
+<span class="nc" id="L52">    Files.write(outFilePath, output, StandardOpenOption.CREATE);</span>
+    
+<span class="nc" id="L54">    System.out.println(&quot;Catalogued &quot; + output.size() + &quot; concepts.&quot;);</span>
+<span class="nc" id="L55">    System.out.println(&quot;Done.&quot;);</span>
+<span class="nc" id="L56">  }</span>
+  
+  /**
+   * Get the list of all concepts in Synthea, as a list of CSV strings.
+   * @return list of CSV strings
+   * @throws Exception if any exception occurs in reading the modules.
+   */
+  public static List&lt;String&gt; getConceptInventory() throws Exception {
+<span class="fc" id="L64">    Map&lt;Code,Set&lt;String&gt;&gt; concepts = new TreeMap&lt;Code,Set&lt;String&gt;&gt;();</span>
+
+<span class="fc" id="L66">    URL modulesFolder = ClassLoader.getSystemClassLoader().getResource(&quot;modules&quot;);</span>
+<span class="fc" id="L67">    Path path = Paths.get(modulesFolder.toURI());</span>
+<span class="fc" id="L68">    Files.walk(path).filter(Files::isReadable).filter(Files::isRegularFile)</span>
+<span class="fc" id="L69">        .filter(f -&gt; f.toString().endsWith(&quot;.json&quot;)).forEach(modulePath -&gt; {</span>
+<span class="fc" id="L70">          try (JsonReader reader = new JsonReader(new FileReader(modulePath.toString()))) {</span>
+<span class="fc" id="L71">            JsonObject module = new JsonParser().parse(reader).getAsJsonObject();</span>
+<span class="fc" id="L72">            inventoryModule(concepts, module);</span>
+<span class="nc" id="L73">          } catch (IOException e) {</span>
+<span class="nc" id="L74">            throw new RuntimeException(&quot;Unable to read modules&quot;, e);</span>
+<span class="fc" id="L75">          }</span>
+<span class="fc" id="L76">        });</span>
+
+<span class="fc" id="L78">    inventoryCodes(concepts, CardiovascularDiseaseModule.getAllCodes(),</span>
+<span class="fc" id="L79">        CardiovascularDiseaseModule.class.getSimpleName());</span>
+<span class="fc" id="L80">    inventoryCodes(concepts, DeathModule.getAllCodes(), DeathModule.class.getSimpleName());</span>
+<span class="fc" id="L81">    inventoryCodes(concepts, EncounterModule.getAllCodes(), EncounterModule.class.getSimpleName());</span>
+    // HealthInsuranceModule has no codes
+<span class="fc" id="L83">    inventoryCodes(concepts, Immunizations.getAllCodes(), Immunizations.class.getSimpleName());</span>
+<span class="fc" id="L84">    inventoryCodes(concepts, LifecycleModule.getAllCodes(), LifecycleModule.class.getSimpleName());</span>
+    // QualityOfLifeModule adds no new codes to patients
+    
+<span class="fc" id="L87">    List&lt;String&gt; conceptList = new ArrayList&lt;&gt;();</span>
+    
+<span class="fc bfc" id="L89" title="All 2 branches covered.">    for (Code code : concepts.keySet()) {</span>
+<span class="fc" id="L90">      Set&lt;String&gt; modules = concepts.get(code);</span>
+<span class="fc" id="L91">      String display = code.display;</span>
+<span class="fc" id="L92">      display = display.replaceAll(&quot;\\r\\n|\\r|\\n|,&quot;, &quot; &quot;).trim();</span>
+<span class="fc" id="L93">      String mods = modules.toString().replaceAll(&quot;\\[|\\]&quot;, &quot;&quot;).replace(&quot;, &quot;, &quot;|&quot;).trim();</span>
+<span class="fc" id="L94">      String concept = code.system + ',' + code.code + ',' + display + ',' + mods;</span>
+<span class="fc" id="L95">      conceptList.add(concept);</span>
+<span class="fc" id="L96">    }</span>
+    
+<span class="fc" id="L98">    return conceptList;</span>
+  }
+  
+  /**
+   * Catalog all concepts from the given module into the given Table.
+   * 
+   * @param concepts Table of concepts to add to
+   * @param module Module to parse for concepts and codes
+   */
+  public static void inventoryModule(Map&lt;Code,Set&lt;String&gt;&gt; concepts, JsonObject module) {
+<span class="fc" id="L108">    JsonObject states = module.get(&quot;states&quot;).getAsJsonObject();</span>
+<span class="fc bfc" id="L109" title="All 2 branches covered.">    for (Entry&lt;String, JsonElement&gt; entry : states.entrySet()) {</span>
+<span class="fc" id="L110">      JsonObject state = entry.getValue().getAsJsonObject();</span>
+<span class="fc" id="L111">      inventoryState(concepts, state, module.get(&quot;name&quot;).getAsString());</span>
+<span class="fc" id="L112">    }</span>
+<span class="fc" id="L113">  }</span>
+  
+  /**
+   * Catalog all concepts from the given state into the given Table.
+   * 
+   * @param concepts Table of concepts to add to
+   * @param state State to parse for concepts and codes
+   */
+  public static void inventoryState(Map&lt;Code,Set&lt;String&gt;&gt; concepts, JsonObject state,
+      String module) {
+    // TODO - how can we make this more generic
+    // and not have to remember to update this if we add new codes in another field?
+
+<span class="fc bfc" id="L126" title="All 2 branches covered.">    if (state.has(&quot;codes&quot;)) {</span>
+<span class="fc" id="L127">      List&lt;Code&gt; codes = Code.fromJson(state.getAsJsonArray(&quot;codes&quot;));</span>
+<span class="fc" id="L128">      inventoryCodes(concepts, codes, module);</span>
+    }
+
+<span class="fc bfc" id="L131" title="All 2 branches covered.">    if (state.has(&quot;activities&quot;)) {</span>
+<span class="fc" id="L132">      List&lt;Code&gt; codes = Code.fromJson(state.getAsJsonArray(&quot;activities&quot;));</span>
+<span class="fc" id="L133">      inventoryCodes(concepts, codes, module);</span>
+    }
+
+<span class="fc bfc" id="L136" title="All 2 branches covered.">    if (state.has(&quot;prescription&quot;)) {</span>
+<span class="fc" id="L137">      JsonObject prescription = state.getAsJsonObject(&quot;prescription&quot;);</span>
+<span class="fc bfc" id="L138" title="All 2 branches covered.">      if (prescription.has(&quot;instructions&quot;)) {</span>
+<span class="fc" id="L139">        List&lt;Code&gt; codes = Code.fromJson(prescription.getAsJsonArray(&quot;instructions&quot;));</span>
+<span class="fc" id="L140">        inventoryCodes(concepts, codes, module);</span>
+      }
+    }
+
+<span class="fc bfc" id="L144" title="All 2 branches covered.">    if (state.has(&quot;discharge_disposition&quot;)) {</span>
+<span class="fc" id="L145">      Code code = new Code(state.getAsJsonObject(&quot;discharge_disposition&quot;));</span>
+<span class="fc" id="L146">      inventoryCodes(concepts, Collections.singleton(code), module);</span>
+    }
+<span class="fc" id="L148">  }</span>
+  
+  /**
+   * Add the Codes in the given Collection to the given inventory of concepts.
+   * @param concepts Table of concepts to add to
+   * @param codes Collection of codes to add
+   */
+  public static void inventoryCodes(Map&lt;Code,Set&lt;String&gt;&gt; concepts,
+      Collection&lt;Code&gt; codes, String module) {
+<span class="fc" id="L157">    codes.forEach(code -&gt; {</span>
+<span class="fc bfc" id="L158" title="All 2 branches covered.">      if (!concepts.containsKey(code)) {</span>
+<span class="fc" id="L159">        concepts.put(code, new HashSet&lt;String&gt;());</span>
+      }
+<span class="fc" id="L161">      concepts.get(code).add(module);</span>
+<span class="fc" id="L162">    });</span>
+<span class="fc" id="L163">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

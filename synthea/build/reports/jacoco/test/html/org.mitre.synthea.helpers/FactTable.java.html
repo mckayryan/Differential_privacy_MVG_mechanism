@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FactTable.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.helpers</a> &gt; <span class="el_source">FactTable.java</span></div><h1>FactTable.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.helpers;
+
+import java.io.IOException;
+import java.io.Writer;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * The FactTable helper class aids in the export of database-style
+ * Fact Tables. If you have a &quot;table&quot; where each row is a fact or
+ * lookup table where a value should be referenced by an ID, you
+ * can add these keys and facts to this table and get back the ID.
+ */
+public class FactTable {
+  /**
+   * System-dependent string for a line break. (\n on Mac, *nix, \r\n on Windows)
+   */
+<span class="fc" id="L19">  private static final String NEWLINE = System.lineSeparator();</span>
+  /** Table column headers. Comma-separated. */
+  private String header;
+  /** This is the ID sequence generator. */
+  private AtomicInteger id;
+  /** Lookup the ID for a key. */
+  private Map&lt;String,Integer&gt; keys;
+  /** Lookup the fact by ID. */
+  private Map&lt;Integer,String&gt; facts;
+  /** Synchronization lock. */
+<span class="fc" id="L29">  private static final Object LOCK = new Object();</span>
+  
+  /**
+   * Create a FactTable with an ID that starts at 1
+   * and increments with each new key/fact.
+   */
+<span class="fc" id="L35">  public FactTable() {</span>
+<span class="fc" id="L36">    id = new AtomicInteger(1);</span>
+<span class="fc" id="L37">    keys = new HashMap&lt;String,Integer&gt;();</span>
+<span class="fc" id="L38">    facts = new HashMap&lt;Integer,String&gt;();</span>
+<span class="fc" id="L39">  }</span>
+
+  /**
+   * Set the next ID.
+   * @param id The value of the next ID.
+   */
+  public void setNextId(int id) {
+<span class="fc" id="L46">    synchronized (LOCK) {</span>
+<span class="fc" id="L47">      this.id = new AtomicInteger(id);</span>
+<span class="fc" id="L48">    }</span>
+<span class="fc" id="L49">  }</span>
+  
+  /**
+   * Set the column headers of the fact table.
+   * @param header Column headers of the fact table.
+   */
+  public void setHeader(String header) {
+<span class="fc" id="L56">    this.header = header;</span>
+<span class="fc" id="L57">  }</span>
+  
+  /**
+   * Get the ID for a fact by a key.
+   * @param key The key for a fact. For example, 'M' or 'F'.
+   * @return The ID for the fact. For example, 1 or 2.
+   */
+  public int getFactId(String key) {
+<span class="fc" id="L65">    synchronized (LOCK) {</span>
+<span class="fc" id="L66">      return keys.get(key);</span>
+    }
+  }
+
+  /**
+   * Get the fact for a given key.
+   * @param key The key for a fact. For example, 'M' or 'F'.
+   * @return The fact. For example, 'Male' or 'Female'.
+   */
+  public String getFactByKey(String key) {
+<span class="nc" id="L76">    synchronized (LOCK) {</span>
+<span class="nc" id="L77">      Integer id = keys.get(key);</span>
+<span class="nc" id="L78">      return facts.get(id);</span>
+    }
+  }
+
+  /**
+   * Get the fact for a given key.
+   * @param id The ID for the fact. For example, 1 or 2.
+   * @return The fact. For example, 'Male' or 'Female'.
+   */
+  public String getFactById(Integer id) {
+<span class="fc" id="L88">    synchronized (LOCK) {</span>
+<span class="fc" id="L89">      return facts.get(id);</span>
+    }
+  }
+
+  /**
+   * Adds a new key/fact combination to the table
+   * and returns the ID. If the key already exists,
+   * the appropriate ID is returned without modifying
+   * the table.
+   * 
+   * @param key The key for a fact. For example, 'M' or 'F'.
+   * @param fact The fact. For example, 'Male' or 'Female'.
+   * @return The ID for the fact. For example, 1 or 2.
+   */
+  public int addFact(String key, String fact) {
+<span class="fc" id="L104">    synchronized (LOCK) {</span>
+<span class="fc bfc" id="L105" title="All 2 branches covered.">      if (keys.containsKey(key)) {</span>
+<span class="fc" id="L106">        return keys.get(key);</span>
+      }
+
+<span class="fc" id="L109">      int next = id.getAndIncrement();</span>
+<span class="fc" id="L110">      keys.put(key, next);</span>
+<span class="fc" id="L111">      facts.put(next, fact);</span>
+<span class="fc" id="L112">      return next;</span>
+    }
+  }
+  
+  /**
+   * Write the contents of the FactTable to a file.
+   * @param writer The open Writer to use to record the FactTable.
+   * @throws IOException On errors.
+   */
+  public void write(Writer writer) throws IOException {
+<span class="fc" id="L122">    synchronized (LOCK) {</span>
+<span class="fc" id="L123">      writer.write(header);</span>
+<span class="fc" id="L124">      writer.write(NEWLINE);</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">      for (Integer key : facts.keySet()) {</span>
+<span class="fc" id="L126">        writer.write(key.toString());</span>
+<span class="fc" id="L127">        writer.write(',');</span>
+<span class="fc" id="L128">        String fact = facts.get(key);</span>
+<span class="pc bpc" id="L129" title="1 of 2 branches missed.">        if (fact != null) {</span>
+<span class="fc" id="L130">          writer.write(facts.get(key));</span>
+        }
+<span class="fc" id="L132">        writer.write(NEWLINE);</span>
+<span class="fc" id="L133">      }</span>
+<span class="fc" id="L134">      writer.flush();</span>
+<span class="fc" id="L135">    }</span>
+<span class="fc" id="L136">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

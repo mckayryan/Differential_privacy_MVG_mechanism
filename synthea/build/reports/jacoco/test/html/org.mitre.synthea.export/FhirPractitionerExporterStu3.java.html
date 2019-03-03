@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FhirPractitionerExporterStu3.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.export</a> &gt; <span class="el_source">FhirPractitionerExporterStu3.java</span></div><h1>FhirPractitionerExporterStu3.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.export;
+
+import ca.uhn.fhir.context.FhirContext;
+import com.google.common.collect.Table;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.hl7.fhir.dstu3.model.Bundle;
+import org.hl7.fhir.dstu3.model.Bundle.BundleEntryComponent;
+import org.hl7.fhir.dstu3.model.Bundle.BundleType;
+import org.hl7.fhir.dstu3.model.IntegerType;
+import org.hl7.fhir.dstu3.model.Practitioner;
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.world.agents.Clinician;
+import org.mitre.synthea.world.agents.Provider;
+
+<span class="nc" id="L27">public abstract class FhirPractitionerExporterStu3 {</span>
+
+<span class="fc" id="L29">  private static final FhirContext FHIR_CTX = FhirContext.forDstu3();</span>
+
+  private static final String EXTENSION_URI = 
+      &quot;http://synthetichealth.github.io/synthea/utilization-encounters-extension&quot;;
+
+  public static void export(long stop) {
+<span class="pc bpc" id="L35" title="1 of 2 branches missed.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.practitioner.fhir.export&quot;))) {</span>
+
+<span class="nc" id="L37">      Bundle bundle = new Bundle();</span>
+<span class="nc bnc" id="L38" title="All 2 branches missed.">      if (Boolean.parseBoolean(Config.get(&quot;exporter.fhir.transaction_bundle&quot;))) {</span>
+<span class="nc" id="L39">        bundle.setType(BundleType.TRANSACTION);</span>
+      } else {
+<span class="nc" id="L41">        bundle.setType(BundleType.COLLECTION);</span>
+      }
+<span class="nc bnc" id="L43" title="All 2 branches missed.">      for (Provider h : Provider.getProviderList()) {</span>
+        // filter - exports only those hospitals in use
+
+<span class="nc" id="L46">        Table&lt;Integer, String, AtomicInteger&gt; utilization = h.getUtilization();</span>
+<span class="nc" id="L47">        int totalEncounters = utilization.column(Provider.ENCOUNTERS).values().stream()</span>
+<span class="nc" id="L48">            .mapToInt(ai -&gt; ai.get()).sum();</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        if (totalEncounters &gt; 0) {</span>
+<span class="nc" id="L50">          Map&lt;String, ArrayList&lt;Clinician&gt;&gt; clinicians = h.clinicianMap;</span>
+<span class="nc bnc" id="L51" title="All 2 branches missed.">          for (String specialty : clinicians.keySet()) {</span>
+<span class="nc" id="L52">            ArrayList&lt;Clinician&gt; docs = clinicians.get(specialty);</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">            for (Clinician doc : docs) {</span>
+<span class="nc bnc" id="L54" title="All 2 branches missed.">              if (doc.getEncounterCount() &gt; 0) {</span>
+<span class="nc" id="L55">                BundleEntryComponent entry = FhirStu3.practitioner(bundle, doc);</span>
+<span class="nc" id="L56">                Practitioner practitioner = (Practitioner) entry.getResource();</span>
+<span class="nc" id="L57">                practitioner.addExtension()</span>
+<span class="nc" id="L58">                  .setUrl(EXTENSION_URI)</span>
+<span class="nc" id="L59">                  .setValue(new IntegerType(doc.getEncounterCount()));</span>
+              }
+<span class="nc" id="L61">            }</span>
+<span class="nc" id="L62">          }</span>
+        }
+<span class="nc" id="L64">      }</span>
+
+<span class="nc" id="L66">      String bundleJson = FHIR_CTX.newJsonParser().setPrettyPrint(true)</span>
+<span class="nc" id="L67">          .encodeResourceToString(bundle);</span>
+
+      // get output folder
+<span class="nc" id="L70">      List&lt;String&gt; folders = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L71">      folders.add(&quot;fhir&quot;);</span>
+<span class="nc" id="L72">      String baseDirectory = Config.get(&quot;exporter.baseDirectory&quot;);</span>
+<span class="nc" id="L73">      File f = Paths.get(baseDirectory, folders.toArray(new String[0])).toFile();</span>
+<span class="nc" id="L74">      f.mkdirs();</span>
+<span class="nc" id="L75">      Path outFilePath = f.toPath().resolve(&quot;practitionerInformation&quot; + stop + &quot;.json&quot;);</span>
+
+      try {
+<span class="nc" id="L78">        Files.write(outFilePath, Collections.singleton(bundleJson), StandardOpenOption.CREATE_NEW);</span>
+<span class="nc" id="L79">      } catch (IOException e) {</span>
+<span class="nc" id="L80">        e.printStackTrace();</span>
+<span class="nc" id="L81">      }</span>
+    }
+<span class="fc" id="L83">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

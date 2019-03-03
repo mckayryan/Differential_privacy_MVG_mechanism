@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.export.CSVExporterTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:19:50" hostname="ryan-B250M-HD3" time="1.622">
+  <properties/>
+  <testcase name="testCSVExport" classname="org.mitre.synthea.export.CSVExporterTest" time="1.622"/>
+  <system-out><![CDATA[Running with options:
+Population: 10
+Seed: 1551093590878
+Location: Massachusetts
+Min Age: 0
+Max Age: 140
+1 -- Cristal338 Littel644 (15 y/o F) Shrewsbury, Massachusetts 
+2 -- Rosalie939 Koelpin146 (57 y/o F) Worcester, Massachusetts 
+3 -- Colin861 Farrell962 (56 y/o M) Wakefield, Massachusetts DECEASED
+3 -- Dwight645 Gaylord332 (63 y/o M) Wakefield, Massachusetts 
+4 -- Connie24 Gulgowski816 (43 y/o M) Uxbridge, Massachusetts 
+5 -- Genna99 Krajcik437 (13 y/o F) Newton, Massachusetts 
+6 -- Adela471 Murazik203 (23 y/o F) Danvers, Massachusetts 
+7 -- Alvaro283 Turner526 (61 y/o M) Hingham, Massachusetts 
+8 -- Arminda86 Rosenbaum794 (1 y/o F) Yarmouth, Massachusetts 
+9 -- Porsha375 Trantow673 (67 y/o F) Winchester, Massachusetts 
+10 -- Reggie481 Mueller846 (69 y/o M) Bridgewater, Massachusetts 
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

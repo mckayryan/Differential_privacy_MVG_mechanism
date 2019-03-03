@@ -1,0 +1,826 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CardiovascularDiseaseModule.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.modules</a> &gt; <span class="el_source">CardiovascularDiseaseModule.java</span></div><h1>CardiovascularDiseaseModule.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.modules;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import org.mitre.synthea.engine.Module;
+import org.mitre.synthea.helpers.Utilities;
+import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.agents.Provider;
+import org.mitre.synthea.world.concepts.HealthRecord.Code;
+import org.mitre.synthea.world.concepts.HealthRecord.EncounterType;
+import org.mitre.synthea.world.concepts.HealthRecord.Entry;
+import org.mitre.synthea.world.concepts.HealthRecord.Medication;
+import org.mitre.synthea.world.concepts.HealthRecord.Procedure;
+import org.mitre.synthea.world.concepts.VitalSign;
+
+public final class CardiovascularDiseaseModule extends Module {
+<span class="fc" id="L25">  public CardiovascularDiseaseModule() {</span>
+<span class="fc" id="L26">    this.name = &quot;Cardiovascular Disease&quot;;</span>
+<span class="fc" id="L27">  }</span>
+
+  @Override
+  public boolean process(Person person, long time) {
+    // run through all of the rules defined
+    // ruby &quot;rules&quot; are converted to static functions here
+    // since this is intended to only be temporary
+    // until we can convert this module to GMF
+
+<span class="fc" id="L36">    calculateCardioRisk(person, time);</span>
+<span class="fc" id="L37">    onsetCoronaryHeartDisease(person, time);</span>
+<span class="fc" id="L38">    coronaryHeartDiseaseProgression(person, time);</span>
+<span class="fc" id="L39">    noCoronaryHeartDisease(person, time);</span>
+<span class="fc" id="L40">    calculateAtrialFibrillationRisk(person, time);</span>
+<span class="fc" id="L41">    getAtrialFibrillation(person, time);</span>
+<span class="fc" id="L42">    calculateStrokeRisk(person, time);</span>
+<span class="fc" id="L43">    getStroke(person, time);</span>
+<span class="fc" id="L44">    heartHealthyLifestyle(person, time);</span>
+<span class="fc" id="L45">    chdTreatment(person, time);</span>
+<span class="fc" id="L46">    atrialFibrillationTreatment(person, time);</span>
+
+    // java modules will never &quot;finish&quot;
+<span class="fc" id="L49">    return false;</span>
+  }
+
+  //////////////
+  // RESOURCES//
+  //////////////
+
+  // estimate cardiovascular risk of developing coronary heart disease (CHD)
+  // http://www.nhlbi.nih.gov/health-pro/guidelines/current/cholesterol-guidelines/quick-desk-reference-html/10-year-risk-framingham-table
+
+  // Indices in the array correspond to these age ranges: 20-24, 25-29, 30-34 35-39, 40-44, 45-49,
+  // 50-54, 55-59, 60-64, 65-69, 70-74, 75-79
+<span class="fc" id="L61">  private static final int[] age_chd_m = { -9, -9, -9, -4, 0, 3, 6, 8, 10, 11, 12, 13 };</span>
+<span class="fc" id="L62">  private static final int[] age_chd_f = { -7, -7, -7, -3, 0, 3, 6, 8, 10, 12, 14, 16 };</span>
+
+<span class="fc" id="L64">  private static final int[][] age_chol_chd_m = {</span>
+      // &lt;160, 160-199, 200-239, 240-279, &gt;280
+      { 0, 4, 7, 9, 11 }, // 20-29 years
+      { 0, 4, 7, 9, 11 }, // 30-39 years
+      { 0, 3, 5, 6, 8 }, // 40-49 years
+      { 0, 2, 3, 4, 5 }, // 50-59 years
+      { 0, 1, 1, 2, 3 }, // 60-69 years
+      { 0, 0, 0, 1, 1 } // 70-79 years
+  };
+
+<span class="fc" id="L74">  private static final int[][] age_chol_chd_f = {</span>
+      // &lt;160, 160-199, 200-239, 240-279, &gt;280
+      { 0, 4, 8, 11, 13 }, // 20-29 years
+      { 0, 4, 8, 11, 13 }, // 30-39 years
+      { 0, 3, 6, 8, 10 }, // 40-49 years
+      { 0, 2, 4, 5, 7 }, // 50-59 years
+      { 0, 1, 2, 3, 4 }, // 60-69 years
+      { 0, 1, 1, 2, 2 } // 70-79 years
+  };
+
+  // 20-29, 30-39, 40-49, 50-59, 60-69, 70-79 age ranges
+<span class="fc" id="L85">  private static final int[] age_smoke_chd_m = { 8, 8, 5, 3, 1, 1 };</span>
+<span class="fc" id="L86">  private static final int[] age_smoke_chd_f = { 9, 9, 7, 4, 2, 1 };</span>
+
+  // true/false refers to whether or not blood pressure is treated
+<span class="fc" id="L89">  private static final int[][] sys_bp_chd_m = {</span>
+      // true, false
+      { 0, 0 }, // &lt;120
+      { 1, 0 }, // 120-129
+      { 2, 1 }, // 130-139
+      { 2, 1 }, // 140-149
+      { 2, 1 }, // 150-159
+      { 3, 2 } // &gt;=160
+  };
+<span class="fc" id="L98">  private static final int[][] sys_bp_chd_f = {</span>
+      // true, false
+      { 0, 0 }, // &lt;120
+      { 3, 1 }, // 120-129
+      { 4, 2 }, // 130-139
+      { 5, 3 }, // 140-149
+      { 5, 3 }, // 150-159
+      { 6, 4 } // &gt;=160
+  };
+
+  private static final Map&lt;Integer, Double&gt; risk_chd_m;
+  private static final Map&lt;Integer, Double&gt; risk_chd_f;
+
+<span class="fc" id="L111">  private static final int[] hdl_lookup_chd = new int[] { 2, 1, 0, -1 }; // &lt;40, 40-49, 50-59, &gt;60</span>
+
+  // Framingham score system for calculating atrial fibrillation (significant factor for stroke
+  // risk)
+<span class="fc" id="L115">  private static final int[][] age_af = {</span>
+      // age ranges: 45-49, 50-54, 55-59, 60-64, 65-69, 70-74, 75-79, 80-84, &gt;84
+      { 1, 2, 3, 4, 5, 6, 7, 7, 8 }, // male
+      { -3, -2, 0, 1, 3, 4, 6, 7, 8 } // female
+  };
+
+  // only covers points 1-9. &lt;=0 and &gt;= 10 are in if statement
+<span class="fc" id="L122">  private static final double[] risk_af_table = { 0.01, // 0 or less</span>
+      0.02, 0.02, 0.03, 0.04, 0.06, 0.08, 0.12, 0.16, 0.22, 0.3 // 10 or greater
+  };
+
+  private static final Map&lt;String, Code&gt; LOOKUP;
+  private static final Map&lt;String, Integer&gt; MEDICATION_AVAILABLE;
+  private static final Map&lt;String, List&lt;String&gt;&gt; EMERGENCY_MEDS;
+  private static final Map&lt;String, List&lt;String&gt;&gt; EMERGENCY_PROCEDURES;
+  private static final Map&lt;String, List&lt;String&gt;&gt; HISTORY_CONDITIONS;
+
+  static {
+    // framingham point scores gives a 10-year risk
+<span class="fc" id="L134">    risk_chd_m = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L135">    risk_chd_m.put(-1, 0.005); // '-1' represents all scores &lt;0</span>
+<span class="fc" id="L136">    risk_chd_m.put(0, 0.01);</span>
+<span class="fc" id="L137">    risk_chd_m.put(1, 0.01);</span>
+<span class="fc" id="L138">    risk_chd_m.put(2, 0.01);</span>
+<span class="fc" id="L139">    risk_chd_m.put(3, 0.01);</span>
+<span class="fc" id="L140">    risk_chd_m.put(4, 0.01);</span>
+<span class="fc" id="L141">    risk_chd_m.put(5, 0.02);</span>
+<span class="fc" id="L142">    risk_chd_m.put(6, 0.02);</span>
+<span class="fc" id="L143">    risk_chd_m.put(7, 0.03);</span>
+<span class="fc" id="L144">    risk_chd_m.put(8, 0.04);</span>
+<span class="fc" id="L145">    risk_chd_m.put(9, 0.05);</span>
+<span class="fc" id="L146">    risk_chd_m.put(10, 0.06);</span>
+<span class="fc" id="L147">    risk_chd_m.put(11, 0.08);</span>
+<span class="fc" id="L148">    risk_chd_m.put(12, 0.1);</span>
+<span class="fc" id="L149">    risk_chd_m.put(13, 0.12);</span>
+<span class="fc" id="L150">    risk_chd_m.put(14, 0.16);</span>
+<span class="fc" id="L151">    risk_chd_m.put(15, 0.20);</span>
+<span class="fc" id="L152">    risk_chd_m.put(16, 0.25);</span>
+<span class="fc" id="L153">    risk_chd_m.put(17, 0.3); // '17' represents all scores &gt;16</span>
+
+<span class="fc" id="L155">    risk_chd_f = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L156">    risk_chd_f.put(8, 0.005); // '8' represents all scores &lt;9</span>
+<span class="fc" id="L157">    risk_chd_f.put(9, 0.01);</span>
+<span class="fc" id="L158">    risk_chd_f.put(10, 0.01);</span>
+<span class="fc" id="L159">    risk_chd_f.put(11, 0.01);</span>
+<span class="fc" id="L160">    risk_chd_f.put(12, 0.01);</span>
+<span class="fc" id="L161">    risk_chd_f.put(13, 0.02);</span>
+<span class="fc" id="L162">    risk_chd_f.put(14, 0.02);</span>
+<span class="fc" id="L163">    risk_chd_f.put(15, 0.03);</span>
+<span class="fc" id="L164">    risk_chd_f.put(16, 0.04);</span>
+<span class="fc" id="L165">    risk_chd_f.put(17, 0.05);</span>
+<span class="fc" id="L166">    risk_chd_f.put(18, 0.06);</span>
+<span class="fc" id="L167">    risk_chd_f.put(19, 0.08);</span>
+<span class="fc" id="L168">    risk_chd_f.put(20, 0.11);</span>
+<span class="fc" id="L169">    risk_chd_f.put(21, 0.14);</span>
+<span class="fc" id="L170">    risk_chd_f.put(22, 0.17);</span>
+<span class="fc" id="L171">    risk_chd_f.put(23, 0.22);</span>
+<span class="fc" id="L172">    risk_chd_f.put(24, 0.27);</span>
+<span class="fc" id="L173">    risk_chd_f.put(25, 0.3); // '25' represents all scores &gt;24</span>
+
+<span class="fc" id="L175">    MEDICATION_AVAILABLE = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L176">    MEDICATION_AVAILABLE.put(&quot;clopidogrel&quot;, 1997);</span>
+<span class="fc" id="L177">    MEDICATION_AVAILABLE.put(&quot;simvastatin&quot;, 1991);</span>
+<span class="fc" id="L178">    MEDICATION_AVAILABLE.put(&quot;amlodipine&quot;, 1994);</span>
+<span class="fc" id="L179">    MEDICATION_AVAILABLE.put(&quot;nitroglycerin&quot;, 1878);</span>
+<span class="fc" id="L180">    MEDICATION_AVAILABLE.put(&quot;warfarin&quot;, 1954);</span>
+<span class="fc" id="L181">    MEDICATION_AVAILABLE.put(&quot;verapamil&quot;, 1981);</span>
+<span class="fc" id="L182">    MEDICATION_AVAILABLE.put(&quot;digoxin&quot;, 1954);</span>
+<span class="fc" id="L183">    MEDICATION_AVAILABLE.put(&quot;atorvastatin&quot;, 1996);</span>
+<span class="fc" id="L184">    MEDICATION_AVAILABLE.put(&quot;captopril&quot;, 1981);</span>
+<span class="fc" id="L185">    MEDICATION_AVAILABLE.put(&quot;alteplase&quot;, 1987);</span>
+<span class="fc" id="L186">    MEDICATION_AVAILABLE.put(&quot;epinephrine&quot;, 1906);</span>
+<span class="fc" id="L187">    MEDICATION_AVAILABLE.put(&quot;amiodarone&quot;, 1962);</span>
+<span class="fc" id="L188">    MEDICATION_AVAILABLE.put(&quot;atropine&quot;, 1903);</span>
+
+<span class="fc" id="L190">    LOOKUP = new HashMap&lt;&gt;();</span>
+    // conditions
+<span class="fc" id="L192">    LOOKUP.put(&quot;stroke&quot;, new Code(&quot;SNOMED-CT&quot;, &quot;230690007&quot;, &quot;Stroke&quot;));</span>
+<span class="fc" id="L193">    LOOKUP.put(&quot;natural_causes&quot;,</span>
+        new Code(&quot;SNOMED-CT&quot;, &quot;9855000&quot;, &quot;Natural death with unknown cause&quot;));
+<span class="fc" id="L195">    LOOKUP.put(&quot;coronary_heart_disease&quot;,</span>
+        new Code(&quot;SNOMED-CT&quot;, &quot;53741008&quot;, &quot;Coronary Heart Disease&quot;));
+<span class="fc" id="L197">    LOOKUP.put(&quot;myocardial_infarction&quot;, new Code(&quot;SNOMED-CT&quot;, &quot;22298006&quot;, &quot;Myocardial Infarction&quot;));</span>
+<span class="fc" id="L198">    LOOKUP.put(&quot;cardiac_arrest&quot;, new Code(&quot;SNOMED-CT&quot;, &quot;410429000&quot;, &quot;Cardiac Arrest&quot;));</span>
+<span class="fc" id="L199">    LOOKUP.put(&quot;atrial_fibrillation&quot;, new Code(&quot;SNOMED-CT&quot;, &quot;49436004&quot;, &quot;Atrial Fibrillation&quot;));</span>
+<span class="fc" id="L200">    LOOKUP.put(&quot;cardiovascular_disease&quot;,</span>
+        new Code(&quot;SNOMED-CT&quot;, &quot;49601007&quot;, &quot;Disorder of cardiovascular system&quot;));
+<span class="fc" id="L202">    LOOKUP.put(&quot;history_of_myocardial_infarction&quot;,</span>
+        new Code(&quot;SNOMED-CT&quot;, &quot;399211009&quot;, &quot;History of myocardial infarction (situation)&quot;));
+<span class="fc" id="L204">    LOOKUP.put(&quot;history_of_cardiac_arrest&quot;,</span>
+        new Code(&quot;SNOMED-CT&quot;, &quot;429007001&quot;, &quot;History of cardiac arrest (situation)&quot;));
+
+    // procedures
+<span class="fc" id="L208">    LOOKUP.put(&quot;defibrillation&quot;, new Code(&quot;SNOMED-CT&quot;, &quot;429500007&quot;, &quot;Monophasic defibrillation&quot;));</span>
+<span class="fc" id="L209">    LOOKUP.put(&quot;implant_cardioverter_defib&quot;, new Code(&quot;SNOMED-CT&quot;, &quot;447365002&quot;,</span>
+        &quot;Insertion of biventricular implantable cardioverter defibrillator&quot;));
+<span class="fc" id="L211">    LOOKUP.put(&quot;catheter_ablation&quot;,</span>
+        new Code(&quot;SNOMED-CT&quot;, &quot;18286008&quot;, &quot;Catheter ablation of tissue of heart&quot;));
+<span class="fc" id="L213">    LOOKUP.put(&quot;percutaneous_coronary_intervention&quot;,</span>
+        new Code(&quot;SNOMED-CT&quot;, &quot;415070008&quot;, &quot;Percutaneous coronary intervention&quot;));
+<span class="fc" id="L215">    LOOKUP.put(&quot;coronary_artery_bypass_grafting&quot;,</span>
+        new Code(&quot;SNOMED-CT&quot;, &quot;232717009&quot;, &quot;Coronary artery bypass grafting&quot;));
+<span class="fc" id="L217">    LOOKUP.put(&quot;mechanical_thrombectomy&quot;, new Code(&quot;SNOMED-CT&quot;, &quot;433112001&quot;,</span>
+        &quot;Percutaneous mechanical thrombectomy of portal vein using fluoroscopic guidance&quot;));
+<span class="fc" id="L219">    LOOKUP.put(&quot;electrical_cardioversion&quot;,</span>
+        new Code(&quot;SNOMED-CT&quot;, &quot;180325003&quot;, &quot;Electrical cardioversion&quot;));
+
+    // medications
+<span class="fc" id="L223">    LOOKUP.put(&quot;clopidogrel&quot;, new Code(&quot;RxNorm&quot;, &quot;309362&quot;, &quot;Clopidogrel 75 MG Oral Tablet&quot;));</span>
+<span class="fc" id="L224">    LOOKUP.put(&quot;simvastatin&quot;, new Code(&quot;RxNorm&quot;, &quot;312961&quot;, &quot;Simvastatin 20 MG Oral Tablet&quot;));</span>
+<span class="fc" id="L225">    LOOKUP.put(&quot;amlodipine&quot;, new Code(&quot;RxNorm&quot;, &quot;197361&quot;, &quot;Amlodipine 5 MG Oral Tablet&quot;));</span>
+<span class="fc" id="L226">    LOOKUP.put(&quot;nitroglycerin&quot;,</span>
+        new Code(&quot;RxNorm&quot;, &quot;705129&quot;, &quot;Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray&quot;));
+<span class="fc" id="L228">    LOOKUP.put(&quot;atorvastatin&quot;, new Code(&quot;RxNorm&quot;, &quot;259255&quot;, &quot;Atorvastatin 80 MG Oral Tablet&quot;));</span>
+<span class="fc" id="L229">    LOOKUP.put(&quot;captopril&quot;, new Code(&quot;RxNorm&quot;, &quot;833036&quot;, &quot;Captopril 25 MG Oral Tablet&quot;));</span>
+<span class="fc" id="L230">    LOOKUP.put(&quot;warfarin&quot;, new Code(&quot;RxNorm&quot;, &quot;855332&quot;, &quot;Warfarin Sodium 5 MG Oral Tablet&quot;));</span>
+<span class="fc" id="L231">    LOOKUP.put(&quot;verapamil&quot;, new Code(&quot;RxNorm&quot;, &quot;897718&quot;, &quot;Verapamil Hydrochloride 40 MG&quot;));</span>
+<span class="fc" id="L232">    LOOKUP.put(&quot;digoxin&quot;, new Code(&quot;RxNorm&quot;, &quot;197604&quot;, &quot;Digoxin 0.125 MG Oral Tablet&quot;));</span>
+<span class="fc" id="L233">    LOOKUP.put(&quot;epinephrine&quot;,</span>
+        new Code(&quot;RxNorm&quot;, &quot;1660014&quot;, &quot;1 ML Epinephrine 1 MG/ML Injection&quot;));
+<span class="fc" id="L235">    LOOKUP.put(&quot;amiodarone&quot;,</span>
+        new Code(&quot;RxNorm&quot;, &quot;834357&quot;, &quot;3 ML Amiodarone hydrocholoride 50 MG/ML Prefilled Syringe&quot;));
+<span class="fc" id="L237">    LOOKUP.put(&quot;atropine&quot;,</span>
+        new Code(&quot;RxNorm&quot;, &quot;1190795&quot;, &quot;Atropine Sulfate 1 MG/ML Injectable Solution&quot;));
+<span class="fc" id="L239">    LOOKUP.put(&quot;alteplase&quot;, new Code(&quot;RxNorm&quot;, &quot;1804799&quot;, &quot;Alteplase 100 MG Injection&quot;));</span>
+
+    // reasons
+<span class="fc" id="L242">    LOOKUP.put(&quot;stop_drug&quot;,</span>
+        new Code(&quot;SNOMED-CT&quot;, &quot;182846007&quot;, &quot;Dr stopped drug - medical aim achieved&quot;));
+<span class="fc" id="L244">    LOOKUP.put(&quot;cardiovascular_improved&quot;, new Code(&quot;SNOMED-CT&quot;, &quot;413757005&quot;,</span>
+        &quot;Cardiac status is consistent with or improved from preoperative baseline&quot;));
+
+<span class="fc" id="L247">    EMERGENCY_MEDS = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L248">    EMERGENCY_MEDS.put(&quot;myocardial_infarction&quot;,</span>
+<span class="fc" id="L249">        Arrays.asList(&quot;nitroglycerin&quot;, &quot;atorvastatin&quot;, &quot;captopril&quot;, &quot;clopidogrel&quot;));</span>
+<span class="fc" id="L250">    EMERGENCY_MEDS.put(&quot;stroke&quot;, Arrays.asList(&quot;clopidogrel&quot;, &quot;alteplase&quot;));</span>
+<span class="fc" id="L251">    EMERGENCY_MEDS.put(&quot;cardiac_arrest&quot;, Arrays.asList(&quot;epinephrine&quot;, &quot;amiodarone&quot;, &quot;atropine&quot;));</span>
+
+<span class="fc" id="L253">    EMERGENCY_PROCEDURES = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L254">    EMERGENCY_PROCEDURES.put(&quot;myocardial_infarction&quot;,</span>
+<span class="fc" id="L255">        Arrays.asList(&quot;percutaneous_coronary_intervention&quot;, &quot;coronary_artery_bypass_grafting&quot;));</span>
+<span class="fc" id="L256">    EMERGENCY_PROCEDURES.put(&quot;stroke&quot;, Arrays.asList(&quot;mechanical_thrombectomy&quot;));</span>
+<span class="fc" id="L257">    EMERGENCY_PROCEDURES.put(&quot;cardiac_arrest&quot;,</span>
+<span class="fc" id="L258">        Arrays.asList(&quot;implant_cardioverter_defib&quot;, &quot;catheter_ablation&quot;));</span>
+
+<span class="fc" id="L260">    HISTORY_CONDITIONS = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L261">    HISTORY_CONDITIONS.put(&quot;myocardial_infarction&quot;,</span>
+<span class="fc" id="L262">        Arrays.asList(&quot;history_of_myocardial_infarction&quot;));</span>
+<span class="fc" id="L263">    HISTORY_CONDITIONS.put(&quot;stroke&quot;, Arrays.asList());</span>
+<span class="fc" id="L264">    HISTORY_CONDITIONS.put(&quot;cardiac_arrest&quot;, Arrays.asList(&quot;history_of_cardiac_arrest&quot;));</span>
+  }
+
+  private static List&lt;String&gt; filter_meds_by_year(List&lt;String&gt; meds, long time) {
+<span class="fc" id="L268">    int year = Utilities.getYear(time);</span>
+<span class="fc bfc" id="L269" title="All 2 branches covered.">    return meds.stream().filter(med -&gt; year &gt;= MEDICATION_AVAILABLE.get(med))</span>
+<span class="fc" id="L270">        .collect(Collectors.toList());</span>
+  }
+
+  ////////////////////
+  // MIGRATED RULES //
+  ////////////////////
+  private static int bound(int value, int min, int max) {
+<span class="fc" id="L277">    return Math.min(Math.max(value, min), max);</span>
+  }
+
+  private static void calculateCardioRisk(Person person, long time) {
+<span class="fc" id="L281">    int age = person.ageInYears(time);</span>
+<span class="fc" id="L282">    String gender = (String) person.attributes.get(Person.GENDER);</span>
+<span class="fc" id="L283">    Double sysBP = person.getVitalSign(VitalSign.SYSTOLIC_BLOOD_PRESSURE, time);</span>
+<span class="fc" id="L284">    Double chol = person.getVitalSign(VitalSign.TOTAL_CHOLESTEROL, time);</span>
+<span class="pc bpc" id="L285" title="2 of 4 branches missed.">    if (sysBP == null || chol == null) {</span>
+<span class="nc" id="L286">      return;</span>
+    }
+
+<span class="fc" id="L289">    Boolean bpTreated = (Boolean) person.attributes.getOrDefault(&quot;bp_treated?&quot;, false);</span>
+
+<span class="fc" id="L291">    Double hdl = person.getVitalSign(VitalSign.HDL, time);</span>
+
+    // calculate which index in a lookup array a number corresponds to based on ranges in scoring
+<span class="fc" id="L294">    int shortAgeRange = bound((age - 20) / 5, 0, 11);</span>
+<span class="fc" id="L295">    int longAgeRange = bound((age - 20) / 10, 0, 5);</span>
+
+    // 0: &lt;160, 1: 160-199, 2: 200-239, 3: 240-279, 4: &gt;280
+<span class="fc" id="L298">    int cholRange = bound((chol.intValue() - 160) / 40 + 1, 0, 4);</span>
+
+    // 0: &lt;120, 1: 120-129, 2: 130-139, 3: 140-149, 4: 150-159, 5: &gt;=160
+<span class="fc" id="L301">    int bpRange = bound((sysBP.intValue() - 120) / 10 + 1, 0, 5);</span>
+<span class="fc" id="L302">    int framinghamPoints = 0;</span>
+
+    int[] ageChd;
+    int[][] ageCholChd;
+    int[] ageSmokeChd;
+    int[][] sysBpChd;
+
+<span class="fc bfc" id="L309" title="All 2 branches covered.">    if (gender.equals(&quot;M&quot;)) {</span>
+<span class="fc" id="L310">      ageChd = age_chd_m;</span>
+<span class="fc" id="L311">      ageCholChd = age_chol_chd_m;</span>
+<span class="fc" id="L312">      ageSmokeChd = age_smoke_chd_m;</span>
+<span class="fc" id="L313">      sysBpChd = sys_bp_chd_m;</span>
+    } else {
+<span class="fc" id="L315">      ageChd = age_chd_f;</span>
+<span class="fc" id="L316">      ageCholChd = age_chol_chd_f;</span>
+<span class="fc" id="L317">      ageSmokeChd = age_smoke_chd_f;</span>
+<span class="fc" id="L318">      sysBpChd = sys_bp_chd_f;</span>
+    }
+
+<span class="fc" id="L321">    framinghamPoints += ageChd[shortAgeRange];</span>
+<span class="fc" id="L322">    framinghamPoints += ageCholChd[longAgeRange][cholRange];</span>
+
+<span class="fc bfc" id="L324" title="All 2 branches covered.">    if ((Boolean) person.attributes.getOrDefault(Person.SMOKER, false)) {</span>
+<span class="fc" id="L325">      framinghamPoints += ageSmokeChd[longAgeRange];</span>
+    }
+
+    // 0: &lt;40, 1: 40-49, 2: 50-59, 3: &gt;60
+<span class="fc" id="L329">    int hdlRange = bound((hdl.intValue() - 40) / 10 + 1, 0, 3);</span>
+<span class="fc" id="L330">    framinghamPoints += hdl_lookup_chd[hdlRange];</span>
+
+<span class="pc bpc" id="L332" title="1 of 2 branches missed.">    int treated = bpTreated ? 0 : 1;</span>
+<span class="fc" id="L333">    framinghamPoints += sysBpChd[bpRange][treated];</span>
+    double risk;
+    // restrict lower and upper bound of framingham score
+<span class="fc bfc" id="L336" title="All 2 branches covered.">    if (gender.equals(&quot;M&quot;)) {</span>
+<span class="fc" id="L337">      framinghamPoints = bound(framinghamPoints, 0, 17);</span>
+<span class="fc" id="L338">      risk = risk_chd_m.get(framinghamPoints);</span>
+    } else {
+<span class="fc" id="L340">      framinghamPoints = bound(framinghamPoints, 8, 25);</span>
+<span class="fc" id="L341">      risk = risk_chd_f.get(framinghamPoints);</span>
+    }
+
+<span class="fc" id="L344">    person.attributes.put(&quot;cardio_risk&quot;,</span>
+<span class="fc" id="L345">        Utilities.convertRiskToTimestep(risk, TimeUnit.DAYS.toMillis(3650)));</span>
+<span class="fc" id="L346">  }</span>
+
+  private static void onsetCoronaryHeartDisease(Person person, long time) {
+<span class="fc bfc" id="L349" title="All 2 branches covered.">    if (person.attributes.containsKey(&quot;coronary_heart_disease&quot;)) {</span>
+<span class="fc" id="L350">      return;</span>
+    }
+
+<span class="fc" id="L353">    double cardioRisk = (double) person.attributes.getOrDefault(&quot;cardio_risk&quot;, -1.0);</span>
+<span class="fc bfc" id="L354" title="All 2 branches covered.">    if (person.rand() &lt; cardioRisk) {</span>
+<span class="fc" id="L355">      person.attributes.put(&quot;coronary_heart_disease&quot;, true);</span>
+<span class="fc" id="L356">      person.events.create(time, &quot;coronary_heart_disease&quot;, &quot;onsetCoronaryHeartDisease&quot;, true);</span>
+    }
+<span class="fc" id="L358">  }</span>
+
+  private static void coronaryHeartDiseaseProgression(Person person, long time) {
+    // numbers are from appendix:
+    // http://www.ncbi.nlm.nih.gov/pmc/articles/PMC1647098/pdf/amjph00262-0029.pdf
+<span class="fc" id="L363">    boolean coronaryHeartDisease = (Boolean) person.attributes</span>
+<span class="fc" id="L364">        .getOrDefault(&quot;coronary_heart_disease&quot;, false);</span>
+
+<span class="fc bfc" id="L366" title="All 2 branches covered.">    if (!coronaryHeartDisease) {</span>
+<span class="fc" id="L367">      return;</span>
+    }
+
+<span class="fc" id="L370">    String gender = (String) person.attributes.get(Person.GENDER);</span>
+
+    double annualRisk;
+    // http://www.ncbi.nlm.nih.gov/pmc/articles/PMC1647098/pdf/amjph00262-0029.pdf
+    // annual probability of coronary attack given history of angina
+<span class="fc bfc" id="L375" title="All 2 branches covered.">    if (gender.equals(&quot;M&quot;)) {</span>
+<span class="fc" id="L376">      annualRisk = 0.042;</span>
+    } else {
+<span class="fc" id="L378">      annualRisk = 0.015;</span>
+    }
+
+<span class="fc" id="L381">    double cardiacEventChance = Utilities.convertRiskToTimestep(annualRisk,</span>
+<span class="fc" id="L382">        TimeUnit.DAYS.toMillis(365));</span>
+
+<span class="fc bfc" id="L384" title="All 2 branches covered.">    if (person.rand() &lt; cardiacEventChance) {</span>
+      String cardiacEvent;
+
+      // Proportion of coronary attacks that are MI ,given history of CHD
+<span class="fc bfc" id="L388" title="All 2 branches covered.">      if (person.rand() &lt; 0.8) {</span>
+<span class="fc" id="L389">        cardiacEvent = &quot;myocardial_infarction&quot;;</span>
+      } else {
+<span class="fc" id="L391">        cardiacEvent = &quot;cardiac_arrest&quot;;</span>
+      }
+
+<span class="fc" id="L394">      person.events.create(time, cardiacEvent, &quot;coronaryHeartDiseaseProgression&quot;, false);</span>
+      // creates unprocessed emergency encounter. Will be processed at next time step.
+<span class="fc" id="L396">      person.events.create(time, &quot;emergency_encounter&quot;, &quot;coronaryHeartDiseaseProgression&quot;, false);</span>
+
+<span class="fc" id="L398">      EncounterModule.emergencyVisit(person, time);</span>
+
+<span class="fc" id="L400">      double survivalRate = 0.095; // http://cpr.heart.org/AHAECC/CPRAndECC/General/UCM_477263_Cardiac-Arrest-Statistics.jsp</span>
+      // survival rate triples if a bystander is present
+      // http://cpr.heart.org/AHAECC/CPRAndECC/AboutCPRFirstAid/CPRFactsAndStats/UCM_475748_CPR-Facts-and-Stats.jsp
+<span class="fc bfc" id="L403" title="All 2 branches covered.">      if (person.rand() &lt; 0.46) {</span>
+<span class="fc" id="L404">        survivalRate *= 3.0;</span>
+      }
+
+<span class="fc bfc" id="L407" title="All 2 branches covered.">      if (person.rand() &gt; survivalRate) {</span>
+<span class="fc" id="L408">        person.recordDeath(time, LOOKUP.get(cardiacEvent), &quot;coronaryHeartDiseaseProgression&quot;);</span>
+      }
+    }
+<span class="fc" id="L411">  }</span>
+
+  private static void noCoronaryHeartDisease(Person person, long time) {
+    // chance of getting a sudden cardiac arrest without heart disease. (Most probable cardiac event
+    // w/o cause or history)
+<span class="fc bfc" id="L416" title="All 2 branches covered.">    if (person.attributes.containsKey(&quot;coronary_heart_disease&quot;)) {</span>
+<span class="fc" id="L417">      return;</span>
+    }
+
+<span class="fc" id="L420">    double annualRisk = 0.00076;</span>
+<span class="fc" id="L421">    double cardiacEventChance = Utilities.convertRiskToTimestep(annualRisk,</span>
+<span class="fc" id="L422">        TimeUnit.DAYS.toMillis(365));</span>
+<span class="fc bfc" id="L423" title="All 2 branches covered.">    if (person.rand() &lt; cardiacEventChance) {</span>
+<span class="fc" id="L424">      person.events.create(time, &quot;cardiac_arrest&quot;, &quot;noCoronaryHeartDisease&quot;, false);</span>
+<span class="fc" id="L425">      person.events.create(time, &quot;emergency_encounter&quot;, &quot;noCoronaryHeartDisease&quot;, false);</span>
+<span class="fc" id="L426">      EncounterModule.emergencyVisit(person, time);</span>
+<span class="fc" id="L427">      double survivalRate = 1 - (0.00069);</span>
+<span class="fc bfc" id="L428" title="All 2 branches covered.">      if (person.rand() &lt; 0.46) {</span>
+<span class="fc" id="L429">        survivalRate *= 3.0;</span>
+      }
+<span class="fc" id="L431">      double annualDeathRisk = 1 - survivalRate;</span>
+<span class="pc bpc" id="L432" title="1 of 2 branches missed.">      if (person.rand() &lt; Utilities.convertRiskToTimestep(annualDeathRisk,</span>
+<span class="fc" id="L433">          TimeUnit.DAYS.toMillis(365))) {</span>
+<span class="nc" id="L434">        person.recordDeath(time, LOOKUP.get(&quot;cardiac_arrest&quot;), &quot;noCoronaryHeartDisease&quot;);</span>
+      }
+    }
+<span class="fc" id="L437">  }</span>
+
+  private static void calculateAtrialFibrillationRisk(Person person, long time) {
+<span class="fc" id="L440">    int age = person.ageInYears(time);</span>
+<span class="fc bfc" id="L441" title="All 4 branches covered.">    if (age &lt; 45 || person.attributes.containsKey(&quot;atrial_fibrillation&quot;)</span>
+<span class="pc bpc" id="L442" title="1 of 2 branches missed.">        || person.getVitalSign(VitalSign.SYSTOLIC_BLOOD_PRESSURE, time) == null</span>
+<span class="pc bpc" id="L443" title="1 of 2 branches missed.">        || person.getVitalSign(VitalSign.BMI, time) == null) {</span>
+<span class="fc" id="L444">      return;</span>
+    }
+
+<span class="fc" id="L447">    int afScore = 0;</span>
+<span class="fc" id="L448">    int ageRange = Math.min((age - 45) / 5, 8);</span>
+<span class="fc bfc" id="L449" title="All 2 branches covered.">    int genderIndex = (person.attributes.get(Person.GENDER).equals(&quot;M&quot;)) ? 0 : 1;</span>
+<span class="fc" id="L450">    afScore += age_af[genderIndex][ageRange];</span>
+<span class="fc bfc" id="L451" title="All 2 branches covered.">    if (person.getVitalSign(VitalSign.BMI, time) &gt;= 30) {</span>
+<span class="fc" id="L452">      afScore += 1;</span>
+    }
+
+<span class="fc bfc" id="L455" title="All 2 branches covered.">    if (person.getVitalSign(VitalSign.SYSTOLIC_BLOOD_PRESSURE, time) &gt;= 160) {</span>
+<span class="fc" id="L456">      afScore += 1;</span>
+    }
+
+<span class="pc bpc" id="L459" title="1 of 2 branches missed.">    if ((Boolean) person.attributes.getOrDefault(&quot;bp_treated?&quot;, false)) {</span>
+<span class="nc" id="L460">      afScore += 1;</span>
+    }
+
+<span class="fc" id="L463">    afScore = bound(afScore, 0, 10);</span>
+
+<span class="fc" id="L465">    double afRisk = risk_af_table[afScore]; // 10-yr risk</span>
+<span class="fc" id="L466">    person.attributes.put(&quot;atrial_fibrillation_risk&quot;,</span>
+<span class="fc" id="L467">        Utilities.convertRiskToTimestep(afRisk, TimeUnit.DAYS.toMillis(3650)));</span>
+<span class="fc" id="L468">  }</span>
+
+  private static void getAtrialFibrillation(Person person, long time) {
+<span class="fc bfc" id="L471" title="All 2 branches covered.">    if (!person.attributes.containsKey(&quot;atrial_fibrillation&quot;)</span>
+<span class="fc bfc" id="L472" title="All 2 branches covered.">        &amp;&amp; person.attributes.containsKey(&quot;atrial_fibrillation_risk&quot;)</span>
+<span class="fc bfc" id="L473" title="All 2 branches covered.">        &amp;&amp; person.rand() &lt; (Double) person.attributes.get(&quot;atrial_fibrillation_risk&quot;)) {</span>
+<span class="fc" id="L474">      person.events.create(time, &quot;atrial_fibrillation&quot;, &quot;getAtrialFibrillation&quot;, false);</span>
+<span class="fc" id="L475">      person.attributes.put(&quot;atrial_fibrillation&quot;, true);</span>
+    }
+<span class="fc" id="L477">  }</span>
+
+  // https://www.heart.org/idc/groups/heart-public/@wcm/@sop/@smd/documents/downloadable/ucm_449858.pdf
+  // Prevalence of stroke by age and sex (Male, Female)
+<span class="fc" id="L481">  private static final double[] stroke_rate_20_39 = { 0.002, 0.007 };</span>
+<span class="fc" id="L482">  private static final double[] stroke_rate_40_59 = { 0.019, 0.022 };</span>
+
+<span class="fc" id="L484">  private static final double[][] ten_year_stroke_risk = {</span>
+      { 0, 0.03, 0.03, 0.04, 0.04, 0.05, 0.05, 0.06, 0.07, 0.08, 0.1, // male section
+          0.11, 0.13, 0.15, 0.17, 0.2, 0.22, 0.26, 0.29, 0.33, 0.37, 0.42, 0.47, 0.52, 0.57, 0.63,
+          0.68, 0.74, 0.79, 0.84, 0.88 },
+      { 0, 0.01, 0.01, 0.02, 0.02, 0.02, 0.03, 0.04, 0.04, 0.05, 0.06, // female
+          0.08, 0.09, 0.11, 0.13, 0.16, 0.19, 0.23, 0.27, 0.32, 0.37, 0.43, 0.5, 0.57, 0.64, 0.71,
+          0.78, 0.84 } };
+
+  // the index for each range corresponds to the number of points
+<span class="fc" id="L493">  private static final int[][] age_stroke = { </span>
+      { 54, 57, 60, 63, 66, 69, 73, 76, 79, 82, 85 }, // male
+      { 54, 57, 60, 63, 65, 68, 71, 74, 77, 79, 82 } // female
+  };
+
+<span class="fc" id="L498">  private static final int[][] untreated_sys_bp_stroke = {</span>
+      { 0, 106, 116, 126, 136, 146, 156, 166, 176, 185, 196 }, // male
+      { 0, 95, 107, 119, 131, 144, 156, 168, 181, 193, 205 } // female
+  };
+
+<span class="fc" id="L503">  private static final int[][] treated_sys_bp_stroke = {</span>
+      { 0, 106, 113, 118, 124, 130, 136, 143, 151, 162, 177 }, // male
+      { 0, 95, 107, 114, 120, 126, 132, 140, 149, 161, 205 } // female
+  };
+
+  private static final int getIndexForValueInRangelist(int value, int[] data) {
+<span class="fc bfc" id="L509" title="All 2 branches covered.">    for (int i = 0; i &lt; data.length - 1; i++) {</span>
+<span class="pc bpc" id="L510" title="1 of 4 branches missed.">      if (data[i] &lt;= value &amp;&amp; value &lt;= data[i + 1]) {</span>
+<span class="fc" id="L511">        return i;</span>
+      }
+    }
+    // the last segment is open-ended
+<span class="pc bpc" id="L515" title="1 of 2 branches missed.">    if (value &gt;= data[data.length - 1]) {</span>
+<span class="fc" id="L516">      return data.length - 1;</span>
+    }
+
+    // shouldn't be possible to get here if we do everything right
+<span class="nc" id="L520">    throw new RuntimeException(&quot;unexpected value &quot; + value + &quot; for data &quot; + Arrays.toString(data));</span>
+  }
+
+<span class="fc" id="L523">  private static final double[] diabetes_stroke = { 2, 3 };</span>
+<span class="fc" id="L524">  private static final double[] chd_stroke_points = { 4, 2 };</span>
+<span class="fc" id="L525">  private static final double[] atrial_fibrillation_stroke_points = { 4, 6 };</span>
+
+  private static void calculateStrokeRisk(Person person, long time) {
+<span class="fc" id="L528">    Double bloodPressure = person.getVitalSign(VitalSign.SYSTOLIC_BLOOD_PRESSURE, time);</span>
+<span class="pc bpc" id="L529" title="1 of 2 branches missed.">    if (bloodPressure == null) {</span>
+<span class="nc" id="L530">      return;</span>
+    }
+
+    // https://www.heart.org/idc/groups/heart-public/@wcm/@sop/@smd/documents/downloadable/ucm_449858.pdf
+    // calculate stroke risk based off of prevalence of stroke in age group for people younger than
+    // 54. Framingham score system does not cover these.
+
+<span class="fc bfc" id="L537" title="All 2 branches covered.">    int genderIndex = ((String) person.attributes.get(Person.GENDER)).equals(&quot;M&quot;) ? 0 : 1;</span>
+
+<span class="fc" id="L539">    int age = person.ageInYears(time);</span>
+
+<span class="fc bfc" id="L541" title="All 2 branches covered.">    if (age &lt; 20) {</span>
+      // no risk set
+<span class="fc" id="L543">      return;</span>
+<span class="fc bfc" id="L544" title="All 2 branches covered.">    } else if (age &lt; 40) {</span>
+<span class="fc" id="L545">      double rate = stroke_rate_20_39[genderIndex];</span>
+<span class="fc" id="L546">      person.attributes.put(&quot;stroke_risk&quot;,</span>
+<span class="fc" id="L547">          Utilities.convertRiskToTimestep(rate, TimeUnit.DAYS.toMillis(3650)));</span>
+<span class="fc" id="L548">      return;</span>
+<span class="fc bfc" id="L549" title="All 2 branches covered.">    } else if (age &lt; 55) {</span>
+<span class="fc" id="L550">      double rate = stroke_rate_40_59[genderIndex];</span>
+<span class="fc" id="L551">      person.attributes.put(&quot;stroke_risk&quot;,</span>
+<span class="fc" id="L552">          Utilities.convertRiskToTimestep(rate, TimeUnit.DAYS.toMillis(3650)));</span>
+<span class="fc" id="L553">      return;</span>
+    }
+
+<span class="fc" id="L556">    int strokePoints = 0;</span>
+<span class="pc bpc" id="L557" title="1 of 2 branches missed.">    if ((Boolean) person.attributes.getOrDefault(Person.SMOKER, false)) {</span>
+<span class="nc" id="L558">      strokePoints += 3;</span>
+    }
+<span class="pc bpc" id="L560" title="1 of 2 branches missed.">    if ((Boolean) person.attributes.getOrDefault(&quot;left_ventricular_hypertrophy&quot;, false)) {</span>
+<span class="nc" id="L561">      strokePoints += 5;</span>
+    }
+
+<span class="fc" id="L564">    strokePoints += getIndexForValueInRangelist(age, age_stroke[genderIndex]);</span>
+
+<span class="fc" id="L566">    int bp = bloodPressure.intValue();</span>
+    // TODO treating blood pressure currently is not a feature. Modify this for when it is.
+<span class="pc bpc" id="L568" title="1 of 2 branches missed.">    if ((Boolean) person.attributes.getOrDefault(&quot;bp_treated?&quot;, false)) {</span>
+<span class="nc" id="L569">      strokePoints += getIndexForValueInRangelist(bp, treated_sys_bp_stroke[genderIndex]);</span>
+    } else {
+<span class="fc" id="L571">      strokePoints += getIndexForValueInRangelist(bp, untreated_sys_bp_stroke[genderIndex]);</span>
+    }
+
+<span class="fc bfc" id="L574" title="All 2 branches covered.">    if ((Boolean) person.attributes.getOrDefault(&quot;diabetes&quot;, false)) {</span>
+<span class="fc" id="L575">      strokePoints += diabetes_stroke[genderIndex];</span>
+    }
+
+<span class="fc bfc" id="L578" title="All 2 branches covered.">    if ((Boolean) person.attributes.getOrDefault(&quot;coronary_heart_disease&quot;, false)) {</span>
+<span class="fc" id="L579">      strokePoints += chd_stroke_points[genderIndex];</span>
+    }
+
+<span class="fc bfc" id="L582" title="All 2 branches covered.">    if ((Boolean) person.attributes.getOrDefault(&quot;atrial_fibrillation&quot;, false)) {</span>
+<span class="fc" id="L583">      strokePoints += atrial_fibrillation_stroke_points[genderIndex];</span>
+    }
+
+    double tenStrokeRisk;
+
+<span class="pc bpc" id="L588" title="1 of 2 branches missed.">    if (strokePoints &gt;= ten_year_stroke_risk[genderIndex].length) {</span>
+      // off the charts
+<span class="nc" id="L590">      int worstCase = ten_year_stroke_risk[genderIndex].length - 1;</span>
+<span class="nc" id="L591">      tenStrokeRisk = ten_year_stroke_risk[genderIndex][worstCase];</span>
+<span class="nc" id="L592">    } else {</span>
+<span class="fc" id="L593">      tenStrokeRisk = ten_year_stroke_risk[genderIndex][strokePoints];</span>
+    }
+
+    // divide 10 year risk by 365 * 10 to get daily risk.
+<span class="fc" id="L597">    person.attributes.put(&quot;stroke_risk&quot;,</span>
+<span class="fc" id="L598">        Utilities.convertRiskToTimestep(tenStrokeRisk, TimeUnit.DAYS.toMillis(3650)));</span>
+<span class="fc" id="L599">    person.attributes.put(&quot;stroke_points&quot;, strokePoints);</span>
+<span class="fc" id="L600">  }</span>
+
+  private static void getStroke(Person person, long time) {
+<span class="fc bfc" id="L603" title="All 2 branches covered.">    if (person.attributes.containsKey(&quot;stroke_risk&quot;)</span>
+<span class="fc bfc" id="L604" title="All 2 branches covered.">        &amp;&amp; person.rand() &lt; (Double) person.attributes.get(&quot;stroke_risk&quot;)) {</span>
+<span class="fc" id="L605">      person.events.create(time, &quot;stroke&quot;, &quot;getStroke&quot;, false);</span>
+<span class="fc" id="L606">      person.attributes.put(&quot;stroke_history&quot;, true);</span>
+<span class="fc" id="L607">      person.events.create(time + TimeUnit.MINUTES.toMillis(10), &quot;emergency_encounter&quot;, &quot;getStroke&quot;,</span>
+          false);
+<span class="fc" id="L609">      EncounterModule.emergencyVisit(person, time);</span>
+      // Strokes are fatal 10-20 percent of cases
+      // https://stroke.nih.gov/materials/strokechallenges.htm
+<span class="pc bpc" id="L612" title="1 of 2 branches missed.">      if (person.rand() &lt; 0.15) {</span>
+<span class="nc" id="L613">        person.recordDeath(time, LOOKUP.get(&quot;stroke&quot;), &quot;getStroke&quot;);</span>
+      }
+    }
+<span class="fc" id="L616">  }</span>
+
+  private static void heartHealthyLifestyle(Person person, long time) {
+    // TODO - intentionally ignoring this rule for now; it only sets careplan activities and reasons
+<span class="fc" id="L620">  }</span>
+
+  private static void chdTreatment(Person person, long time) {
+<span class="fc" id="L623">    List&lt;String&gt; meds = filter_meds_by_year(</span>
+<span class="fc" id="L624">        Arrays.asList(&quot;clopidogrel&quot;, &quot;simvastatin&quot;, &quot;amlodipine&quot;, &quot;nitroglycerin&quot;), time);</span>
+
+<span class="fc bfc" id="L626" title="All 2 branches covered.">    if ((Boolean) person.attributes.getOrDefault(&quot;coronary_heart_disease&quot;, false)) {</span>
+<span class="fc bfc" id="L627" title="All 2 branches covered.">      for (String med : meds) {</span>
+<span class="fc" id="L628">        prescribeMedication(med, person, time);</span>
+<span class="fc" id="L629">      }</span>
+    } else {
+<span class="fc bfc" id="L631" title="All 2 branches covered.">      for (String med : meds) {</span>
+<span class="fc" id="L632">        stopMedication(med, person, time);</span>
+<span class="fc" id="L633">      }</span>
+    }
+<span class="fc" id="L635">  }</span>
+
+  @SuppressWarnings(&quot;unchecked&quot;)
+  private static void atrialFibrillationTreatment(Person person, long time) {
+<span class="fc" id="L639">    List&lt;String&gt; meds = filter_meds_by_year(Arrays.asList(&quot;warfarin&quot;, &quot;verapamil&quot;, &quot;digoxin&quot;),</span>
+        time);
+
+<span class="fc bfc" id="L642" title="All 2 branches covered.">    if ((Boolean) person.attributes.getOrDefault(&quot;atrial_fibrillation&quot;, false)) {</span>
+<span class="fc bfc" id="L643" title="All 2 branches covered.">      for (String med : meds) {</span>
+<span class="fc" id="L644">        prescribeMedication(med, person, time);</span>
+<span class="fc" id="L645">      }</span>
+
+      // catheter ablation is a more extreme measure than electrical cardioversion and is usually
+      // only performed
+      // when medication and other procedures are not preferred or have failed. As a rough
+      // simulation of this,
+      // we arbitrarily chose a 20% chance of getting catheter ablation and 80% of getting
+      // cardioversion
+<span class="fc bfc" id="L653" title="All 2 branches covered.">      String afibProcedure = person.rand() &lt; 0.2 ? &quot;catheter_ablation&quot; : &quot;electrical_cardioversion&quot;;</span>
+
+<span class="fc" id="L655">      Map&lt;String, List&lt;String&gt;&gt; cardiovascularProcedures = </span>
+<span class="fc" id="L656">          (Map&lt;String, List&lt;String&gt;&gt;) person.attributes.get(&quot;cardiovascular_procedures&quot;);</span>
+
+<span class="fc bfc" id="L658" title="All 2 branches covered.">      if (cardiovascularProcedures == null) {</span>
+<span class="fc" id="L659">        cardiovascularProcedures = new HashMap&lt;String, List&lt;String&gt;&gt;();</span>
+<span class="fc" id="L660">        person.attributes.put(&quot;cardiovascular_procedures&quot;, cardiovascularProcedures);</span>
+      }
+<span class="fc" id="L662">      cardiovascularProcedures.put(&quot;atrial_fibrillation&quot;, Arrays.asList(afibProcedure));</span>
+<span class="fc" id="L663">    } else {</span>
+<span class="fc bfc" id="L664" title="All 2 branches covered.">      for (String med : meds) {</span>
+<span class="fc" id="L665">        stopMedication(med, person, time);</span>
+<span class="fc" id="L666">      }</span>
+    }
+<span class="fc" id="L668">  }</span>
+
+  @SuppressWarnings(&quot;unchecked&quot;)
+  private static void prescribeMedication(String med, Person person, long time) {
+<span class="fc bfc" id="L672" title="All 2 branches covered.">    if (!person.record.medicationActive(med)) {</span>
+      // add med to med_changes
+<span class="fc" id="L674">      Set&lt;String&gt; medChanges = </span>
+<span class="fc" id="L675">          (Set&lt;String&gt;) person.attributes.get(&quot;cardiovascular_disease_med_changes&quot;);</span>
+
+<span class="fc bfc" id="L677" title="All 2 branches covered.">      if (medChanges == null) {</span>
+<span class="fc" id="L678">        medChanges = new HashSet&lt;String&gt;();</span>
+<span class="fc" id="L679">        person.attributes.put(&quot;cardiovascular_disease_med_changes&quot;, medChanges);</span>
+      }
+<span class="fc" id="L681">      medChanges.add(med);</span>
+    }
+<span class="fc" id="L683">  }</span>
+
+  @SuppressWarnings(&quot;unchecked&quot;)
+  private static void stopMedication(String med, Person person, long time) {
+<span class="pc bpc" id="L687" title="1 of 2 branches missed.">    if (person.record.medicationActive(med)) {</span>
+      // add med to med_changes
+<span class="nc" id="L689">      Set&lt;String&gt; medChanges = </span>
+<span class="nc" id="L690">          (Set&lt;String&gt;) person.attributes.get(&quot;cardiovascular_disease_med_changes&quot;);</span>
+
+<span class="nc bnc" id="L692" title="All 2 branches missed.">      if (medChanges == null) {</span>
+<span class="nc" id="L693">        medChanges = new HashSet&lt;String&gt;();</span>
+<span class="nc" id="L694">        person.attributes.put(&quot;cardiovascular_disease_med_changes&quot;, medChanges);</span>
+      }
+<span class="nc" id="L696">      medChanges.add(med);</span>
+    }
+<span class="fc" id="L698">  }</span>
+
+  /**
+   * Perform Cardiovasular Disease Encounter.
+   * @param person The patient.
+   * @param time The time of the encounter.
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public static void performEncounter(Person person, long time) {
+<span class="fc" id="L707">    int year = Utilities.getYear(time);</span>
+
+    // step 1 - diagnosis
+<span class="fc bfc" id="L710" title="All 2 branches covered.">    for (String diagnosis : new String[] { &quot;coronary_heart_disease&quot;, &quot;atrial_fibrillation&quot; }) {</span>
+<span class="fc bfc" id="L711" title="All 2 branches covered.">      if ((Boolean) person.attributes.getOrDefault(diagnosis, false)</span>
+<span class="pc bpc" id="L712" title="1 of 2 branches missed.">          &amp;&amp; !person.record.present.containsKey(diagnosis)) {</span>
+<span class="fc" id="L713">        Code code = LOOKUP.get(diagnosis);</span>
+<span class="fc" id="L714">        Entry conditionEntry = person.record.conditionStart(time, code.display);</span>
+<span class="fc" id="L715">        conditionEntry.codes.add(code);</span>
+      }
+    }
+
+    // step 2 - care plan
+    // TODO - intentionally ignored at the moment
+
+    // step 3 - medications
+<span class="fc" id="L723">    Set&lt;String&gt; medChanges = </span>
+<span class="fc" id="L724">        (Set&lt;String&gt;) person.attributes.get(&quot;cardiovascular_disease_med_changes&quot;);</span>
+
+<span class="fc bfc" id="L726" title="All 2 branches covered.">    if (medChanges != null) {</span>
+<span class="fc bfc" id="L727" title="All 2 branches covered.">      for (String med : medChanges) {</span>
+<span class="pc bpc" id="L728" title="1 of 2 branches missed.">        if (person.record.medicationActive(med)) {</span>
+          // This prescription can be stopped...
+<span class="nc" id="L730">          person.record.medicationEnd(time, med, LOOKUP.get(&quot;cardiovascular_improved&quot;));</span>
+        } else {
+<span class="fc" id="L732">          Medication entry = person.record.medicationStart(time, med);</span>
+<span class="fc" id="L733">          entry.codes.add(LOOKUP.get(med));</span>
+          // increment number of prescriptions prescribed by respective hospital
+<span class="fc" id="L735">          Provider provider = person.getCurrentProvider(&quot;Cardiovascular Disease Module&quot;);</span>
+          // no provider associated with encounter or procedure
+<span class="pc bpc" id="L737" title="1 of 2 branches missed.">          if (provider == null) {</span>
+<span class="fc" id="L738">            provider = person.getProvider(EncounterType.AMBULATORY, time);</span>
+          }
+<span class="fc" id="L740">          provider.incrementPrescriptions(year);</span>
+        }
+<span class="fc" id="L742">      }</span>
+
+<span class="fc" id="L744">      medChanges.clear();</span>
+    }
+
+    // step 4 - procedures
+<span class="fc" id="L748">    Map&lt;String, List&lt;String&gt;&gt; cardiovascularProcedures = </span>
+<span class="fc" id="L749">        (Map&lt;String, List&lt;String&gt;&gt;) person.attributes.get(&quot;cardiovascular_procedures&quot;);</span>
+
+<span class="fc bfc" id="L751" title="All 2 branches covered.">    if (cardiovascularProcedures != null) {</span>
+<span class="fc bfc" id="L752" title="All 2 branches covered.">      for (Map.Entry&lt;String, List&lt;String&gt;&gt; entry : cardiovascularProcedures.entrySet()) {</span>
+<span class="fc" id="L753">        String reason = entry.getKey();</span>
+<span class="fc" id="L754">        List&lt;String&gt; procedures = entry.getValue();</span>
+
+<span class="fc bfc" id="L756" title="All 2 branches covered.">        for (String proc : procedures) {</span>
+<span class="pc bpc" id="L757" title="1 of 2 branches missed.">          if (!person.record.present.containsKey(proc)) {</span>
+            // TODO: assumes a procedure will only be performed once, might need to be revisited
+<span class="fc" id="L759">            Code code = LOOKUP.get(proc);</span>
+<span class="fc" id="L760">            Procedure procedure = person.record.procedure(time, code.display);</span>
+<span class="fc" id="L761">            procedure.name = &quot;CardiovascularDisease_Encounter&quot;;</span>
+<span class="fc" id="L762">            procedure.codes.add(code);</span>
+<span class="fc" id="L763">            procedure.reasons.add(LOOKUP.get(reason));</span>
+
+            // increment number of procedures by respective hospital
+<span class="fc" id="L766">            Provider provider = person.getCurrentProvider(&quot;Cardiovascular Disease Module&quot;);</span>
+            // no provider associated with encounter or procedure
+<span class="pc bpc" id="L768" title="1 of 2 branches missed.">            if (provider == null) {</span>
+<span class="fc" id="L769">              provider = person.getProvider(EncounterType.AMBULATORY, time);</span>
+            }
+<span class="fc" id="L771">            provider.incrementProcedures(year);</span>
+          }
+<span class="fc" id="L773">        }</span>
+<span class="fc" id="L774">      }</span>
+    }
+<span class="fc" id="L776">  }</span>
+
+  /**
+   * Perform an emergency cardiovascular disease encounter.
+   * @param person The patient.
+   * @param time The time of the emergency.
+   * @param diagnosis The diagnosis to be made.
+   */
+  public static void performEmergency(Person person, long time, String diagnosis) {
+<span class="fc" id="L785">    Provider provider = person.getProvider(EncounterType.EMERGENCY, time);</span>
+
+<span class="fc" id="L787">    int year = Utilities.getYear(time);</span>
+
+<span class="fc" id="L789">    Entry condition = person.record.conditionStart(time, diagnosis);</span>
+<span class="fc" id="L790">    condition.codes.add(LOOKUP.get(diagnosis));</span>
+
+<span class="fc bfc" id="L792" title="All 2 branches covered.">    for (String med : filter_meds_by_year(EMERGENCY_MEDS.get(diagnosis), time)) {</span>
+<span class="fc" id="L793">      Medication medication = person.record.medicationStart(time, med);</span>
+<span class="fc" id="L794">      medication.codes.add(LOOKUP.get(med));</span>
+      // increment number of prescriptions prescribed by respective hospital
+
+<span class="fc" id="L797">      provider.incrementPrescriptions(year);</span>
+<span class="fc" id="L798">      person.record.medicationEnd(time + TimeUnit.MINUTES.toMillis(15), med,</span>
+<span class="fc" id="L799">          LOOKUP.get(&quot;stop_drug&quot;));</span>
+<span class="fc" id="L800">    }</span>
+
+<span class="fc bfc" id="L802" title="All 2 branches covered.">    for (String proc : EMERGENCY_PROCEDURES.get(diagnosis)) {</span>
+<span class="fc" id="L803">      Procedure procedure = person.record.procedure(time, proc);</span>
+<span class="fc" id="L804">      procedure.name = &quot;CardiovascularDisease_Emergency&quot;;</span>
+<span class="fc" id="L805">      procedure.codes.add(LOOKUP.get(proc));</span>
+<span class="fc" id="L806">      procedure.reasons.add(LOOKUP.get(diagnosis));</span>
+      // increment number of procedures performed by respective hospital
+<span class="fc" id="L808">      provider.incrementProcedures(year);</span>
+<span class="fc" id="L809">    }</span>
+
+<span class="fc bfc" id="L811" title="All 2 branches covered.">    for (String cond : HISTORY_CONDITIONS.get(diagnosis)) {</span>
+<span class="fc" id="L812">      Entry historyCond = person.record.conditionStart(time, cond);</span>
+<span class="fc" id="L813">      historyCond.codes.add(LOOKUP.get(cond));</span>
+<span class="fc" id="L814">    }</span>
+<span class="fc" id="L815">  }</span>
+
+  /**
+   * Get all of the Codes this module uses, for inventory purposes.
+   * 
+   * @return Collection of all codes and concepts this module uses
+   */
+  public static Collection&lt;Code&gt; getAllCodes() {
+<span class="fc" id="L823">    return LOOKUP.values();</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

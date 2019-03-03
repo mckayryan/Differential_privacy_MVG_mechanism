@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta http-equiv="x-ua-compatible" content="IE=edge"/>
+<title>Test results - Class org.mitre.synthea.export.FHIRSTU3ExporterTest</title>
+<link href="../css/base-style.css" rel="stylesheet" type="text/css"/>
+<link href="../css/style.css" rel="stylesheet" type="text/css"/>
+<script src="../js/report.js" type="text/javascript"></script>
+</head>
+<body>
+<div id="content">
+<h1>Class org.mitre.synthea.export.FHIRSTU3ExporterTest</h1>
+<div class="breadcrumbs">
+<a href="../index.html">all</a> &gt; 
+<a href="../packages/org.mitre.synthea.export.html">org.mitre.synthea.export</a> &gt; FHIRSTU3ExporterTest</div>
+<div id="summary">
+<table>
+<tr>
+<td>
+<div class="summaryGroup">
+<table>
+<tr>
+<td>
+<div class="infoBox" id="tests">
+<div class="counter">1</div>
+<p>tests</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="failures">
+<div class="counter">0</div>
+<p>failures</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="ignored">
+<div class="counter">0</div>
+<p>ignored</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="duration">
+<div class="counter">33.432s</div>
+<p>duration</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</td>
+<td>
+<div class="infoBox success" id="successRate">
+<div class="percent">100%</div>
+<p>successful</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div id="tabs">
+<ul class="tabLinks">
+<li>
+<a href="#tab0">Tests</a>
+</li>
+<li>
+<a href="#tab1">Standard output</a>
+</li>
+<li>
+<a href="#tab2">Standard error</a>
+</li>
+</ul>
+<div id="tab0" class="tab">
+<h2>Tests</h2>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Duration</th>
+<th>Result</th>
+</tr>
+</thead>
+<tr>
+<td class="success">testFHIRSTU3Export</td>
+<td class="success">33.432s</td>
+<td class="success">passed</td>
+</tr>
+</table>
+</div>
+<div id="tab1" class="tab">
+<h2>Standard output</h2>
+<span class="code">
+<pre>Running with options:
+Population: 10
+Seed: 1551093520479
+Location: Massachusetts
+Min Age: 0
+Max Age: 140
+1 -- Dudley365 Kerluke267 (55 y/o M) Charlton, Massachusetts 
+2 -- Lon587 Klocko335 (30 y/o M) Hamilton, Massachusetts 
+3 -- Yevette778 Wilderman619 (55 y/o F) Haverhill, Massachusetts 
+4 -- Rhoda854 Schiller186 (33 y/o F) Chelmsford, Massachusetts 
+5 -- Ermelinda113 Schroeder447 (37 y/o F) North Attleborough, Massachusetts 
+6 -- Ignacio928 Bergstrom287 (67 y/o M) Lynn, Massachusetts 
+7 -- Avery919 Paucek755 (36 y/o F) Westford, Massachusetts 
+8 -- Estela596 Tijerina14 (34 y/o F) Boston, Massachusetts 
+9 -- Johnette525 Ruecker817 (54 y/o F) Swansea, Massachusetts 
+10 -- Cedrick207 Nader710 (59 y/o M) Boston, Massachusetts 
+</pre>
+</span>
+</div>
+<div id="tab2" class="tab">
+<h2>Standard error</h2>
+<span class="code">
+<pre>java.lang.instrument.IllegalClassFormatException: Error while instrumenting org/hl7/fhir/r4/formats/XmlParser.
+	at org.jacoco.agent.rt.internal_28bab1d.CoverageTransformer.transform(CoverageTransformer.java:93)
+	at sun.instrument.TransformerManager.transform(TransformerManager.java:188)
+	at sun.instrument.InstrumentationImpl.transform(InstrumentationImpl.java:428)
+	at java.lang.ClassLoader.defineClass1(Native Method)
+	at java.lang.ClassLoader.defineClass(ClassLoader.java:763)
+	at java.security.SecureClassLoader.defineClass(SecureClassLoader.java:142)
+	at java.net.URLClassLoader.defineClass(URLClassLoader.java:468)
+	at java.net.URLClassLoader.access$100(URLClassLoader.java:74)
+	at java.net.URLClassLoader$1.run(URLClassLoader.java:369)
+	at java.net.URLClassLoader$1.run(URLClassLoader.java:363)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:362)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:349)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+	at org.hl7.fhir.r4.validation.InstanceValidator.checkPrimitive(InstanceValidator.java:1446)
+	at org.hl7.fhir.r4.validation.InstanceValidator.validateElement(InstanceValidator.java:3664)
+	at org.hl7.fhir.r4.validation.InstanceValidator.start(InstanceValidator.java:2673)
+	at org.hl7.fhir.r4.validation.InstanceValidator.validateRemainder(InstanceValidator.java:682)
+	at org.hl7.fhir.r4.validation.InstanceValidator.validate(InstanceValidator.java:711)
+	at org.hl7.fhir.r4.validation.InstanceValidator.validate(InstanceValidator.java:635)
+	at org.hl7.fhir.r4.validation.InstanceValidator.validate(InstanceValidator.java:614)
+	at org.hl7.fhir.dstu3.hapi.validation.FhirInstanceValidator.validate(FhirInstanceValidator.java:301)
+	at org.hl7.fhir.dstu3.hapi.validation.FhirInstanceValidator.validate(FhirInstanceValidator.java:371)
+	at org.hl7.fhir.dstu3.hapi.validation.BaseValidatorBridge.doValidate(BaseValidatorBridge.java:20)
+	at org.hl7.fhir.dstu3.hapi.validation.BaseValidatorBridge.validateResource(BaseValidatorBridge.java:43)
+	at org.hl7.fhir.dstu3.hapi.validation.FhirInstanceValidator.validateResource(FhirInstanceValidator.java:51)
+	at ca.uhn.fhir.validation.FhirValidator.validateWithResult(FhirValidator.java:213)
+	at org.mitre.synthea.export.ValidationResources.validate(ValidationResources.java:47)
+	at org.mitre.synthea.export.FHIRSTU3ExporterTest.testFHIRSTU3Export(FHIRSTU3ExporterTest.java:108)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:50)
+	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:47)
+	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+	at org.junit.rules.ExternalResource$1.evaluate(ExternalResource.java:48)
+	at org.junit.rules.RunRules.evaluate(RunRules.java:20)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:325)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:78)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:57)
+	at org.junit.runners.ParentRunner$3.run(ParentRunner.java:290)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:71)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:288)
+	at org.junit.runners.ParentRunner.access$000(ParentRunner.java:58)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:268)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:363)
+	at org.gradle.api.internal.tasks.testing.junit.JUnitTestClassExecutor.runTestClass(JUnitTestClassExecutor.java:110)
+	at org.gradle.api.internal.tasks.testing.junit.JUnitTestClassExecutor.execute(JUnitTestClassExecutor.java:58)
+	at org.gradle.api.internal.tasks.testing.junit.JUnitTestClassExecutor.execute(JUnitTestClassExecutor.java:38)
+	at org.gradle.api.internal.tasks.testing.junit.AbstractJUnitTestClassProcessor.processTestClass(AbstractJUnitTestClassProcessor.java:62)
+	at org.gradle.api.internal.tasks.testing.SuiteTestClassProcessor.processTestClass(SuiteTestClassProcessor.java:51)
+	at sun.reflect.GeneratedMethodAccessor28.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:35)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:24)
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:32)
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:93)
+	at com.sun.proxy.$Proxy2.processTestClass(Unknown Source)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.processTestClass(TestWorker.java:118)
+	at sun.reflect.GeneratedMethodAccessor27.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:35)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:24)
+	at org.gradle.internal.remote.internal.hub.MessageHubBackedObjectConnection$DispatchWrapper.dispatch(MessageHubBackedObjectConnection.java:175)
+	at org.gradle.internal.remote.internal.hub.MessageHubBackedObjectConnection$DispatchWrapper.dispatch(MessageHubBackedObjectConnection.java:157)
+	at org.gradle.internal.remote.internal.hub.MessageHub$Handler.run(MessageHub.java:404)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:63)
+	at org.gradle.internal.concurrent.ManagedExecutorImpl$1.run(ManagedExecutorImpl.java:46)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at org.gradle.internal.concurrent.ThreadFactoryImpl$ManagedThreadRunnable.run(ThreadFactoryImpl.java:55)
+	at java.lang.Thread.run(Thread.java:748)
+Caused by: java.io.IOException: Error while instrumenting org/hl7/fhir/r4/formats/XmlParser.
+	at org.jacoco.agent.rt.internal_28bab1d.core.instr.Instrumenter.instrumentError(Instrumenter.java:175)
+	at org.jacoco.agent.rt.internal_28bab1d.core.instr.Instrumenter.instrument(Instrumenter.java:125)
+	at org.jacoco.agent.rt.internal_28bab1d.CoverageTransformer.transform(CoverageTransformer.java:91)
+	... 76 more
+Caused by: org.jacoco.agent.rt.internal_28bab1d.asm.ClassTooLargeException: Class too large: org/hl7/fhir/r4/formats/XmlParser
+	at org.jacoco.agent.rt.internal_28bab1d.asm.ClassWriter.toByteArray(ClassWriter.java:550)
+	at org.jacoco.agent.rt.internal_28bab1d.core.instr.Instrumenter.instrument(Instrumenter.java:104)
+	at org.jacoco.agent.rt.internal_28bab1d.core.instr.Instrumenter.instrument(Instrumenter.java:123)
+	... 77 more
+java.lang.instrument.IllegalClassFormatException: Error while instrumenting org/hl7/fhir/r4/formats/JsonParser.
+	at org.jacoco.agent.rt.internal_28bab1d.CoverageTransformer.transform(CoverageTransformer.java:93)
+	at sun.instrument.TransformerManager.transform(TransformerManager.java:188)
+	at sun.instrument.InstrumentationImpl.transform(InstrumentationImpl.java:428)
+	at java.lang.ClassLoader.defineClass1(Native Method)
+	at java.lang.ClassLoader.defineClass(ClassLoader.java:763)
+	at java.security.SecureClassLoader.defineClass(SecureClassLoader.java:142)
+	at java.net.URLClassLoader.defineClass(URLClassLoader.java:468)
+	at java.net.URLClassLoader.access$100(URLClassLoader.java:74)
+	at java.net.URLClassLoader$1.run(URLClassLoader.java:369)
+	at java.net.URLClassLoader$1.run(URLClassLoader.java:363)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:362)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:349)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+	at org.hl7.fhir.r4.validation.InstanceValidator.checkPrimitive(InstanceValidator.java:1446)
+	at org.hl7.fhir.r4.validation.InstanceValidator.validateElement(InstanceValidator.java:3664)
+	at org.hl7.fhir.r4.validation.InstanceValidator.start(InstanceValidator.java:2673)
+	at org.hl7.fhir.r4.validation.InstanceValidator.validateRemainder(InstanceValidator.java:682)
+	at org.hl7.fhir.r4.validation.InstanceValidator.validate(InstanceValidator.java:711)
+	at org.hl7.fhir.r4.validation.InstanceValidator.validate(InstanceValidator.java:635)
+	at org.hl7.fhir.r4.validation.InstanceValidator.validate(InstanceValidator.java:614)
+	at org.hl7.fhir.dstu3.hapi.validation.FhirInstanceValidator.validate(FhirInstanceValidator.java:301)
+	at org.hl7.fhir.dstu3.hapi.validation.FhirInstanceValidator.validate(FhirInstanceValidator.java:371)
+	at org.hl7.fhir.dstu3.hapi.validation.BaseValidatorBridge.doValidate(BaseValidatorBridge.java:20)
+	at org.hl7.fhir.dstu3.hapi.validation.BaseValidatorBridge.validateResource(BaseValidatorBridge.java:43)
+	at org.hl7.fhir.dstu3.hapi.validation.FhirInstanceValidator.validateResource(FhirInstanceValidator.java:51)
+	at ca.uhn.fhir.validation.FhirValidator.validateWithResult(FhirValidator.java:213)
+	at org.mitre.synthea.export.ValidationResources.validate(ValidationResources.java:47)
+	at org.mitre.synthea.export.FHIRSTU3ExporterTest.testFHIRSTU3Export(FHIRSTU3ExporterTest.java:108)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:50)
+	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:47)
+	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+	at org.junit.rules.ExternalResource$1.evaluate(ExternalResource.java:48)
+	at org.junit.rules.RunRules.evaluate(RunRules.java:20)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:325)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:78)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:57)
+	at org.junit.runners.ParentRunner$3.run(ParentRunner.java:290)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:71)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:288)
+	at org.junit.runners.ParentRunner.access$000(ParentRunner.java:58)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:268)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:363)
+	at org.gradle.api.internal.tasks.testing.junit.JUnitTestClassExecutor.runTestClass(JUnitTestClassExecutor.java:110)
+	at org.gradle.api.internal.tasks.testing.junit.JUnitTestClassExecutor.execute(JUnitTestClassExecutor.java:58)
+	at org.gradle.api.internal.tasks.testing.junit.JUnitTestClassExecutor.execute(JUnitTestClassExecutor.java:38)
+	at org.gradle.api.internal.tasks.testing.junit.AbstractJUnitTestClassProcessor.processTestClass(AbstractJUnitTestClassProcessor.java:62)
+	at org.gradle.api.internal.tasks.testing.SuiteTestClassProcessor.processTestClass(SuiteTestClassProcessor.java:51)
+	at sun.reflect.GeneratedMethodAccessor28.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:35)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:24)
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:32)
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:93)
+	at com.sun.proxy.$Proxy2.processTestClass(Unknown Source)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.processTestClass(TestWorker.java:118)
+	at sun.reflect.GeneratedMethodAccessor27.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:35)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:24)
+	at org.gradle.internal.remote.internal.hub.MessageHubBackedObjectConnection$DispatchWrapper.dispatch(MessageHubBackedObjectConnection.java:175)
+	at org.gradle.internal.remote.internal.hub.MessageHubBackedObjectConnection$DispatchWrapper.dispatch(MessageHubBackedObjectConnection.java:157)
+	at org.gradle.internal.remote.internal.hub.MessageHub$Handler.run(MessageHub.java:404)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:63)
+	at org.gradle.internal.concurrent.ManagedExecutorImpl$1.run(ManagedExecutorImpl.java:46)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at org.gradle.internal.concurrent.ThreadFactoryImpl$ManagedThreadRunnable.run(ThreadFactoryImpl.java:55)
+	at java.lang.Thread.run(Thread.java:748)
+Caused by: java.io.IOException: Error while instrumenting org/hl7/fhir/r4/formats/JsonParser.
+	at org.jacoco.agent.rt.internal_28bab1d.core.instr.Instrumenter.instrumentError(Instrumenter.java:175)
+	at org.jacoco.agent.rt.internal_28bab1d.core.instr.Instrumenter.instrument(Instrumenter.java:125)
+	at org.jacoco.agent.rt.internal_28bab1d.CoverageTransformer.transform(CoverageTransformer.java:91)
+	... 76 more
+Caused by: org.jacoco.agent.rt.internal_28bab1d.asm.ClassTooLargeException: Class too large: org/hl7/fhir/r4/formats/JsonParser
+	at org.jacoco.agent.rt.internal_28bab1d.asm.ClassWriter.toByteArray(ClassWriter.java:550)
+	at org.jacoco.agent.rt.internal_28bab1d.core.instr.Instrumenter.instrument(Instrumenter.java:104)
+	at org.jacoco.agent.rt.internal_28bab1d.core.instr.Instrumenter.instrument(Instrumenter.java:123)
+	... 77 more
+</pre>
+</span>
+</div>
+</div>
+<div id="footer">
+<p>
+<div>
+<label class="hidden" id="label-for-line-wrapping-toggle" for="line-wrapping-toggle">Wrap lines
+<input id="line-wrapping-toggle" type="checkbox" autocomplete="off"/>
+</label>
+</div>Generated by 
+<a href="http://www.gradle.org">Gradle 5.2.1</a> at 25/02/2019 10:20:10 PM</p>
+</div>
+</div>
+</body>
+</html>

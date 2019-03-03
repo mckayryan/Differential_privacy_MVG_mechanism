@@ -6,7 +6,7 @@ def centre_data(data):
     return data - data.mean()
 
 
-def scale_data(data, target_bounds, data_bounds=None):
+def scale_data(data, target_bounds, data_bounds=None, center_data=False):
     '''
        Requires:
            data           - Pandas DataFrame floats
@@ -22,9 +22,13 @@ def scale_data(data, target_bounds, data_bounds=None):
     '''
     if isinstance(target_bounds, tuple):
         min_target, max_target = target_bounds
-
+    
+    if center_data:
+        data = data - numpy.mean(data)
+        
     result = data.copy()
-
+           
+        
     if data_bounds is None:
         data_bounds = dict()
         for key in list(data.columns.values):

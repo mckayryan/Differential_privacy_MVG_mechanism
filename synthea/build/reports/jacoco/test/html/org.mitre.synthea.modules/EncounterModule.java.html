@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EncounterModule.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.modules</a> &gt; <span class="el_source">EncounterModule.java</span></div><h1>EncounterModule.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.modules;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.concurrent.TimeUnit;
+
+import org.mitre.synthea.engine.Event;
+import org.mitre.synthea.engine.Module;
+import org.mitre.synthea.helpers.Utilities;
+import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.agents.Provider;
+import org.mitre.synthea.world.concepts.ClinicianSpecialty;
+import org.mitre.synthea.world.concepts.HealthRecord.Code;
+import org.mitre.synthea.world.concepts.HealthRecord.Encounter;
+import org.mitre.synthea.world.concepts.HealthRecord.EncounterType;
+
+public final class EncounterModule extends Module {
+
+  public static final String ACTIVE_WELLNESS_ENCOUNTER = &quot;active_wellness_encounter&quot;;
+  public static final String ACTIVE_URGENT_CARE_ENCOUNTER = &quot;active_urgent_care_encounter&quot;;
+  public static final String ACTIVE_EMERGENCY_ENCOUNTER = &quot;active_emergency_encounter&quot;;
+  /**
+   * These are thresholds for patients to seek symptom-driven care - they'll go to
+   * the appropriate provider based on which threshold they meet.
+   * By CDC statistics (https://www.cdc.gov/nchs/data/ahcd/namcs_summary/2015_namcs_web_tables.pdf),
+   * a person goes to an average of
+   * 24,904,00/(US adult population = 249485228) = .0998 urgent visits per year.
+   * The goal for the number of symptom-driven encounters (urgent care, PCP, and ER) is .0998 * age.
+   */
+  public static final int PCP_SYMPTOM_THRESHOLD = 300;
+  public static final int URGENT_CARE_SYMPTOM_THRESHOLD = 350;
+  public static final int EMERGENCY_SYMPTOM_THRESHOLD = 500;
+  public static final String LAST_VISIT_SYMPTOM_TOTAL = &quot;last_visit_symptom_total&quot;;
+
+<span class="fc" id="L35">  public static final Code ENCOUNTER_CHECKUP = new Code(&quot;SNOMED-CT&quot;, &quot;185349003&quot;,</span>
+      &quot;Encounter for check up (procedure)&quot;);
+<span class="fc" id="L37">  public static final Code ENCOUNTER_EMERGENCY = new Code(&quot;SNOMED-CT&quot;, &quot;50849002&quot;,</span>
+      &quot;Emergency Encounter&quot;);
+<span class="fc" id="L39">  public static final Code WELL_CHILD_VISIT = new Code(&quot;SNOMED-CT&quot;, &quot;410620009&quot;,</span>
+      &quot;Well child visit (procedure)&quot;);
+<span class="fc" id="L41">  public static final Code GENERAL_EXAM = new Code(&quot;SNOMED-CT&quot;, &quot;162673000&quot;,</span>
+      &quot;General examination of patient (procedure)&quot;);
+<span class="fc" id="L43">  public static final Code ENCOUNTER_URGENTCARE = new Code(&quot;SNOMED-CT&quot;, &quot;371883000&quot;,</span>
+      &quot;Outpatient procedure (procedure)&quot;);
+  // NOTE: if new codes are added, be sure to update getAllCodes below
+
+<span class="fc" id="L47">  public EncounterModule() {</span>
+<span class="fc" id="L48">    this.name = &quot;Encounter&quot;;</span>
+<span class="fc" id="L49">  }</span>
+
+  @Override
+  public boolean process(Person person, long time) {
+<span class="fc" id="L53">    boolean startedEncounter = false;</span>
+<span class="fc" id="L54">    int year = Utilities.getYear(time);</span>
+
+    // add a wellness encounter if this is the right time
+<span class="fc" id="L57">    if (person.record.timeSinceLastWellnessEncounter(time)</span>
+<span class="fc bfc" id="L58" title="All 2 branches covered.">        &gt;= recommendedTimeBetweenWellnessVisits(person, time)) {</span>
+<span class="fc" id="L59">      Encounter encounter = person.encounterStart(time, EncounterType.WELLNESS);</span>
+<span class="fc" id="L60">      encounter.name = &quot;Encounter Module Scheduled Wellness&quot;;</span>
+<span class="fc" id="L61">      encounter.codes.add(ENCOUNTER_CHECKUP);</span>
+<span class="fc" id="L62">      Provider prov = person.getProvider(EncounterType.AMBULATORY, time);</span>
+<span class="fc" id="L63">      prov.incrementEncounters(EncounterType.WELLNESS, year);</span>
+<span class="fc" id="L64">      encounter.provider = prov;</span>
+<span class="fc" id="L65">      encounter.clinician = prov.chooseClinicianList(ClinicianSpecialty.GENERAL_PRACTICE, </span>
+          person.random);
+<span class="fc" id="L67">      encounter.codes.add(getWellnessVisitCode(person, time));</span>
+<span class="fc" id="L68">      person.attributes.put(ACTIVE_WELLNESS_ENCOUNTER, true);</span>
+<span class="fc" id="L69">      startedEncounter = true;</span>
+<span class="fc bfc" id="L70" title="All 2 branches covered.">    } else if (person.symptomTotal() &gt; EMERGENCY_SYMPTOM_THRESHOLD) {</span>
+<span class="fc bfc" id="L71" title="All 2 branches covered.">      if (!person.attributes.containsKey(LAST_VISIT_SYMPTOM_TOTAL)) {</span>
+<span class="fc" id="L72">        person.attributes.put(LAST_VISIT_SYMPTOM_TOTAL, 0);</span>
+      }
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">      if (person.symptomTotal() != (int)person.attributes.get(LAST_VISIT_SYMPTOM_TOTAL)) {</span>
+<span class="fc" id="L75">        person.attributes.put(LAST_VISIT_SYMPTOM_TOTAL, person.symptomTotal());</span>
+<span class="fc" id="L76">        person.addressLargestSymptom();</span>
+<span class="fc" id="L77">        Encounter encounter = person.encounterStart(time, EncounterType.EMERGENCY);</span>
+<span class="fc" id="L78">        encounter.name = &quot;Encounter Module Symptom Driven&quot;;</span>
+<span class="fc" id="L79">        Provider prov = person.getProvider(EncounterType.EMERGENCY, time);</span>
+<span class="fc" id="L80">        prov.incrementEncounters(EncounterType.EMERGENCY, year);</span>
+<span class="fc" id="L81">        encounter.provider = prov;</span>
+<span class="fc" id="L82">        encounter.clinician = prov.chooseClinicianList(ClinicianSpecialty.GENERAL_PRACTICE, </span>
+            person.random);
+<span class="fc" id="L84">        encounter.codes.add(ENCOUNTER_EMERGENCY);</span>
+<span class="fc" id="L85">        person.attributes.put(ACTIVE_EMERGENCY_ENCOUNTER, true);</span>
+<span class="fc" id="L86">        startedEncounter = true;</span>
+<span class="fc" id="L87">      }</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">    } else if (person.symptomTotal() &gt; URGENT_CARE_SYMPTOM_THRESHOLD) {</span>
+<span class="fc bfc" id="L89" title="All 2 branches covered.">      if (!person.attributes.containsKey(LAST_VISIT_SYMPTOM_TOTAL)) {</span>
+<span class="fc" id="L90">        person.attributes.put(LAST_VISIT_SYMPTOM_TOTAL, 0);</span>
+      }
+<span class="fc bfc" id="L92" title="All 2 branches covered.">      if (person.symptomTotal() != (int)person.attributes.get(LAST_VISIT_SYMPTOM_TOTAL)) {</span>
+<span class="fc" id="L93">        person.attributes.put(LAST_VISIT_SYMPTOM_TOTAL, person.symptomTotal());</span>
+<span class="fc" id="L94">        person.addressLargestSymptom();</span>
+<span class="fc" id="L95">        Encounter encounter = person.encounterStart(time, EncounterType.URGENTCARE);</span>
+<span class="fc" id="L96">        encounter.name = &quot;Encounter Module Symptom Driven&quot;;</span>
+<span class="fc" id="L97">        Provider prov = person.getProvider(EncounterType.URGENTCARE, time);</span>
+<span class="fc" id="L98">        prov.incrementEncounters(EncounterType.URGENTCARE, year);</span>
+<span class="fc" id="L99">        encounter.provider = prov;</span>
+<span class="fc" id="L100">        encounter.clinician = prov.chooseClinicianList(ClinicianSpecialty.GENERAL_PRACTICE, </span>
+            person.random);
+<span class="fc" id="L102">        encounter.codes.add(ENCOUNTER_URGENTCARE);</span>
+<span class="fc" id="L103">        person.attributes.put(ACTIVE_URGENT_CARE_ENCOUNTER, true);</span>
+<span class="fc" id="L104">        startedEncounter = true;</span>
+<span class="fc" id="L105">      } </span>
+<span class="fc bfc" id="L106" title="All 2 branches covered.">    } else if (person.symptomTotal() &gt; PCP_SYMPTOM_THRESHOLD) {</span>
+<span class="fc bfc" id="L107" title="All 2 branches covered.">      if (!person.attributes.containsKey(LAST_VISIT_SYMPTOM_TOTAL)) {</span>
+<span class="fc" id="L108">        person.attributes.put(LAST_VISIT_SYMPTOM_TOTAL, 0);</span>
+      } 
+<span class="fc bfc" id="L110" title="All 2 branches covered.">      if (person.symptomTotal() != (int)person.attributes.get(LAST_VISIT_SYMPTOM_TOTAL)) {</span>
+<span class="fc" id="L111">        person.attributes.put(LAST_VISIT_SYMPTOM_TOTAL, person.symptomTotal());</span>
+<span class="fc" id="L112">        person.addressLargestSymptom();</span>
+<span class="fc" id="L113">        Encounter encounter = person.encounterStart(time, EncounterType.WELLNESS);</span>
+<span class="fc" id="L114">        encounter.name = &quot;Encounter Module Symptom Driven&quot;;</span>
+<span class="fc" id="L115">        Provider prov = person.getProvider(EncounterType.AMBULATORY, time);</span>
+<span class="fc" id="L116">        prov.incrementEncounters(EncounterType.WELLNESS, year);</span>
+<span class="fc" id="L117">        encounter.provider = prov;</span>
+<span class="fc" id="L118">        encounter.clinician = prov.chooseClinicianList(ClinicianSpecialty.GENERAL_PRACTICE, </span>
+            person.random);
+<span class="fc" id="L120">        encounter.codes.add(ENCOUNTER_CHECKUP);</span>
+<span class="fc" id="L121">        person.attributes.put(ACTIVE_WELLNESS_ENCOUNTER, true);</span>
+<span class="fc" id="L122">        startedEncounter = true;</span>
+      } 
+    } 
+
+<span class="fc bfc" id="L126" title="All 2 branches covered.">    if (startedEncounter) {</span>
+<span class="fc" id="L127">      CardiovascularDiseaseModule.performEncounter(person, time);</span>
+<span class="fc" id="L128">      Immunizations.performEncounter(person, time);</span>
+    }
+
+    // java modules will never &quot;finish&quot;
+<span class="fc" id="L132">    return false;</span>
+  }
+
+  public static Code getWellnessVisitCode(Person person, long time) {
+<span class="fc" id="L136">    int age = person.ageInYears(time);</span>
+<span class="fc bfc" id="L137" title="All 2 branches covered.">    if (age &lt; 18) {</span>
+<span class="fc" id="L138">      return WELL_CHILD_VISIT;</span>
+    } else {
+<span class="fc" id="L140">      return GENERAL_EXAM;</span>
+    }
+  }
+
+  /**
+   * Process all emergency events. Emergency events must be processed immediately rather
+   * than waiting until the next timestep. Patient may die before the next timestep.
+   * @param person The patient having the emergency encounter.
+   * @param time The time of the encounter in milliseconds.
+   */
+  public static void emergencyVisit(Person person, long time) {
+<span class="fc bfc" id="L151" title="All 2 branches covered.">    for (Event event : person.events.before(time, &quot;emergency_encounter&quot;)) {</span>
+<span class="pc bpc" id="L152" title="1 of 2 branches missed.">      if (event.processed) {</span>
+<span class="nc" id="L153">        continue;</span>
+      }
+<span class="fc" id="L155">      event.processed = true;</span>
+<span class="fc" id="L156">      emergencyEncounter(person, time);</span>
+<span class="fc" id="L157">    }</span>
+
+<span class="fc bfc" id="L159" title="All 2 branches covered.">    for (Event event : person.events.before(time)) {</span>
+<span class="fc bfc" id="L160" title="All 4 branches covered.">      if (event.processed || !(event.type.equals(&quot;myocardial_infarction&quot;)</span>
+<span class="pc bpc" id="L161" title="1 of 4 branches missed.">          || event.type.equals(&quot;cardiac_arrest&quot;) || event.type.equals(&quot;stroke&quot;))) {</span>
+<span class="nc" id="L162">        continue;</span>
+      }
+<span class="fc" id="L164">      event.processed = true;</span>
+<span class="fc" id="L165">      CardiovascularDiseaseModule.performEmergency(person, time, event.type);</span>
+<span class="fc" id="L166">    }</span>
+<span class="fc" id="L167">  }</span>
+
+  public static void emergencyEncounter(Person person, long time) {
+    // find closest service provider with emergency service
+<span class="fc" id="L171">    Provider provider = person.getProvider(EncounterType.EMERGENCY, time);</span>
+<span class="fc" id="L172">    provider.incrementEncounters(EncounterType.EMERGENCY, Utilities.getYear(time));</span>
+
+<span class="fc" id="L174">    Encounter encounter = person.encounterStart(time, EncounterType.EMERGENCY);</span>
+<span class="fc" id="L175">    encounter.codes.add(ENCOUNTER_EMERGENCY);</span>
+<span class="fc" id="L176">    encounter.provider = provider;</span>
+<span class="fc" id="L177">    encounter.clinician = provider.chooseClinicianList(ClinicianSpecialty.GENERAL_PRACTICE,</span>
+        person.random);
+    // TODO: emergency encounters need their duration to be defined by the activities performed
+    // based on the emergencies given here (heart attack, stroke)
+    // assume people will be in the hospital for observation for a few days
+<span class="fc" id="L182">    person.record.encounterEnd(time + TimeUnit.DAYS.toMillis(4), EncounterType.EMERGENCY);</span>
+<span class="fc" id="L183">  }</span>
+
+  public static void urgentCareEncounter(Person person, long time) {
+    // find closest service provider with urgent care service
+<span class="fc" id="L187">    Provider provider = person.getProvider(EncounterType.URGENTCARE, time);</span>
+<span class="fc" id="L188">    provider.incrementEncounters(EncounterType.URGENTCARE, Utilities.getYear(time));</span>
+
+<span class="fc" id="L190">    Encounter encounter = person.encounterStart(time, EncounterType.URGENTCARE);</span>
+<span class="fc" id="L191">    encounter.codes.add(ENCOUNTER_URGENTCARE);</span>
+<span class="fc" id="L192">    encounter.provider = provider;</span>
+<span class="fc" id="L193">    encounter.clinician = provider.chooseClinicianList(ClinicianSpecialty.GENERAL_PRACTICE,</span>
+        person.random);
+    // assume people will be in urgent care for one hour
+<span class="fc" id="L196">    person.record.encounterEnd(time + TimeUnit.HOURS.toMillis(1), EncounterType.URGENTCARE);</span>
+<span class="fc" id="L197">  }</span>
+
+
+  public long recommendedTimeBetweenWellnessVisits(Person person, long time) {
+<span class="fc" id="L201">    int ageInYears = person.ageInYears(time);</span>
+<span class="fc bfc" id="L202" title="All 2 branches covered.">    if (ageInYears &lt;= 3) {</span>
+<span class="fc" id="L203">      int ageInMonths = person.ageInMonths(time);</span>
+<span class="fc bfc" id="L204" title="All 2 branches covered.">      if (ageInMonths &lt;= 1) {</span>
+<span class="fc" id="L205">        return Utilities.convertTime(&quot;months&quot;, 1);</span>
+<span class="fc bfc" id="L206" title="All 2 branches covered.">      } else if (ageInMonths &lt;= 5) {</span>
+<span class="fc" id="L207">        return Utilities.convertTime(&quot;months&quot;, 2);</span>
+<span class="fc bfc" id="L208" title="All 2 branches covered.">      } else if (ageInMonths &lt;= 17) {</span>
+<span class="fc" id="L209">        return Utilities.convertTime(&quot;months&quot;, 3);</span>
+      } else {
+<span class="fc" id="L211">        return Utilities.convertTime(&quot;months&quot;, 6);</span>
+      }
+<span class="fc bfc" id="L213" title="All 2 branches covered.">    } else if (ageInYears &lt;= 19) {</span>
+<span class="fc" id="L214">      return Utilities.convertTime(&quot;years&quot;, 1);</span>
+<span class="fc bfc" id="L215" title="All 2 branches covered.">    } else if (ageInYears &lt;= 39) {</span>
+<span class="fc" id="L216">      return Utilities.convertTime(&quot;years&quot;, 3);</span>
+<span class="fc bfc" id="L217" title="All 2 branches covered.">    } else if (ageInYears &lt;= 49) {</span>
+<span class="fc" id="L218">      return Utilities.convertTime(&quot;years&quot;, 2);</span>
+    } else {
+<span class="fc" id="L220">      return Utilities.convertTime(&quot;years&quot;, 1);</span>
+    }
+  }
+
+  public void endWellnessEncounter(Person person, long time) {
+<span class="fc" id="L225">    person.record.encounterEnd(time, EncounterType.WELLNESS);</span>
+<span class="fc" id="L226">    person.attributes.remove(ACTIVE_WELLNESS_ENCOUNTER);</span>
+<span class="fc" id="L227">  }</span>
+
+  @Deprecated
+  public void endUrgentCareEncounter(Person person, long time) {
+<span class="nc" id="L231">    person.record.encounterEnd(time, EncounterType.URGENTCARE);</span>
+<span class="nc" id="L232">    person.attributes.remove(ACTIVE_URGENT_CARE_ENCOUNTER);</span>
+<span class="nc" id="L233">  }</span>
+
+
+  /**
+   * Get all of the Codes this module uses, for inventory purposes.
+   * 
+   * @return Collection of all codes and concepts this module uses
+   */
+  public static Collection&lt;Code&gt; getAllCodes() {
+<span class="fc" id="L242">    return Arrays.asList(ENCOUNTER_CHECKUP, ENCOUNTER_EMERGENCY, </span>
+        WELL_CHILD_VISIT, GENERAL_EXAM, ENCOUNTER_URGENTCARE);
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

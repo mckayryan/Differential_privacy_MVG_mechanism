@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.export.CCDAExporterTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:19:52" hostname="ryan-B250M-HD3" time="10.582">
+  <properties/>
+  <testcase name="testCCDAExport" classname="org.mitre.synthea.export.CCDAExporterTest" time="10.582"/>
+  <system-out><![CDATA[Running with options:
+Population: 10
+Seed: 1551093594201
+Location: Massachusetts
+Min Age: 0
+Max Age: 140
+1 -- Gus973 Abernathy524 (8 y/o M) Gloucester, Massachusetts 
+2 -- Antony83 Huels583 (6 y/o M) Uxbridge, Massachusetts 
+3 -- Sid118 Walter473 (49 y/o M) Lawrence, Massachusetts 
+4 -- Elenore794 Hettinger594 (6 y/o F) Medway, Massachusetts 
+5 -- Rufus33 White193 (43 y/o M) Ashland, Massachusetts 
+6 -- Nelle766 Lynch190 (60 y/o F) Adams, Massachusetts 
+7 -- Shirlene698 Heidenreich818 (10 y/o F) Peabody, Massachusetts 
+8 -- Josef103 Renner328 (2 y/o M) Boston, Massachusetts 
+9 -- Jerlene697 Grimes165 (48 y/o F) Clarksburg, Massachusetts 
+10 -- Abe604 Rolfson709 (8 y/o M) Wareham, Massachusetts DECEASED
+10 -- Porter490 Stanton715 (33 y/o M) Wareham, Massachusetts 
+]]></system-out>
+  <system-err><![CDATA[java.lang.instrument.IllegalClassFormatException: Error while instrumenting org/openhealthtools/mdht/uml/cda/consol/util/ConsolValidator.
+	at org.jacoco.agent.rt.internal_28bab1d.CoverageTransformer.transform(CoverageTransformer.java:93)
+	at sun.instrument.TransformerManager.transform(TransformerManager.java:188)
+	at sun.instrument.InstrumentationImpl.transform(InstrumentationImpl.java:428)
+	at java.lang.ClassLoader.defineClass1(Native Method)
+	at java.lang.ClassLoader.defineClass(ClassLoader.java:763)
+	at java.security.SecureClassLoader.defineClass(SecureClassLoader.java:142)
+	at java.net.URLClassLoader.defineClass(URLClassLoader.java:468)
+	at java.net.URLClassLoader.access$100(URLClassLoader.java:74)
+	at java.net.URLClassLoader$1.run(URLClassLoader.java:369)
+	at java.net.URLClassLoader$1.run(URLClassLoader.java:363)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:362)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:349)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+	at org.openhealthtools.mdht.uml.cda.consol.impl.ConsolPackageImpl$1.getEValidator(ConsolPackageImpl.java:2354)
+	at org.eclipse.emf.ecore.impl.EValidatorRegistryImpl.get(EValidatorRegistryImpl.java:48)
+	at org.eclipse.emf.ecore.util.Diagnostician.validate(Diagnostician.java:144)
+	at org.eclipse.emf.ecore.util.Diagnostician.validate(Diagnostician.java:137)
+	at org.eclipse.emf.ecore.util.Diagnostician.validate(Diagnostician.java:108)
+	at org.eclipse.mdht.uml.cda.util.CDAUtil.validate(CDAUtil.java:707)
+	at org.eclipse.mdht.uml.cda.util.CDAUtil.validate(CDAUtil.java:696)
+	at org.eclipse.mdht.uml.cda.util.CDAUtil.performEMFValidation(CDAUtil.java:830)
+	at org.eclipse.mdht.uml.cda.util.CDAUtil.load(CDAUtil.java:277)
+	at org.eclipse.mdht.uml.cda.util.CDAUtil.load(CDAUtil.java:252)
+	at org.mitre.synthea.export.CCDAExporterTest.testCCDAExport(CCDAExporterTest.java:46)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:50)
+	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:47)
+	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+	at org.junit.rules.ExternalResource$1.evaluate(ExternalResource.java:48)
+	at org.junit.rules.RunRules.evaluate(RunRules.java:20)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:325)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:78)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:57)
+	at org.junit.runners.ParentRunner$3.run(ParentRunner.java:290)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:71)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:288)
+	at org.junit.runners.ParentRunner.access$000(ParentRunner.java:58)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:268)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:363)
+	at org.gradle.api.internal.tasks.testing.junit.JUnitTestClassExecutor.runTestClass(JUnitTestClassExecutor.java:110)
+	at org.gradle.api.internal.tasks.testing.junit.JUnitTestClassExecutor.execute(JUnitTestClassExecutor.java:58)
+	at org.gradle.api.internal.tasks.testing.junit.JUnitTestClassExecutor.execute(JUnitTestClassExecutor.java:38)
+	at org.gradle.api.internal.tasks.testing.junit.AbstractJUnitTestClassProcessor.processTestClass(AbstractJUnitTestClassProcessor.java:62)
+	at org.gradle.api.internal.tasks.testing.SuiteTestClassProcessor.processTestClass(SuiteTestClassProcessor.java:51)
+	at sun.reflect.GeneratedMethodAccessor28.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:35)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:24)
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:32)
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:93)
+	at com.sun.proxy.$Proxy2.processTestClass(Unknown Source)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.processTestClass(TestWorker.java:118)
+	at sun.reflect.GeneratedMethodAccessor27.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:35)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:24)
+	at org.gradle.internal.remote.internal.hub.MessageHubBackedObjectConnection$DispatchWrapper.dispatch(MessageHubBackedObjectConnection.java:175)
+	at org.gradle.internal.remote.internal.hub.MessageHubBackedObjectConnection$DispatchWrapper.dispatch(MessageHubBackedObjectConnection.java:157)
+	at org.gradle.internal.remote.internal.hub.MessageHub$Handler.run(MessageHub.java:404)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:63)
+	at org.gradle.internal.concurrent.ManagedExecutorImpl$1.run(ManagedExecutorImpl.java:46)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at org.gradle.internal.concurrent.ThreadFactoryImpl$ManagedThreadRunnable.run(ThreadFactoryImpl.java:55)
+	at java.lang.Thread.run(Thread.java:748)
+Caused by: java.io.IOException: Error while instrumenting org/openhealthtools/mdht/uml/cda/consol/util/ConsolValidator.
+	at org.jacoco.agent.rt.internal_28bab1d.core.instr.Instrumenter.instrumentError(Instrumenter.java:175)
+	at org.jacoco.agent.rt.internal_28bab1d.core.instr.Instrumenter.instrument(Instrumenter.java:125)
+	at org.jacoco.agent.rt.internal_28bab1d.CoverageTransformer.transform(CoverageTransformer.java:91)
+	... 72 more
+Caused by: org.jacoco.agent.rt.internal_28bab1d.asm.ClassTooLargeException: Class too large: org/openhealthtools/mdht/uml/cda/consol/util/ConsolValidator
+	at org.jacoco.agent.rt.internal_28bab1d.asm.ClassWriter.toByteArray(ClassWriter.java:550)
+	at org.jacoco.agent.rt.internal_28bab1d.core.instr.Instrumenter.instrument(Instrumenter.java:104)
+	at org.jacoco.agent.rt.internal_28bab1d.core.instr.Instrumenter.instrument(Instrumenter.java:123)
+	... 73 more
+]]></system-err>
+</testsuite>

@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Location.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.world.geography</a> &gt; <span class="el_source">Location.java</span></div><h1>Location.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.world.geography;
+
+import com.google.common.collect.Table;
+import com.google.gson.Gson;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
+import org.apache.commons.lang3.ArrayUtils;
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.SimpleCSV;
+import org.mitre.synthea.helpers.Utilities;
+import org.mitre.synthea.world.agents.Clinician;
+import org.mitre.synthea.world.agents.Person;
+
+public class Location {
+<span class="fc" id="L21">  private static LinkedHashMap&lt;String, String&gt; stateAbbreviations = loadAbbreviations();</span>
+<span class="fc" id="L22">  private static Map&lt;String, String&gt; timezones = loadTimezones();</span>
+<span class="fc" id="L23">  private static Map&lt;String, List&lt;String&gt;&gt; foreignPlacesOfBirth = loadCitiesByLangauge();</span>
+
+  private long totalPopulation;
+
+  // cache the population by city name for performance
+  private Map&lt;String, Long&gt; populationByCity;
+  private Map&lt;String, List&lt;Place&gt;&gt; zipCodes;
+
+  public final String city;
+  public final String state;
+  private Map&lt;String, Demographics&gt; demographics;
+
+  /**
+   * Location is a set of demographic and place information.
+   * @param state The full name of the state.
+   *     e.g. &quot;Ohio&quot; and not an abbreviation.
+   * @param city The full name of the city.
+   *     e.g. &quot;Columbus&quot; or null for an entire state.
+   */
+<span class="fc" id="L42">  public Location(String state, String city) {</span>
+    try {
+<span class="fc" id="L44">      this.city = city;</span>
+<span class="fc" id="L45">      this.state = state;</span>
+      
+<span class="fc" id="L47">      Table&lt;String,String,Demographics&gt; allDemographics = Demographics.load(state);</span>
+      
+      // this still works even if only 1 city given,
+      // because allDemographics will only contain that 1 city
+<span class="fc" id="L51">      this.demographics = allDemographics.row(state);</span>
+
+<span class="pc bpc" id="L53" title="1 of 4 branches missed.">      if (city != null &amp;&amp; !demographics.containsKey(city)) {</span>
+<span class="nc" id="L54">        throw new Exception(&quot;The city &quot; + city + &quot; was not found in the demographics file.&quot;);</span>
+      }
+
+<span class="fc" id="L57">      long runningPopulation = 0;</span>
+<span class="fc" id="L58">      populationByCity = new LinkedHashMap&lt;&gt;(); // linked to ensure consistent iteration order</span>
+<span class="fc bfc" id="L59" title="All 2 branches covered.">      for (Demographics d : this.demographics.values()) {</span>
+<span class="fc" id="L60">        long pop = d.population;</span>
+<span class="fc" id="L61">        runningPopulation += pop;</span>
+<span class="fc" id="L62">        populationByCity.put(d.city, pop);</span>
+<span class="fc" id="L63">      }</span>
+      
+<span class="fc" id="L65">      totalPopulation = runningPopulation;</span>
+      
+<span class="nc" id="L67">    } catch (Exception e) {</span>
+<span class="nc" id="L68">      System.err.println(&quot;ERROR: unable to load demographics&quot;);</span>
+<span class="nc" id="L69">      e.printStackTrace();</span>
+<span class="nc" id="L70">      throw new ExceptionInInitializerError(e);</span>
+<span class="fc" id="L71">    }</span>
+
+<span class="fc" id="L73">    String filename = null;</span>
+    try {
+<span class="fc" id="L75">      filename = Config.get(&quot;generate.geography.zipcodes.default_file&quot;);</span>
+<span class="fc" id="L76">      String csv = Utilities.readResource(filename);</span>
+<span class="fc" id="L77">      List&lt;? extends Map&lt;String,String&gt;&gt; ziplist = SimpleCSV.parse(csv);</span>
+
+<span class="fc" id="L79">      zipCodes = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L80" title="All 2 branches covered.">      for (Map&lt;String,String&gt; line : ziplist) {</span>
+<span class="fc" id="L81">        Place place = new Place(line);</span>
+        
+<span class="fc bfc" id="L83" title="All 2 branches covered.">        if (!place.sameState(state)) {</span>
+<span class="fc" id="L84">          continue;</span>
+        }
+        
+<span class="fc bfc" id="L87" title="All 2 branches covered.">        if (!zipCodes.containsKey(place.name)) {</span>
+<span class="fc" id="L88">          zipCodes.put(place.name, new ArrayList&lt;Place&gt;());</span>
+        }
+<span class="fc" id="L90">        zipCodes.get(place.name).add(place);</span>
+<span class="fc" id="L91">      }</span>
+<span class="nc" id="L92">    } catch (Exception e) {</span>
+<span class="nc" id="L93">      System.err.println(&quot;ERROR: unable to load zips csv: &quot; + filename);</span>
+<span class="nc" id="L94">      e.printStackTrace();</span>
+<span class="nc" id="L95">      throw new ExceptionInInitializerError(e);</span>
+<span class="fc" id="L96">    }</span>
+<span class="fc" id="L97">  }</span>
+  
+  
+  /**
+   * Get the zip code for the given city name. 
+   * If a city has more than one zip code, this picks a random one.
+   * 
+   * @param cityName Name of the city
+   * @return a zip code for the given city
+   */
+  public String getZipCode(String cityName) {
+<span class="fc" id="L108">    List&lt;Place&gt; zipsForCity = zipCodes.get(cityName);</span>
+    
+<span class="pc bpc" id="L110" title="1 of 2 branches missed.">    if (zipsForCity == null) {</span>
+<span class="nc" id="L111">      zipsForCity = zipCodes.get(cityName + &quot; Town&quot;);</span>
+    }
+    
+<span class="pc bpc" id="L114" title="2 of 4 branches missed.">    if (zipsForCity == null || zipsForCity.isEmpty()) {</span>
+<span class="nc" id="L115">      return &quot;00000&quot;; // if we don't have the city, just use a dummy</span>
+<span class="pc bpc" id="L116" title="1 of 2 branches missed.">    } else if (zipsForCity.size() &gt;= 1) {</span>
+<span class="fc" id="L117">      return zipsForCity.get(0).postalCode;</span>
+    }
+<span class="nc" id="L119">    return &quot;00000&quot;;</span>
+  }
+
+  public long getPopulation(String cityName) {
+<span class="fc" id="L123">    return populationByCity.getOrDefault(cityName, 0L);</span>
+  }
+
+  /**
+   * Pick the name of a random city from the current &quot;world&quot;.
+   * If only one city was selected, this will return that one city.
+   * 
+   * @param random Source of randomness
+   * @return Demographics of a random city.
+   */
+  public Demographics randomCity(Random random) {
+<span class="fc bfc" id="L134" title="All 2 branches covered.">    if (city != null) {</span>
+      // if we're only generating one city at a time, just use that one city
+<span class="fc" id="L136">      return demographics.get(city);</span>
+    }
+<span class="fc" id="L138">    return demographics.get(randomCityName(random));</span>
+  }
+  
+  /**
+   * Pick a random city name, weighted by population.
+   * @param random Source of randomness
+   * @return a city name
+   */
+  public String randomCityName(Random random) {
+<span class="fc" id="L147">    long targetPop = (long) (random.nextDouble() * totalPopulation);</span>
+
+<span class="pc bpc" id="L149" title="1 of 2 branches missed.">    for (Map.Entry&lt;String, Long&gt; city : populationByCity.entrySet()) {</span>
+<span class="fc" id="L150">      targetPop -= city.getValue();</span>
+
+<span class="fc bfc" id="L152" title="All 2 branches covered.">      if (targetPop &lt; 0) {</span>
+<span class="fc" id="L153">        return city.getKey();</span>
+      }
+<span class="fc" id="L155">    }</span>
+
+    // should never happen
+<span class="nc" id="L158">    throw new RuntimeException(&quot;Unable to select a random city name.&quot;);</span>
+  }
+
+  /**
+   * Pick a random birth place, weighted by population.
+   * @param random Source of randomness
+   * @return Array of Strings: [city, state, country, &quot;city, state, country&quot;]
+   */
+  public String[] randomBirthPlace(Random random) {
+<span class="fc" id="L167">    String[] birthPlace = new String[4];</span>
+<span class="fc" id="L168">    birthPlace[0] = randomCityName(random);</span>
+<span class="fc" id="L169">    birthPlace[1] = this.state;</span>
+<span class="fc" id="L170">    birthPlace[2] = &quot;US&quot;;</span>
+<span class="fc" id="L171">    birthPlace[3] = birthPlace[0] + &quot;, &quot; + birthPlace[1] + &quot;, &quot; + birthPlace[2];</span>
+<span class="fc" id="L172">    return birthPlace;</span>
+  }
+
+  /**
+   * Method which returns a city from the foreignPlacesOfBirth map if the map contains values
+   * for an ethnicity.
+   * In the case an ethnicity is not present the method returns the value from a call to
+   * randomCityName().
+   *
+   * @param random the Random to base our city selection on
+   * @param ethnicity the ethnicity to look for cities in
+   * @return A String representing the place of birth
+   */
+  public String[] randomBirthplaceByEthnicity(Random random, String ethnicity) {
+    String[] birthPlace;
+
+<span class="fc" id="L188">    List&lt;String&gt; cities = foreignPlacesOfBirth.get(ethnicity.toLowerCase());</span>
+<span class="fc bfc" id="L189" title="All 4 branches covered.">    if (cities != null &amp;&amp; cities.size() &gt; 0) {</span>
+<span class="fc" id="L190">      int upperBound = cities.size();</span>
+<span class="fc" id="L191">      String randomBirthPlace = cities.get(random.nextInt(upperBound));</span>
+<span class="fc" id="L192">      String[] split = randomBirthPlace.split(&quot;,&quot;);</span>
+
+      // make sure we have exactly 3 elements (city, state, country_abbr)
+      // if not fallback to some random US location
+<span class="fc bfc" id="L196" title="All 2 branches covered.">      if (split.length != 3) {</span>
+<span class="fc" id="L197">        birthPlace = randomBirthPlace(random);</span>
+      } else {
+        //concatenate all the results together, adding spaces behind commas for readability
+<span class="fc" id="L200">        birthPlace = ArrayUtils.addAll(split,</span>
+<span class="fc" id="L201">            new String[] {randomBirthPlace.replaceAll(&quot;,&quot;, &quot;, &quot;)});</span>
+      }
+
+<span class="fc" id="L204">    } else {  //if we can't find a foreign city at least return something</span>
+<span class="fc" id="L205">      birthPlace = randomBirthPlace(random);</span>
+    }
+
+<span class="fc" id="L208">    return birthPlace;</span>
+  }
+
+  /**
+   * Assign a geographic location to the given Person. Location includes City, State, Zip, and
+   * Coordinate. If cityName is given, then Zip and Coordinate are restricted to valid values for
+   * that city. If cityName is not given, then picks a random city from the list of all cities.
+   * 
+   * @param person Person to assign location information
+   * @param cityName Name of the city, or null to choose one randomly
+   */
+  public void assignPoint(Person person, String cityName) {
+<span class="fc" id="L220">    List&lt;Place&gt; zipsForCity = null;</span>
+
+<span class="pc bpc" id="L222" title="1 of 2 branches missed.">    if (cityName == null) {</span>
+<span class="nc" id="L223">      int size = zipCodes.keySet().size();</span>
+<span class="nc" id="L224">      cityName = (String) zipCodes.keySet().toArray()[person.randInt(size)];</span>
+    }
+<span class="fc" id="L226">    zipsForCity = zipCodes.get(cityName);</span>
+
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">    if (zipsForCity == null) {</span>
+<span class="nc" id="L229">      zipsForCity = zipCodes.get(cityName + &quot; Town&quot;);</span>
+    }
+    
+<span class="fc" id="L232">    Place place = null;</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">    if (zipsForCity.size() == 1) {</span>
+<span class="fc" id="L234">      place = zipsForCity.get(0);</span>
+    } else {
+      // pick a random one
+<span class="fc" id="L237">      place = zipsForCity.get(person.randInt(zipsForCity.size()));</span>
+    }
+    
+<span class="pc bpc" id="L240" title="1 of 2 branches missed.">    if (place != null) {</span>
+<span class="fc" id="L241">      person.attributes.put(Person.COORDINATE, place.getLatLon());</span>
+    }
+<span class="fc" id="L243">  }</span>
+
+  /**
+   * Assign a geographic location to the given Clinician. Location includes City, State, Zip, and
+   * Coordinate. If cityName is given, then Zip and Coordinate are restricted to valid values for
+   * that city. If cityName is not given, then picks a random city from the list of all cities.
+   * 
+   * @param clinician Clinician to assign location information
+   * @param cityName Name of the city, or null to choose one randomly
+   */
+  public void assignPoint(Clinician clinician, String cityName) {
+<span class="nc" id="L254">    List&lt;Place&gt; zipsForCity = null;</span>
+
+<span class="nc bnc" id="L256" title="All 2 branches missed.">    if (cityName == null) {</span>
+<span class="nc" id="L257">      int size = zipCodes.keySet().size();</span>
+<span class="nc" id="L258">      cityName = (String) zipCodes.keySet().toArray()[clinician.randInt(size)];</span>
+    }
+<span class="nc" id="L260">    zipsForCity = zipCodes.get(cityName);</span>
+
+<span class="nc bnc" id="L262" title="All 2 branches missed.">    if (zipsForCity == null) {</span>
+<span class="nc" id="L263">      zipsForCity = zipCodes.get(cityName + &quot; Town&quot;);</span>
+    }
+    
+<span class="nc" id="L266">    Place place = null;</span>
+<span class="nc bnc" id="L267" title="All 2 branches missed.">    if (zipsForCity.size() == 1) {</span>
+<span class="nc" id="L268">      place = zipsForCity.get(0);</span>
+    } else {
+      // pick a random one
+<span class="nc" id="L271">      place = zipsForCity.get(clinician.randInt(zipsForCity.size()));</span>
+    }
+    
+<span class="nc bnc" id="L274" title="All 2 branches missed.">    if (place != null) {</span>
+<span class="nc" id="L275">      clinician.attributes.put(Person.COORDINATE, place.getLatLon());</span>
+    }
+<span class="nc" id="L277">  }</span>
+  
+  private static LinkedHashMap&lt;String, String&gt; loadAbbreviations() {
+<span class="fc" id="L280">    LinkedHashMap&lt;String, String&gt; abbreviations = new LinkedHashMap&lt;String, String&gt;();</span>
+<span class="fc" id="L281">    String filename = null;</span>
+    try {
+<span class="fc" id="L283">      filename = Config.get(&quot;generate.geography.zipcodes.default_file&quot;);</span>
+<span class="fc" id="L284">      String csv = Utilities.readResource(filename);</span>
+<span class="fc" id="L285">      List&lt;? extends Map&lt;String,String&gt;&gt; ziplist = SimpleCSV.parse(csv);</span>
+
+<span class="fc bfc" id="L287" title="All 2 branches covered.">      for (Map&lt;String,String&gt; line : ziplist) {</span>
+<span class="fc" id="L288">        String state = line.get(&quot;USPS&quot;);</span>
+<span class="fc" id="L289">        String abbreviation = line.get(&quot;ST&quot;);</span>
+<span class="fc" id="L290">        abbreviations.put(state, abbreviation);</span>
+<span class="fc" id="L291">      }</span>
+<span class="nc" id="L292">    } catch (Exception e) {</span>
+<span class="nc" id="L293">      System.err.println(&quot;ERROR: unable to load zips csv: &quot; + filename);</span>
+<span class="nc" id="L294">      e.printStackTrace();</span>
+<span class="fc" id="L295">    }</span>
+<span class="fc" id="L296">    return abbreviations;</span>
+  }
+
+  /**
+   * Get the abbreviation for a state.
+   * @param state State name. e.g. &quot;Massachusetts&quot;
+   * @return state abbreviation. e.g. &quot;MA&quot;
+   */
+  public static String getAbbreviation(String state) {
+<span class="fc" id="L305">    return stateAbbreviations.get(state);</span>
+  }
+  
+  /**
+   * Get the index for a state. This maybe useful for
+   * exporters where you want to generate a list of unique
+   * identifiers that do not collide across state-boundaries.
+   * @param state State name. e.g. &quot;Massachusetts&quot;
+   * @return state index. e.g. 1 or 50
+   */
+  public static int getIndex(String state) {
+<span class="fc" id="L316">    int index = 0;</span>
+<span class="pc bpc" id="L317" title="1 of 2 branches missed.">    for (String stateName : stateAbbreviations.keySet()) {</span>
+<span class="fc bfc" id="L318" title="All 2 branches covered.">      if (stateName.equals(state)) {</span>
+<span class="fc" id="L319">        return index;</span>
+      }
+<span class="fc" id="L321">      index++;</span>
+<span class="fc" id="L322">    }</span>
+<span class="nc" id="L323">    return index;</span>
+  }
+
+  /**
+   * Get the state name from an abbreviation.
+   * @param abbreviation State abbreviation. e.g. &quot;MA&quot;
+   * @return state name. e.g. &quot;Massachusetts&quot;
+   */
+  public static String getStateName(String abbreviation) {
+<span class="fc bfc" id="L332" title="All 2 branches covered.">    for (String name : stateAbbreviations.keySet()) {</span>
+<span class="fc bfc" id="L333" title="All 2 branches covered.">      if (stateAbbreviations.get(name).equalsIgnoreCase(abbreviation)) {</span>
+<span class="fc" id="L334">        return name;</span>
+      }
+<span class="fc" id="L336">    }</span>
+<span class="fc" id="L337">    return null;</span>
+  }
+
+  private static Map&lt;String, String&gt; loadTimezones() {
+<span class="fc" id="L341">    HashMap&lt;String, String&gt; timezones = new HashMap&lt;String, String&gt;();</span>
+<span class="fc" id="L342">    String filename = null;</span>
+    try {
+<span class="fc" id="L344">      filename = Config.get(&quot;generate.geography.timezones.default_file&quot;);</span>
+<span class="fc" id="L345">      String csv = Utilities.readResource(filename);</span>
+<span class="fc" id="L346">      List&lt;? extends Map&lt;String,String&gt;&gt; tzlist = SimpleCSV.parse(csv);</span>
+
+<span class="fc bfc" id="L348" title="All 2 branches covered.">      for (Map&lt;String,String&gt; line : tzlist) {</span>
+<span class="fc" id="L349">        String state = line.get(&quot;STATE&quot;);</span>
+<span class="fc" id="L350">        String timezone = line.get(&quot;TIMEZONE&quot;);</span>
+<span class="fc" id="L351">        timezones.put(state, timezone);</span>
+<span class="fc" id="L352">      }</span>
+<span class="nc" id="L353">    } catch (Exception e) {</span>
+<span class="nc" id="L354">      System.err.println(&quot;ERROR: unable to load timezones csv: &quot; + filename);</span>
+<span class="nc" id="L355">      e.printStackTrace();</span>
+<span class="fc" id="L356">    }</span>
+<span class="fc" id="L357">    return timezones;</span>
+  }
+
+  private static Map&lt;String, List&lt;String&gt;&gt; loadCitiesByLangauge() {
+    //get the default foreign_birthplace file if we can't get the file listed in the config
+<span class="fc" id="L362">    String resource = Config.get(&quot;generate.geography.foreign.birthplace.default_file&quot;,</span>
+            &quot;geography/foreign_birthplace.json&quot;);
+<span class="fc" id="L364">    return loadCitiesByLanguage(resource);</span>
+  }
+
+  /**
+   * Load a resource which contains foreign places of birth based on ethnicity in json format:
+   * &lt;p/&gt;
+   * {&quot;ethnicity&quot;:[&quot;city1,state1,country1&quot;, &quot;city2,state2,country2&quot;..., &quot;cityN,stateN,countryN&quot;]}
+   * &lt;p/&gt;
+   * see src/main/resources/foreign_birthplace.json for a working example
+   * package protected for testing
+   * @param resource A json file listing foreign places of birth by ethnicity.
+   * @return Map of ethnicity to Lists of Strings &quot;city,state,country&quot;
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  protected static Map&lt;String, List&lt;String&gt;&gt; loadCitiesByLanguage(String resource) {
+<span class="fc" id="L379">    Map&lt;String, List&lt;String&gt;&gt; foreignPlacesOfBirth = new HashMap&lt;&gt;();</span>
+    try {
+<span class="fc" id="L381">      String json = Utilities.readResource(resource);</span>
+<span class="fc" id="L382">      foreignPlacesOfBirth = new Gson().fromJson(json, HashMap.class);</span>
+<span class="fc" id="L383">    } catch (Exception e) {</span>
+<span class="fc" id="L384">      System.err.println(&quot;ERROR: unable to load foreign places of birth&quot;);</span>
+<span class="fc" id="L385">      e.printStackTrace();</span>
+<span class="fc" id="L386">    }</span>
+
+<span class="fc" id="L388">    return foreignPlacesOfBirth;</span>
+  }
+
+  /**
+   * Get the full name of the timezone by the full name of the state.
+   * Timezones are approximate.
+   * @param state The full name of the state (e.g. &quot;Massachusetts&quot;)
+   * @return The full name of the timezone (e.g. &quot;Eastern Standard Time&quot;)
+   */
+  public static String getTimezoneByState(String state) {
+<span class="fc" id="L398">    return timezones.get(state);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

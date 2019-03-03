@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Event.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.engine</a> &gt; <span class="el_source">Event.java</span></div><h1>Event.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.engine;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class Event {
+
+  public static final String BIRTH = &quot;birth&quot;;
+  public static final String DEATH = &quot;death&quot;;
+
+  public long time;
+  public String type;
+  public String rule;
+<span class="fc" id="L14">  public boolean processed = false;</span>
+  private Map&lt;String, Object&gt; attributes;
+
+  /**
+   * Event constructor.
+   * @param time The time the event occurred or should occur.
+   * @param type The type of event. For example, &quot;birth&quot; or &quot;death&quot;.
+   * @param rule The name of the rule or method that created the event (for debugging).
+   * @param processed Whether or not the event has been processed. For example, a &quot;death&quot;
+   *     event may be set in the future, and only processed when that time has passed.
+   */
+<span class="fc" id="L25">  public Event(long time, String type, String rule, boolean processed) {</span>
+<span class="fc" id="L26">    this.time = time;</span>
+<span class="fc" id="L27">    this.type = type;</span>
+<span class="fc" id="L28">    this.rule = rule;</span>
+<span class="fc" id="L29">    this.processed = processed;</span>
+<span class="fc" id="L30">  }</span>
+
+  public boolean hasAttributes() {
+<span class="fc bfc" id="L33" title="All 2 branches covered.">    return attributes != null;</span>
+  }
+
+  /**
+   * Get any attributes associated with this Event.
+   * Creates the attributes map if it does not exist.
+   * @return Map of attributes.
+   */
+  public Map&lt;String, Object&gt; attributes() {
+<span class="pc bpc" id="L42" title="1 of 2 branches missed.">    if (attributes == null) {</span>
+<span class="fc" id="L43">      attributes = new HashMap&lt;String, Object&gt;();</span>
+    }
+<span class="fc" id="L45">    return attributes;</span>
+  }
+
+  public String toString() {
+<span class="fc" id="L49">    return String.format(&quot;%d %s %s %s&quot;, time, type, rule, processed);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

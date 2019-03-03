@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.export.ExporterTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:18:25" hostname="ryan-B250M-HD3" time="5.357">
+  <properties/>
+  <testcase name="test_export_filter_should_not_keep_old_stuff" classname="org.mitre.synthea.export.ExporterTest" time="0.399"/>
+  <testcase name="test_export_filter_should_keep_condition_that_ended_during_target" classname="org.mitre.synthea.export.ExporterTest" time="0.393"/>
+  <testcase name="test_export_filter_should_keep_medication_that_ended_during_target" classname="org.mitre.synthea.export.ExporterTest" time="0.364"/>
+  <testcase name="test_export_filter_should_keep_old_active_medication" classname="org.mitre.synthea.export.ExporterTest" time="0.384"/>
+  <testcase name="test_export_filter_should_keep_old_active_careplan" classname="org.mitre.synthea.export.ExporterTest" time="0.379"/>
+  <testcase name="test_export_filter_should_filter_claim_items" classname="org.mitre.synthea.export.ExporterTest" time="1.581"/>
+  <testcase name="test_export_filter_simple_cutoff" classname="org.mitre.synthea.export.ExporterTest" time="0.369"/>
+  <testcase name="test_export_filter_should_keep_old_active_stuff" classname="org.mitre.synthea.export.ExporterTest" time="0.367"/>
+  <testcase name="test_export_filter_should_keep_old_active_conditions" classname="org.mitre.synthea.export.ExporterTest" time="0.363"/>
+  <testcase name="test_export_filter_should_keep_careplan_that_ended_during_target" classname="org.mitre.synthea.export.ExporterTest" time="0.363"/>
+  <testcase name="test_export_filter_should_keep_cause_of_death" classname="org.mitre.synthea.export.ExporterTest" time="0.393"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

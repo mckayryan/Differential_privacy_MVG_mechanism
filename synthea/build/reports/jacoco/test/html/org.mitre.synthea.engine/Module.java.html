@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Module.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.engine</a> &gt; <span class="el_source">Module.java</span></div><h1>Module.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.engine;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
+
+import java.io.File;
+import java.io.FileReader;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+
+import org.mitre.synthea.modules.CardiovascularDiseaseModule;
+import org.mitre.synthea.modules.EncounterModule;
+import org.mitre.synthea.modules.HealthInsuranceModule;
+import org.mitre.synthea.modules.LifecycleModule;
+import org.mitre.synthea.modules.QualityOfLifeModule;
+import org.mitre.synthea.world.agents.Person;
+
+/**
+ * Module represents the entry point of a generic module.
+ * 
+ * &lt;p&gt;The `modules` map is the static list of generic modules. It is loaded once per process, 
+ * and the list of modules is shared between the generated population. Because we share modules 
+ * across the population, it is important that States are cloned before they are executed. 
+ * This keeps the &quot;master&quot; copy of the module clean.
+ */
+public class Module {
+
+<span class="fc" id="L41">  private static final Map&lt;String, Module&gt; modules = loadModules();</span>
+
+  private static Map&lt;String, Module&gt; loadModules() {
+<span class="fc" id="L44">    Map&lt;String, Module&gt; retVal = new ConcurrentHashMap&lt;String, Module&gt;();</span>
+
+<span class="fc" id="L46">    retVal.put(&quot;Lifecycle&quot;, new LifecycleModule());</span>
+<span class="fc" id="L47">    retVal.put(&quot;Cardiovascular Disease&quot;, new CardiovascularDiseaseModule());</span>
+<span class="fc" id="L48">    retVal.put(&quot;Quality Of Life&quot;, new QualityOfLifeModule());</span>
+<span class="fc" id="L49">    retVal.put(&quot;Health Insurance&quot;, new HealthInsuranceModule());</span>
+
+    try {
+<span class="fc" id="L52">      URL modulesFolder = ClassLoader.getSystemClassLoader().getResource(&quot;modules&quot;);</span>
+<span class="fc" id="L53">      Path path = Paths.get(modulesFolder.toURI());</span>
+<span class="fc" id="L54">      Files.walk(path, Integer.MAX_VALUE).filter(Files::isReadable).filter(Files::isRegularFile)</span>
+<span class="fc" id="L55">          .filter(p -&gt; p.toString().endsWith(&quot;.json&quot;)).forEach(t -&gt; {</span>
+            try {
+<span class="fc" id="L57">              Module module = loadFile(t, path);</span>
+<span class="fc" id="L58">              String relativePath = relativePath(t, path);</span>
+<span class="fc" id="L59">              retVal.put(relativePath, module);</span>
+<span class="nc" id="L60">            } catch (Exception e) {</span>
+<span class="nc" id="L61">              e.printStackTrace();</span>
+<span class="nc" id="L62">              throw new RuntimeException(e);</span>
+<span class="fc" id="L63">            }</span>
+<span class="fc" id="L64">          });</span>
+<span class="nc" id="L65">    } catch (Exception e) {</span>
+<span class="nc" id="L66">      e.printStackTrace();</span>
+<span class="fc" id="L67">    }</span>
+
+<span class="fc" id="L69">    System.out.format(&quot;Loaded %d modules.\n&quot;, retVal.size());</span>
+
+<span class="fc" id="L71">    return retVal;</span>
+  }
+
+  private static String relativePath(Path filePath, Path modulesFolder) {
+<span class="fc" id="L75">    String folderString = Matcher.quoteReplacement(modulesFolder.toString() + File.separator);</span>
+<span class="fc" id="L76">    return filePath.toString().replaceFirst(folderString, &quot;&quot;).replaceFirst(&quot;.json&quot;, &quot;&quot;)</span>
+<span class="fc" id="L77">        .replace(&quot;\\&quot;, &quot;/&quot;);</span>
+  }
+
+  public static Module loadFile(Path path, Path modulesFolder) throws Exception {
+<span class="fc" id="L81">    System.out.format(&quot;Loading %s\n&quot;, path.toString());</span>
+<span class="fc bfc" id="L82" title="All 2 branches covered.">    boolean submodule = !path.getParent().equals(modulesFolder);</span>
+<span class="fc" id="L83">    JsonObject object = null;</span>
+<span class="fc" id="L84">    FileReader fileReader = null;</span>
+<span class="fc" id="L85">    JsonReader reader = null;</span>
+<span class="fc" id="L86">    fileReader = new FileReader(path.toString());</span>
+<span class="fc" id="L87">    reader = new JsonReader(fileReader);</span>
+<span class="fc" id="L88">    JsonParser parser = new JsonParser();</span>
+<span class="fc" id="L89">    object = parser.parse(reader).getAsJsonObject();</span>
+<span class="fc" id="L90">    fileReader.close();</span>
+<span class="fc" id="L91">    reader.close();</span>
+<span class="fc" id="L92">    return new Module(object, submodule);</span>
+  }
+
+  public static String[] getModuleNames() {
+<span class="nc" id="L96">    return modules.keySet().toArray(new String[modules.size()]);</span>
+  }
+
+  /**
+   * Get the top-level modules.
+   * @return a list of top-level modules. Submodules are not included.
+   */
+  public static List&lt;Module&gt; getModules() {
+<span class="fc" id="L104">    List&lt;Module&gt; list = new ArrayList&lt;Module&gt;();</span>
+<span class="fc" id="L105">    modules.forEach((k, v) -&gt; {</span>
+<span class="fc bfc" id="L106" title="All 2 branches covered.">      if (!v.submodule) {</span>
+<span class="fc" id="L107">        list.add(v);</span>
+      }
+<span class="fc" id="L109">    });</span>
+<span class="fc" id="L110">    return list;</span>
+  }
+
+  /**
+   * Get a module by path.
+   * @param path
+   *          : the relative path of the module, without the root or &quot;.json&quot; file extension. For
+   *          example, &quot;medications/otc_antihistamine&quot; or &quot;appendicitis&quot;.
+   * @return module : the given module
+   */
+  public static Module getModuleByPath(String path) {
+<span class="fc" id="L121">    return modules.get(path);</span>
+  }
+
+  public String name;
+  public boolean submodule;
+  public List&lt;String&gt; remarks;
+  private Map&lt;String, State&gt; states;
+
+<span class="fc" id="L129">  protected Module() {</span>
+    // no-args constructor only allowed to be used by subclasses
+<span class="fc" id="L131">  }</span>
+
+<span class="fc" id="L133">  public Module(JsonObject definition, boolean submodule) throws Exception {</span>
+<span class="fc" id="L134">    name = String.format(&quot;%s Module&quot;, definition.get(&quot;name&quot;).getAsString());</span>
+<span class="fc" id="L135">    this.submodule = submodule;</span>
+<span class="fc" id="L136">    remarks = new ArrayList&lt;String&gt;();</span>
+<span class="fc bfc" id="L137" title="All 2 branches covered.">    if (definition.has(&quot;remarks&quot;)) {</span>
+<span class="fc" id="L138">      JsonElement jsonRemarks = definition.get(&quot;remarks&quot;);</span>
+<span class="fc bfc" id="L139" title="All 2 branches covered.">      for (JsonElement value : jsonRemarks.getAsJsonArray()) {</span>
+<span class="fc" id="L140">        remarks.add(value.getAsString());</span>
+<span class="fc" id="L141">      }</span>
+    }
+
+<span class="fc" id="L144">    JsonObject jsonStates = definition.get(&quot;states&quot;).getAsJsonObject();</span>
+<span class="fc" id="L145">    states = new ConcurrentHashMap&lt;String, State&gt;();</span>
+<span class="fc bfc" id="L146" title="All 2 branches covered.">    for (Entry&lt;String, JsonElement&gt; entry : jsonStates.entrySet()) {</span>
+<span class="fc" id="L147">      State state = State.build(this, entry.getKey(), entry.getValue().getAsJsonObject());</span>
+<span class="fc" id="L148">      states.put(entry.getKey(), state);</span>
+<span class="fc" id="L149">    }</span>
+<span class="fc" id="L150">  }</span>
+
+  /**
+   * Process this Module with the given Person at the specified time within the simulation.
+   * 
+   * @param person
+   *          : the person being simulated
+   * @param time
+   *          : the date within the simulated world
+   * @return completed : whether or not this Module completed.
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public boolean process(Person person, long time) {
+<span class="fc" id="L163">    person.history = null;</span>
+    // what current state is this person in?
+<span class="fc bfc" id="L165" title="All 2 branches covered.">    if (!person.attributes.containsKey(this.name)) {</span>
+<span class="fc" id="L166">      person.history = new LinkedList&lt;State&gt;();</span>
+<span class="fc" id="L167">      person.history.add(initialState());</span>
+<span class="fc" id="L168">      person.attributes.put(this.name, person.history);</span>
+    }
+<span class="fc" id="L170">    person.history = (List&lt;State&gt;) person.attributes.get(this.name);</span>
+<span class="fc" id="L171">    String activeKey = EncounterModule.ACTIVE_WELLNESS_ENCOUNTER + &quot; &quot; + this.name;</span>
+<span class="fc bfc" id="L172" title="All 2 branches covered.">    if (person.attributes.containsKey(EncounterModule.ACTIVE_WELLNESS_ENCOUNTER)) {</span>
+<span class="fc" id="L173">      person.attributes.put(activeKey, true);</span>
+    }
+<span class="fc" id="L175">    State current = person.history.get(0);</span>
+    // System.out.println(&quot; Resuming at &quot; + current.name);
+    // process the current state,
+    // looping until module is finished,
+    // probably more than one state
+<span class="fc" id="L180">    String nextStateName = null;</span>
+<span class="fc bfc" id="L181" title="All 2 branches covered.">    while (current.run(person, time)) {</span>
+<span class="fc" id="L182">      Long exited = current.exited;      </span>
+<span class="fc" id="L183">      nextStateName = current.transition(person, time);</span>
+      // System.out.println(&quot; Transitioning to &quot; + nextStateName);
+<span class="fc" id="L185">      current = states.get(nextStateName).clone(); // clone the state so we don't dirty the original</span>
+<span class="fc" id="L186">      person.history.add(0, current);</span>
+<span class="pc bpc" id="L187" title="1 of 4 branches missed.">      if (exited != null &amp;&amp; exited &lt; time) {</span>
+        // This must be a delay state that expired between cycles, so temporarily rewind time
+<span class="fc" id="L189">        process(person, exited);</span>
+<span class="fc" id="L190">        current = person.history.get(0);</span>
+      }
+<span class="fc" id="L192">    }</span>
+<span class="fc" id="L193">    person.attributes.remove(activeKey);</span>
+<span class="fc" id="L194">    return (current instanceof State.Terminal);</span>
+  }
+
+  private State initialState() {
+<span class="fc" id="L198">    return states.get(&quot;Initial&quot;); // all Initial states have name Initial</span>
+  }
+
+  public State getState(String name) {
+<span class="fc" id="L202">    return states.get(name);</span>
+  }
+
+  /**
+   * Get a collection of the names of all the states this Module contains.
+   * 
+   * @return set of all state names, or empty set if this is a non-GMF module
+   */
+  public Collection&lt;String&gt; getStateNames() {
+<span class="pc bpc" id="L211" title="1 of 2 branches missed.">    if (states == null) {</span>
+      // ex, if this is a non-GMF module
+<span class="nc" id="L213">      return Collections.emptySet();</span>
+    }
+<span class="fc" id="L215">    return states.keySet();</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

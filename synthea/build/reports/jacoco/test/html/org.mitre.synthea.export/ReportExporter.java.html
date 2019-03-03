@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReportExporter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.export</a> &gt; <span class="el_source">ReportExporter.java</span></div><h1>ReportExporter.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.export;
+
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Table;
+import com.google.gson.stream.JsonWriter;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import org.mitre.synthea.engine.Generator;
+import org.mitre.synthea.helpers.Config;
+
+/**
+ * The ReportExporter generates a &quot;report&quot; of the current run of Synthea, tracking information on
+ * heathcare Outcomes, Access, and Costs. The report is created in JSON so it can be easily parsed
+ * by other tools.
+ */
+<span class="nc" id="L29">public class ReportExporter {</span>
+  public static void export(Generator generator) {
+<span class="nc bnc" id="L31" title="All 4 branches missed.">    if (generator == null || generator.database == null) {</span>
+<span class="nc" id="L32">      return;</span>
+    }
+
+<span class="nc" id="L35">    try (Connection connection = generator.database.getConnection()) {</span>
+<span class="nc" id="L36">      File outDirectory = Exporter.getOutputFolder(&quot;statistics&quot;, null);</span>
+<span class="nc" id="L37">      String timeStamp = new SimpleDateFormat(&quot;yyyy-MM-dd_HH-mm-ss&quot;).format(new Date());</span>
+<span class="nc" id="L38">      Path outFilePath = outDirectory.toPath().resolve(&quot;statistics-&quot; + timeStamp + &quot;.json&quot;);</span>
+
+<span class="nc" id="L40">      JsonWriter writer = new JsonWriter(new FileWriter(outFilePath.toFile()));</span>
+<span class="nc" id="L41">      writer.setIndent(&quot;  &quot;);</span>
+<span class="nc" id="L42">      writer.beginObject(); // top-level</span>
+
+<span class="nc" id="L44">      reportParameters(writer);</span>
+<span class="nc" id="L45">      processOutcomes(connection, writer);</span>
+<span class="nc" id="L46">      processAccess(connection, writer);</span>
+<span class="nc" id="L47">      processCosts(connection, writer);</span>
+
+<span class="nc" id="L49">      writer.endObject(); // top-level</span>
+<span class="nc" id="L50">      writer.close();</span>
+
+<span class="nc" id="L52">    } catch (IOException | SQLException e) {</span>
+<span class="nc" id="L53">      e.printStackTrace();</span>
+<span class="nc" id="L54">      throw new RuntimeException(&quot;error exporting statistics&quot;);</span>
+<span class="nc" id="L55">    }</span>
+<span class="nc" id="L56">  }</span>
+
+  private static void reportParameters(JsonWriter writer) throws IOException {
+<span class="nc" id="L59">    writer.name(&quot;run-parameters&quot;).beginObject();</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">    for (String key : Config.allPropertyNames()) {</span>
+<span class="nc" id="L61">      writer.name(key).value(Config.get(key, &quot;&quot;));</span>
+<span class="nc" id="L62">    }</span>
+<span class="nc" id="L63">    writer.endObject(); // run-parameters</span>
+<span class="nc" id="L64">  }</span>
+
+  private static void processOutcomes(Connection connection, JsonWriter writer)
+      throws IOException, SQLException {
+<span class="nc" id="L68">    PreparedStatement stmt = connection.prepareStatement(</span>
+        &quot;select year, MIN(qol) minimum, MAX(qol) maximum, &quot;
+        + &quot;AVG(qol) average, STDDEV_POP(qol) stddev, COUNT(qol) num &quot;
+        + &quot;from quality_of_life group by year order by year asc&quot;);
+    // ASSUMPTION - there should never be a gap in years
+<span class="nc" id="L73">    ResultSet rs = stmt.executeQuery();</span>
+
+<span class="nc" id="L75">    int firstYear = 0;</span>
+
+    // initial capacity is 80 - think 50 past 30 future?
+<span class="nc" id="L78">    List&lt;Double&gt; minimums = new ArrayList&lt;Double&gt;(80);</span>
+<span class="nc" id="L79">    List&lt;Double&gt; maximums = new ArrayList&lt;Double&gt;(80);</span>
+<span class="nc" id="L80">    List&lt;Double&gt; averages = new ArrayList&lt;Double&gt;(80);</span>
+<span class="nc" id="L81">    List&lt;Double&gt; stddevs = new ArrayList&lt;Double&gt;(80);</span>
+<span class="nc" id="L82">    List&lt;Integer&gt; counts = new ArrayList&lt;Integer&gt;(80);</span>
+
+<span class="nc bnc" id="L84" title="All 2 branches missed.">    while (rs.next()) {</span>
+<span class="nc" id="L85">      int year = rs.getInt(1);</span>
+
+<span class="nc bnc" id="L87" title="All 2 branches missed.">      if (firstYear == 0) {</span>
+<span class="nc" id="L88">        firstYear = year;</span>
+      }
+
+<span class="nc" id="L91">      double minimum = rs.getDouble(2);</span>
+<span class="nc" id="L92">      double maximum = rs.getDouble(3);</span>
+<span class="nc" id="L93">      double average = rs.getDouble(4);</span>
+<span class="nc" id="L94">      double stddev = rs.getDouble(5);</span>
+<span class="nc" id="L95">      int count = rs.getInt(6);</span>
+
+<span class="nc" id="L97">      minimums.add(minimum);</span>
+<span class="nc" id="L98">      maximums.add(maximum);</span>
+<span class="nc" id="L99">      averages.add(average);</span>
+<span class="nc" id="L100">      stddevs.add(stddev);</span>
+<span class="nc" id="L101">      counts.add(count);</span>
+<span class="nc" id="L102">    }</span>
+
+<span class="nc" id="L104">    writer.name(&quot;quality_of_life&quot;).beginObject();</span>
+
+<span class="nc" id="L106">    writer.name(&quot;first_year&quot;).value(firstYear);</span>
+
+<span class="nc" id="L108">    writer.name(&quot;minimums&quot;).beginArray();</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">    for (double min : minimums) {</span>
+<span class="nc" id="L110">      writer.value(min);</span>
+<span class="nc" id="L111">    }</span>
+<span class="nc" id="L112">    writer.endArray();</span>
+
+<span class="nc" id="L114">    writer.name(&quot;maximums&quot;).beginArray();</span>
+<span class="nc bnc" id="L115" title="All 2 branches missed.">    for (double max : maximums) {</span>
+<span class="nc" id="L116">      writer.value(max);</span>
+<span class="nc" id="L117">    }</span>
+<span class="nc" id="L118">    writer.endArray();</span>
+
+<span class="nc" id="L120">    writer.name(&quot;averages&quot;).beginArray();</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">    for (double avg : averages) {</span>
+<span class="nc" id="L122">      writer.value(avg);</span>
+<span class="nc" id="L123">    }</span>
+<span class="nc" id="L124">    writer.endArray();</span>
+
+<span class="nc" id="L126">    writer.name(&quot;stddevs&quot;).beginArray();</span>
+<span class="nc bnc" id="L127" title="All 2 branches missed.">    for (double stdev : stddevs) {</span>
+<span class="nc" id="L128">      writer.value(stdev);</span>
+<span class="nc" id="L129">    }</span>
+<span class="nc" id="L130">    writer.endArray();</span>
+
+<span class="nc" id="L132">    writer.name(&quot;counts&quot;).beginArray();</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">    for (int c : counts) {</span>
+<span class="nc" id="L134">      writer.value(c);</span>
+<span class="nc" id="L135">    }</span>
+<span class="nc" id="L136">    writer.endArray();</span>
+
+<span class="nc" id="L138">    writer.endObject(); // quality_of_life</span>
+<span class="nc" id="L139">  }</span>
+
+  private static void processAccess(Connection connection, JsonWriter writer)
+      throws IOException, SQLException {
+<span class="nc" id="L143">    writer.name(&quot;access&quot;).beginObject();</span>
+<span class="nc" id="L144">    writer.name(&quot;encounters&quot;).beginObject();</span>
+
+<span class="nc" id="L146">    Table&lt;Integer, String, Integer&gt; table = HashBasedTable.create();</span>
+
+<span class="nc" id="L148">    PreparedStatement stmt = connection.prepareStatement(</span>
+        &quot;select year, category, sum(value) as num &quot;
+        + &quot;from UTILIZATION_DETAIL &quot;
+        + &quot;group by year, category order by year asc&quot;);
+<span class="nc" id="L152">    ResultSet rs = stmt.executeQuery();</span>
+
+<span class="nc" id="L154">    int firstYear = 0;</span>
+<span class="nc" id="L155">    int lastYear = 0;</span>
+
+<span class="nc bnc" id="L157" title="All 2 branches missed.">    while (rs.next()) {</span>
+<span class="nc" id="L158">      int year = rs.getInt(1);</span>
+
+<span class="nc bnc" id="L160" title="All 2 branches missed.">      if (firstYear == 0) {</span>
+<span class="nc" id="L161">        firstYear = year;</span>
+      }
+<span class="nc" id="L163">      lastYear = year;</span>
+
+<span class="nc" id="L165">      String category = rs.getString(2);</span>
+
+<span class="nc bnc" id="L167" title="All 2 branches missed.">      if (category.contains(&quot;-&quot;)) {</span>
+        // it's a subcategory, ex &quot;encounters-wellness&quot; so split off the &quot;encounters-&quot; part (11
+        // chars)
+<span class="nc" id="L170">        category = category.substring(11);</span>
+      } else {
+<span class="nc" id="L172">        category = &quot;all-encounters&quot;;</span>
+      }
+
+<span class="nc" id="L175">      int count = rs.getInt(3);</span>
+
+<span class="nc" id="L177">      table.put(year, category, count);</span>
+<span class="nc" id="L178">    }</span>
+
+<span class="nc" id="L180">    writer.name(&quot;first_year&quot;).value(firstYear);</span>
+
+<span class="nc bnc" id="L182" title="All 2 branches missed.">    for (String encType : table.columnKeySet()) {</span>
+<span class="nc" id="L183">      writer.name(encType).beginArray();</span>
+
+<span class="nc bnc" id="L185" title="All 2 branches missed.">      for (int y = firstYear; y &lt;= lastYear; y++) {</span>
+<span class="nc" id="L186">        Integer count = table.get(y, encType);</span>
+<span class="nc bnc" id="L187" title="All 2 branches missed.">        if (count == null) {</span>
+<span class="nc" id="L188">          count = 0;</span>
+        }
+<span class="nc" id="L190">        writer.value(count);</span>
+      }
+
+<span class="nc" id="L193">      writer.endArray(); // encType</span>
+<span class="nc" id="L194">    }</span>
+
+<span class="nc" id="L196">    writer.endObject(); // encounters</span>
+<span class="nc" id="L197">    writer.endObject(); // access</span>
+<span class="nc" id="L198">  }</span>
+
+  private static void processCosts(Connection connection, JsonWriter writer)
+      throws IOException, SQLException {
+<span class="nc" id="L202">    writer.name(&quot;costs&quot;).beginObject();</span>
+
+<span class="nc" id="L204">    PreparedStatement stmt = connection.prepareStatement(</span>
+        &quot;select year, type, sum(cost) from &quot;
+        + &quot;(SELECT c.cost, YEAR(DATEADD('SECOND', e.start/ 1000 , DATE '1970-01-01')) as year, &quot;
+        + &quot;e.type FROM ENCOUNTER e, CLAIM c where e.id = c.encounter_id) group by year, type &quot;
+        + &quot;order by year asc&quot;);
+<span class="nc" id="L209">    ResultSet rs = stmt.executeQuery();</span>
+
+<span class="nc" id="L211">    Table&lt;Integer, String, BigDecimal&gt; table = HashBasedTable.create();</span>
+
+<span class="nc" id="L213">    int firstYear = 0;</span>
+<span class="nc" id="L214">    int lastYear = 0;</span>
+
+<span class="nc bnc" id="L216" title="All 2 branches missed.">    while (rs.next()) {</span>
+<span class="nc" id="L217">      int year = rs.getInt(1);</span>
+<span class="nc" id="L218">      String type = rs.getString(2);</span>
+<span class="nc" id="L219">      BigDecimal total = rs.getBigDecimal(3);</span>
+
+<span class="nc bnc" id="L221" title="All 2 branches missed.">      if (firstYear == 0) {</span>
+<span class="nc" id="L222">        firstYear = year;</span>
+      }
+<span class="nc" id="L224">      lastYear = year;</span>
+
+<span class="nc" id="L226">      table.put(year, type, total);</span>
+<span class="nc" id="L227">    }</span>
+
+<span class="nc" id="L229">    writer.name(&quot;first_year&quot;).value(firstYear);</span>
+
+<span class="nc bnc" id="L231" title="All 2 branches missed.">    for (String encType : table.columnKeySet()) {</span>
+<span class="nc" id="L232">      writer.name(encType).beginArray();</span>
+
+<span class="nc bnc" id="L234" title="All 2 branches missed.">      for (int y = firstYear; y &lt;= lastYear; y++) {</span>
+<span class="nc" id="L235">        BigDecimal count = table.get(y, encType);</span>
+<span class="nc bnc" id="L236" title="All 2 branches missed.">        if (count == null) {</span>
+<span class="nc" id="L237">          count = BigDecimal.ZERO;</span>
+        }
+<span class="nc" id="L239">        writer.value(count);</span>
+      }
+<span class="nc" id="L241">      writer.endArray(); // encType</span>
+<span class="nc" id="L242">    }</span>
+
+<span class="nc" id="L244">    writer.endObject(); // costs</span>
+<span class="nc" id="L245">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

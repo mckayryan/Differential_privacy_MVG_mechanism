@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Place.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.world.geography</a> &gt; <span class="el_source">Place.java</span></div><h1>Place.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.world.geography;
+
+import java.util.Map;
+
+import org.apache.sis.geometry.DirectPosition2D;
+import org.apache.sis.index.tree.QuadTreeData;
+
+/**
+ * Place represents a named place with a postal code and coordinate.
+ */
+public class Place implements QuadTreeData {
+  /** The name of the state. For example, Ohio */
+  public String state;
+  /** The state abbreviation. For example, OH */
+  public String abbreviation;
+  /** The name of the place. For example, Columbus */
+  public String name;
+  /** The postal code. For example, 01001 */
+  public String postalCode;
+  /** Coordinate of the place. */
+  public DirectPosition2D coordinate;
+  
+  /**
+   * Create a new row from a CSV row.
+   * @param row from the zip file. Each key is the column header.
+   */
+<span class="fc" id="L27">  public Place(Map&lt;String,String&gt; row) {</span>
+<span class="fc" id="L28">    this.state = row.get(&quot;USPS&quot;);</span>
+<span class="fc" id="L29">    this.abbreviation = row.get(&quot;ST&quot;);</span>
+<span class="fc" id="L30">    this.name = row.get(&quot;NAME&quot;);</span>
+<span class="fc" id="L31">    this.postalCode = row.get(&quot;ZCTA5&quot;);</span>
+<span class="fc" id="L32">    double lat = Double.parseDouble(row.get(&quot;LAT&quot;));</span>
+<span class="fc" id="L33">    double lon = Double.parseDouble(row.get(&quot;LON&quot;));</span>
+<span class="fc" id="L34">    this.coordinate = new DirectPosition2D(lon, lat);</span>
+<span class="fc" id="L35">  }</span>
+  
+  /**
+   * Check whether or not this Place is in the given state.
+   * @param state Name or Abbreviation
+   * @return true if they are the same state, otherwise false.
+   */
+  public boolean sameState(String state) {
+<span class="fc bfc" id="L43" title="All 2 branches covered.">    return this.state.equalsIgnoreCase(state) </span>
+<span class="pc bpc" id="L44" title="1 of 2 branches missed.">        || this.abbreviation.equalsIgnoreCase(state);</span>
+  }
+  
+  @Override
+  public double getX() {
+<span class="nc" id="L49">    return coordinate.getX();</span>
+  }
+
+  @Override
+  public double getY() {
+<span class="nc" id="L54">    return coordinate.getY();</span>
+  }
+
+  @Override
+  public DirectPosition2D getLatLon() {
+<span class="fc" id="L59">    return coordinate;</span>
+  }
+
+  @Override
+  public String getFileName() {
+<span class="nc" id="L64">    return null;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

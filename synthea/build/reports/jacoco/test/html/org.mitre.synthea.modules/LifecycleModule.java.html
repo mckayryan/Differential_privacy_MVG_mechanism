@@ -1,0 +1,969 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LifecycleModule.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.modules</a> &gt; <span class="el_source">LifecycleModule.java</span></div><h1>LifecycleModule.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.modules;
+
+import com.google.gson.Gson;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.math3.special.Erf;
+import org.mitre.synthea.engine.Event;
+import org.mitre.synthea.engine.Module;
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.RandomCollection;
+import org.mitre.synthea.helpers.SimpleYML;
+import org.mitre.synthea.helpers.Utilities;
+import org.mitre.synthea.modules.BloodPressureValueGenerator.SysDias;
+import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.concepts.BiometricsConfig;
+import org.mitre.synthea.world.concepts.BirthStatistics;
+import org.mitre.synthea.world.concepts.HealthRecord.Code;
+import org.mitre.synthea.world.concepts.VitalSign;
+import org.mitre.synthea.world.geography.Location;
+
+public final class LifecycleModule extends Module {
+  @SuppressWarnings(&quot;rawtypes&quot;)
+<span class="fc" id="L32">  private static final Map growthChart = loadGrowthChart();</span>
+  private static final String AGE = &quot;AGE&quot;;
+  private static final String AGE_MONTHS = &quot;AGE_MONTHS&quot;;
+  public static final String QUIT_SMOKING_PROBABILITY = &quot;quit smoking probability&quot;;
+  public static final String QUIT_SMOKING_AGE = &quot;quit smoking age&quot;;
+  public static final String QUIT_ALCOHOLISM_PROBABILITY = &quot;quit alcoholism probability&quot;;
+  public static final String QUIT_ALCOHOLISM_AGE = &quot;quit alcoholism age&quot;;
+  public static final String ADHERENCE_PROBABILITY = &quot;adherence probability&quot;;
+
+<span class="fc" id="L41">  public static final boolean appendNumbersToNames =</span>
+<span class="fc" id="L42">      Boolean.parseBoolean(Config.get(&quot;generate.append_numbers_to_person_names&quot;, &quot;false&quot;));</span>
+  
+<span class="fc" id="L44">  private static RandomCollection&lt;String&gt; sexualOrientationData = loadSexualOrientationData();</span>
+
+<span class="fc" id="L46">  private static SimpleYML names = loadNames();</span>
+  
+<span class="fc" id="L48">  public LifecycleModule() {</span>
+<span class="fc" id="L49">    this.name = &quot;Lifecycle&quot;;</span>
+<span class="fc" id="L50">  }</span>
+
+  @SuppressWarnings(&quot;rawtypes&quot;)
+  private static Map loadGrowthChart() {
+<span class="fc" id="L54">    String filename = &quot;cdc_growth_charts.json&quot;;</span>
+    try {
+<span class="fc" id="L56">      String json = Utilities.readResource(filename);</span>
+<span class="fc" id="L57">      Gson g = new Gson();</span>
+<span class="fc" id="L58">      return g.fromJson(json, HashMap.class);</span>
+<span class="nc" id="L59">    } catch (Exception e) {</span>
+<span class="nc" id="L60">      System.err.println(&quot;ERROR: unable to load json: &quot; + filename);</span>
+<span class="nc" id="L61">      e.printStackTrace();</span>
+<span class="nc" id="L62">      throw new ExceptionInInitializerError(e);</span>
+    }
+  }
+  
+  private static SimpleYML loadNames() {
+<span class="fc" id="L67">    String filename = &quot;names.yml&quot;;</span>
+    try {
+<span class="fc" id="L69">      String namesData = Utilities.readResource(filename);</span>
+<span class="fc" id="L70">      return new SimpleYML(namesData);</span>
+<span class="nc" id="L71">    } catch (Exception e) {</span>
+<span class="nc" id="L72">      System.err.println(&quot;ERROR: unable to load yml: &quot; + filename);</span>
+<span class="nc" id="L73">      e.printStackTrace();</span>
+<span class="nc" id="L74">      throw new ExceptionInInitializerError(e);</span>
+    }
+  }
+  
+  private static RandomCollection&lt;String&gt; loadSexualOrientationData() {
+<span class="fc" id="L79">    RandomCollection&lt;String&gt; soDistribution = new RandomCollection&lt;String&gt;();</span>
+<span class="fc" id="L80">    double[] soPercentages = BiometricsConfig.doubles(&quot;lifecycle.sexual_orientation&quot;); </span>
+    // [heterosexual, homosexual, bisexual]
+<span class="fc" id="L82">    soDistribution.add(soPercentages[0], &quot;heterosexual&quot;);</span>
+<span class="fc" id="L83">    soDistribution.add(soPercentages[1], &quot;homosexual&quot;);</span>
+<span class="fc" id="L84">    soDistribution.add(soPercentages[2], &quot;bisexual&quot;);</span>
+<span class="fc" id="L85">    return soDistribution;</span>
+  }
+
+  @Override
+  public boolean process(Person person, long time) {
+    // run through all of the rules defined
+    // ruby &quot;rules&quot; are converted to static functions here
+    // since this is intended to only be temporary
+
+    // birth(person, time); intentionally left out - call it only once from Generator
+<span class="fc bfc" id="L95" title="All 2 branches covered.">    if (age(person, time)) {</span>
+<span class="fc" id="L96">      grow(person, time);</span>
+    }
+<span class="fc" id="L98">    startSmoking(person, time);</span>
+<span class="fc" id="L99">    startAlcoholism(person, time);</span>
+<span class="fc" id="L100">    quitSmoking(person, time);</span>
+<span class="fc" id="L101">    quitAlcoholism(person, time);</span>
+<span class="fc" id="L102">    adherence(person, time);</span>
+<span class="fc" id="L103">    calculateVitalSigns(person, time);</span>
+<span class="fc" id="L104">    calculateFallRisk(person, time);</span>
+<span class="fc" id="L105">    death(person, time);</span>
+
+    // java modules will never &quot;finish&quot;
+<span class="fc" id="L108">    return false;</span>
+  }
+
+  /**
+   * For unto us a child is born.
+   * @param person The baby.
+   * @param time The time of birth.
+   */
+  public static void birth(Person person, long time) {
+<span class="fc" id="L117">    Map&lt;String, Object&gt; attributes = person.attributes;</span>
+
+<span class="fc" id="L119">    attributes.put(Person.ID, UUID.randomUUID().toString());</span>
+<span class="fc" id="L120">    attributes.put(Person.BIRTHDATE, time);</span>
+<span class="fc" id="L121">    person.events.create(time, Event.BIRTH, &quot;Generator.run&quot;, true);</span>
+<span class="fc" id="L122">    String gender = (String) attributes.get(Person.GENDER);</span>
+<span class="fc" id="L123">    String language = (String) attributes.get(Person.FIRST_LANGUAGE);</span>
+<span class="fc" id="L124">    String firstName = fakeFirstName(gender, language, person.random);</span>
+<span class="fc" id="L125">    String lastName = fakeLastName(language, person.random);</span>
+<span class="pc bpc" id="L126" title="1 of 2 branches missed.">    if (appendNumbersToNames) {</span>
+<span class="fc" id="L127">      firstName = addHash(firstName);</span>
+<span class="fc" id="L128">      lastName = addHash(lastName);</span>
+    }
+<span class="fc" id="L130">    attributes.put(Person.FIRST_NAME, firstName);</span>
+<span class="fc" id="L131">    attributes.put(Person.LAST_NAME, lastName);</span>
+<span class="fc" id="L132">    attributes.put(Person.NAME, firstName + &quot; &quot; + lastName);</span>
+
+<span class="fc" id="L134">    String motherFirstName = fakeFirstName(&quot;F&quot;, language, person.random);</span>
+<span class="fc" id="L135">    String motherLastName = fakeLastName(language, person.random);</span>
+<span class="pc bpc" id="L136" title="1 of 2 branches missed.">    if (appendNumbersToNames) {</span>
+<span class="fc" id="L137">      motherFirstName = addHash(motherFirstName);</span>
+<span class="fc" id="L138">      motherLastName = addHash(motherLastName);</span>
+    }
+<span class="fc" id="L140">    attributes.put(Person.NAME_MOTHER, motherFirstName + &quot; &quot; + motherLastName);</span>
+    
+<span class="fc" id="L142">    String fatherFirstName = fakeFirstName(&quot;M&quot;, language, person.random);</span>
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">    if (appendNumbersToNames) {</span>
+<span class="fc" id="L144">      fatherFirstName = addHash(fatherFirstName);</span>
+    }
+    // this is anglocentric where the baby gets the father's last name
+<span class="fc" id="L147">    attributes.put(Person.NAME_FATHER, fatherFirstName + &quot; &quot; + lastName);</span>
+
+<span class="fc" id="L149">    double prevalenceOfTwins = </span>
+<span class="fc" id="L150">        (double) BiometricsConfig.get(&quot;lifecycle.prevalence_of_twins&quot;, 0.02);</span>
+<span class="fc bfc" id="L151" title="All 2 branches covered.">    if ((person.rand() &lt; prevalenceOfTwins)) {</span>
+<span class="fc" id="L152">      attributes.put(Person.MULTIPLE_BIRTH_STATUS, person.randInt(3) + 1);</span>
+    }
+
+<span class="fc" id="L155">    String phoneNumber = &quot;555-&quot; + ((person.randInt(999 - 100 + 1) + 100)) + &quot;-&quot;</span>
+<span class="fc" id="L156">        + ((person.randInt(9999 - 1000 + 1) + 1000));</span>
+<span class="fc" id="L157">    attributes.put(Person.TELECOM, phoneNumber);</span>
+
+<span class="fc" id="L159">    String ssn = &quot;999-&quot; + ((person.randInt(99 - 10 + 1) + 10)) + &quot;-&quot;</span>
+<span class="fc" id="L160">        + ((person.randInt(9999 - 1000 + 1) + 1000));</span>
+<span class="fc" id="L161">    attributes.put(Person.IDENTIFIER_SSN, ssn);</span>
+
+<span class="fc" id="L163">    String city = (String) attributes.get(Person.CITY);</span>
+<span class="fc" id="L164">    Location location = (Location) attributes.get(Person.LOCATION);</span>
+<span class="fc bfc" id="L165" title="All 2 branches covered.">    if (location != null) {</span>
+      // should never happen in practice, but can happen in unit tests
+<span class="fc" id="L167">      location.assignPoint(person, city);</span>
+<span class="fc" id="L168">      person.attributes.put(Person.ZIP, location.getZipCode(city));</span>
+      String[] birthPlace;
+<span class="fc bfc" id="L170" title="All 2 branches covered.">      if (&quot;english&quot;.equalsIgnoreCase((String) attributes.get(Person.FIRST_LANGUAGE))) {</span>
+<span class="fc" id="L171">        birthPlace = location.randomBirthPlace(person.random);</span>
+      } else {
+<span class="fc" id="L173">        birthPlace = location.randomBirthplaceByEthnicity(</span>
+<span class="fc" id="L174">            person.random, (String) person.attributes.get(Person.ETHNICITY));</span>
+      }
+<span class="fc" id="L176">      attributes.put(Person.BIRTH_CITY, birthPlace[0]);</span>
+<span class="fc" id="L177">      attributes.put(Person.BIRTH_STATE, birthPlace[1]);</span>
+<span class="fc" id="L178">      attributes.put(Person.BIRTH_COUNTRY, birthPlace[2]);</span>
+      // For CSV exports so we don't break any existing schemas
+<span class="fc" id="L180">      attributes.put(Person.BIRTHPLACE, birthPlace[3]);</span>
+    }
+    
+<span class="fc bfc" id="L183" title="All 2 branches covered.">    boolean hasStreetAddress2 = person.rand() &lt; 0.5;</span>
+<span class="fc" id="L184">    attributes.put(Person.ADDRESS, fakeAddress(hasStreetAddress2, person.random));</span>
+
+    // TODO: Why are the percentiles a vital sign? Sounds more like an attribute?
+<span class="fc" id="L187">    double heightPercentile = person.rand();</span>
+<span class="fc" id="L188">    double weightPercentile = person.rand();</span>
+<span class="fc" id="L189">    person.setVitalSign(VitalSign.HEIGHT_PERCENTILE, heightPercentile);</span>
+<span class="fc" id="L190">    person.setVitalSign(VitalSign.WEIGHT_PERCENTILE, weightPercentile);</span>
+
+    // Temporarily generate a mother
+<span class="fc" id="L193">    Person mother = new Person(person.random.nextLong());</span>
+<span class="fc" id="L194">    mother.attributes.put(Person.GENDER, &quot;F&quot;);</span>
+<span class="fc" id="L195">    mother.attributes.put(&quot;pregnant&quot;, true);</span>
+<span class="fc" id="L196">    mother.attributes.put(Person.RACE, person.attributes.get(Person.RACE));</span>
+<span class="fc" id="L197">    mother.attributes.put(Person.ETHNICITY, person.attributes.get(Person.ETHNICITY));</span>
+<span class="fc" id="L198">    mother.attributes.put(BirthStatistics.BIRTH_SEX, person.attributes.get(Person.GENDER));</span>
+<span class="fc" id="L199">    BirthStatistics.setBirthStatistics(mother, time);</span>
+
+<span class="fc" id="L201">    person.setVitalSign(VitalSign.HEIGHT,</span>
+<span class="fc" id="L202">        (double) mother.attributes.get(BirthStatistics.BIRTH_HEIGHT)); // cm</span>
+<span class="fc" id="L203">    person.setVitalSign(VitalSign.WEIGHT,</span>
+<span class="fc" id="L204">        (double) mother.attributes.get(BirthStatistics.BIRTH_WEIGHT)); // kg</span>
+
+<span class="fc" id="L206">    attributes.put(AGE, 0);</span>
+<span class="fc" id="L207">    attributes.put(AGE_MONTHS, 0);</span>
+
+<span class="fc bfc" id="L209" title="All 2 branches covered.">    boolean isRHNeg = person.rand() &lt; 0.15;</span>
+<span class="fc" id="L210">    attributes.put(&quot;RH_NEG&quot;, isRHNeg);</span>
+
+<span class="fc" id="L212">    double adherenceBaseline = Double</span>
+<span class="fc" id="L213">        .parseDouble(Config.get(&quot;lifecycle.adherence.baseline&quot;, &quot;.05&quot;));</span>
+<span class="fc" id="L214">    person.attributes.put(ADHERENCE_PROBABILITY, adherenceBaseline);</span>
+
+<span class="fc" id="L216">    grow(person, time); // set initial height and weight from percentiles</span>
+<span class="fc" id="L217">    calculateVitalSigns(person, time);  // Set initial values for many vital signs.</span>
+
+<span class="fc" id="L219">    String orientation = sexualOrientationData.next(person.random);</span>
+<span class="fc" id="L220">    attributes.put(Person.SEXUAL_ORIENTATION, orientation);</span>
+
+    // Setup vital signs which follow the generator approach
+<span class="fc" id="L223">    setupVitalSignGenerators(person, time);</span>
+<span class="fc" id="L224">  }</span>
+
+  /**
+   * Set up the generators for vital signs which use the generator-based approach already.
+   * @param person
+   * @param time
+   */
+  private static void setupVitalSignGenerators(Person person, long time) {
+<span class="fc" id="L232">    person.setVitalSign(VitalSign.SYSTOLIC_BLOOD_PRESSURE,</span>
+        new BloodPressureValueGenerator(person, SysDias.SYSTOLIC));
+<span class="fc" id="L234">    person.setVitalSign(VitalSign.DIASTOLIC_BLOOD_PRESSURE,</span>
+        new BloodPressureValueGenerator(person, SysDias.DIASTOLIC));
+<span class="fc" id="L236">  }</span>
+
+/**
+ * Generate a first name appropriate for a given gender and language.
+ * @param gender Gender of the name, &quot;M&quot; or &quot;F&quot;
+ * @param language Origin language of the name, &quot;english&quot;, &quot;spanish&quot;
+ * @param random Random number generator to use.
+ * @return First name.
+ */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public static String fakeFirstName(String gender, String language, Random random) {
+    List&lt;String&gt; choices;
+<span class="fc bfc" id="L248" title="All 2 branches covered.">    if (&quot;spanish&quot;.equalsIgnoreCase(language)) {</span>
+<span class="fc" id="L249">      choices = (List&lt;String&gt;) names.get(&quot;spanish.&quot; + gender);</span>
+    } else {
+<span class="fc" id="L251">      choices = (List&lt;String&gt;) names.get(&quot;english.&quot; + gender);</span>
+    }
+    // pick a random item from the list
+<span class="fc" id="L254">    return choices.get(random.nextInt(choices.size()));</span>
+  }
+  
+  /**
+   * Generate a surname appropriate for a given language.
+   * @param language Origin language of the name, &quot;english&quot;, &quot;spanish&quot;
+   * @param random Random number generator to use.
+   * @return Surname or Family Name.
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public static String fakeLastName(String language, Random random) {
+    List&lt;String&gt; choices;
+<span class="fc bfc" id="L266" title="All 2 branches covered.">    if (&quot;spanish&quot;.equalsIgnoreCase(language)) {</span>
+<span class="fc" id="L267">      choices = (List&lt;String&gt;) names.get(&quot;spanish.family&quot;);</span>
+    } else {
+<span class="fc" id="L269">      choices = (List&lt;String&gt;) names.get(&quot;english.family&quot;);</span>
+    }
+    // pick a random item from the list
+<span class="fc" id="L272">    return choices.get(random.nextInt(choices.size()));</span>
+  }
+
+  /**
+   * Generate a Street Address.
+   * @param includeLine2 Whether or not the address should have a second line,
+   *     which can take the form of an apartment, unit, or suite number.
+   * @param random Random number generator to use.
+   * @return First name.
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public static String fakeAddress(boolean includeLine2, Random random) {
+<span class="fc" id="L284">    int number = random.nextInt(1000) + 100;</span>
+<span class="fc" id="L285">    List&lt;String&gt; n = (List&lt;String&gt;)names.get(&quot;english.family&quot;);</span>
+    // for now just use family names as the street name. 
+    // could expand with a few more but probably not worth it
+<span class="fc" id="L288">    String streetName = n.get(random.nextInt(n.size()));</span>
+<span class="fc" id="L289">    List&lt;String&gt; a = (List&lt;String&gt;)names.get(&quot;street.type&quot;);</span>
+<span class="fc" id="L290">    String streetType = a.get(random.nextInt(a.size()));</span>
+    
+<span class="fc bfc" id="L292" title="All 2 branches covered.">    if (includeLine2) {</span>
+<span class="fc" id="L293">      int addtlNum = random.nextInt(100);</span>
+<span class="fc" id="L294">      List&lt;String&gt; s = (List&lt;String&gt;)names.get(&quot;street.secondary&quot;);</span>
+<span class="fc" id="L295">      String addtlType = s.get(random.nextInt(s.size()));</span>
+<span class="fc" id="L296">      return number + &quot; &quot; + streetName + &quot; &quot; + streetType + &quot; &quot; + addtlType + &quot; &quot; + addtlNum;</span>
+    } else {
+<span class="fc" id="L298">      return number + &quot; &quot; + streetName + &quot; &quot; + streetType;</span>
+    }
+  }
+  
+  /**
+   * Adds a 1- to 3-digit hashcode to the end of the name.
+   * @param name Person's name
+   * @return The name with a hash appended, ex &quot;John123&quot; or &quot;Smith22&quot;
+   */
+  public static String addHash(String name) {
+    // note that this value should be deterministic
+    // It cannot be a random number. It needs to be a hash value or something deterministic.
+    // We do not want John10 and John52 -- we want all the Johns to have the SAME numbers. e.g. All
+    // people named John become John52
+    // Why? Because we do not know how using systems will index names. Say a user of an system
+    // loaded with Synthea data wants to find all the people named John Smith. This will be easier
+    // if John Smith always resolves to John52 Smith32 and not [John52 Smith32, John10 Smith22, ...]
+<span class="fc" id="L315">    return name + Integer.toString(Math.abs(name.hashCode() % 1000));</span>
+  }
+
+  /**
+   * Age the patient.
+   * 
+   * @return whether or not the patient should grow
+   */
+  private static boolean age(Person person, long time) {
+<span class="fc" id="L324">    int prevAge = (int) person.attributes.get(AGE);</span>
+<span class="fc" id="L325">    int prevAgeMos = (int) person.attributes.get(AGE_MONTHS);</span>
+
+<span class="fc" id="L327">    int newAge = person.ageInYears(time);</span>
+<span class="fc" id="L328">    int newAgeMos = person.ageInMonths(time);</span>
+<span class="fc" id="L329">    person.attributes.put(AGE, newAge);</span>
+<span class="fc" id="L330">    person.attributes.put(AGE_MONTHS, newAgeMos);</span>
+
+<span class="fc bfc" id="L332" title="All 6 branches covered.">    switch (newAge) {</span>
+      case 16:
+        // driver's license
+<span class="fc bfc" id="L335" title="All 2 branches covered.">        if (person.attributes.get(Person.IDENTIFIER_DRIVERS) == null) {</span>
+<span class="fc" id="L336">          String identifierDrivers = &quot;S999&quot; + ((person.randInt(99999 - 10000 + 1) + 10000));</span>
+<span class="fc" id="L337">          person.attributes.put(Person.IDENTIFIER_DRIVERS, identifierDrivers);</span>
+<span class="fc" id="L338">        }</span>
+        break;
+      case 18:
+        // name prefix
+<span class="fc bfc" id="L342" title="All 2 branches covered.">        if (person.attributes.get(Person.NAME_PREFIX) == null) {</span>
+          String namePrefix;
+<span class="fc bfc" id="L344" title="All 2 branches covered.">          if (&quot;M&quot;.equals(person.attributes.get(Person.GENDER))) {</span>
+<span class="fc" id="L345">            namePrefix = &quot;Mr.&quot;;</span>
+          } else {
+<span class="fc" id="L347">            namePrefix = &quot;Ms.&quot;;</span>
+          }
+<span class="fc" id="L349">          person.attributes.put(Person.NAME_PREFIX, namePrefix);</span>
+<span class="fc" id="L350">        }</span>
+        break;
+      case 20:
+        // passport number
+<span class="fc bfc" id="L354" title="All 2 branches covered.">        if (person.attributes.get(Person.IDENTIFIER_PASSPORT) == null) {</span>
+<span class="fc bfc" id="L355" title="All 2 branches covered.">          Boolean getsPassport = (person.rand() &lt; 0.5);</span>
+<span class="fc bfc" id="L356" title="All 2 branches covered.">          if (getsPassport) {</span>
+<span class="fc" id="L357">            String identifierPassport = &quot;X&quot; + (person.randInt(99999999 - 10000000 + 1) + &quot;X&quot;);</span>
+<span class="fc" id="L358">            person.attributes.put(Person.IDENTIFIER_PASSPORT, identifierPassport);</span>
+          }
+<span class="fc" id="L360">        }</span>
+        break;
+      case 27:
+        // get married
+<span class="fc bfc" id="L364" title="All 2 branches covered.">        if (person.attributes.get(Person.MARITAL_STATUS) == null) {</span>
+<span class="fc bfc" id="L365" title="All 2 branches covered.">          Boolean getsMarried = (person.rand() &lt; 0.8);</span>
+<span class="fc bfc" id="L366" title="All 2 branches covered.">          if (getsMarried) {</span>
+<span class="fc" id="L367">            person.attributes.put(Person.MARITAL_STATUS, &quot;M&quot;);</span>
+<span class="fc bfc" id="L368" title="All 2 branches covered.">            if (&quot;F&quot;.equals(person.attributes.get(Person.GENDER))) {</span>
+<span class="fc" id="L369">              person.attributes.put(Person.NAME_PREFIX, &quot;Mrs.&quot;);</span>
+<span class="fc" id="L370">              person.attributes.put(Person.MAIDEN_NAME, person.attributes.get(Person.LAST_NAME));</span>
+<span class="fc" id="L371">              String firstName = ((String) person.attributes.get(Person.FIRST_NAME));</span>
+<span class="fc" id="L372">              String language = (String) person.attributes.get(Person.FIRST_LANGUAGE);</span>
+<span class="fc" id="L373">              String newLastName = fakeLastName(language, person.random);</span>
+<span class="pc bpc" id="L374" title="1 of 2 branches missed.">              if (appendNumbersToNames) {</span>
+<span class="fc" id="L375">                newLastName = addHash(newLastName);</span>
+              }
+<span class="fc" id="L377">              person.attributes.put(Person.LAST_NAME, newLastName);</span>
+<span class="fc" id="L378">              person.attributes.put(Person.NAME, firstName + &quot; &quot; + newLastName);</span>
+<span class="fc" id="L379">            }</span>
+          } else {
+<span class="fc" id="L381">            person.attributes.put(Person.MARITAL_STATUS, &quot;S&quot;);</span>
+          }
+<span class="fc" id="L383">        }</span>
+        break;
+      case 30:
+        // &quot;overeducated&quot; -&gt; suffix
+<span class="fc bfc" id="L387" title="All 2 branches covered.">        if ((person.attributes.get(Person.NAME_SUFFIX) == null)</span>
+<span class="fc bfc" id="L388" title="All 2 branches covered.">            &amp;&amp; ((double) person.attributes.get(Person.EDUCATION_LEVEL) &gt;= 0.95)) {</span>
+<span class="fc" id="L389">          List&lt;String&gt; suffixList = Arrays.asList(&quot;PhD&quot;, &quot;JD&quot;, &quot;MD&quot;);</span>
+<span class="fc" id="L390">          person.attributes.put(Person.NAME_SUFFIX,</span>
+<span class="fc" id="L391">              suffixList.get(person.randInt(suffixList.size())));</span>
+<span class="fc" id="L392">        }</span>
+        break;
+      default:
+        break;
+    }
+
+    boolean shouldGrow;
+<span class="fc bfc" id="L399" title="All 2 branches covered.">    if (newAge &gt;= 20) {</span>
+      // adults 20 and over grow once per year
+<span class="fc bfc" id="L401" title="All 2 branches covered.">      shouldGrow = (newAge &gt; prevAge);</span>
+    } else {
+      // people under 20 grow once per month
+<span class="fc bfc" id="L404" title="All 2 branches covered.">      shouldGrow = (newAgeMos &gt; prevAgeMos);</span>
+    }
+<span class="fc" id="L406">    return shouldGrow;</span>
+  }
+  
+<span class="fc" id="L409">  private static final int ADULT_MAX_WEIGHT_AGE = </span>
+<span class="fc" id="L410">      (int) BiometricsConfig.get(&quot;lifecycle.adult_max_weight_age&quot;, 49);</span>
+  
+<span class="fc" id="L412">  private static final int GERIATRIC_WEIGHT_LOSS_AGE = </span>
+<span class="fc" id="L413">      (int) BiometricsConfig.get(&quot;lifecycle.geriatric_weight_loss_age&quot;, 60);</span>
+  
+<span class="fc" id="L415">  private static final double[] ADULT_WEIGHT_GAIN_RANGE =</span>
+<span class="fc" id="L416">      BiometricsConfig.doubles(&quot;lifecycle.adult_weight_gain&quot;);</span>
+  
+<span class="fc" id="L418">  private static final double[] GERIATRIC_WEIGHT_LOSS_RANGE = </span>
+<span class="fc" id="L419">      BiometricsConfig.doubles(&quot;lifecycle.geriatric_weight_loss&quot;);</span>
+
+  private static void grow(Person person, long time) {
+<span class="fc" id="L422">    int age = person.ageInYears(time);</span>
+
+<span class="fc" id="L424">    double height = person.getVitalSign(VitalSign.HEIGHT, time);</span>
+<span class="fc" id="L425">    double weight = person.getVitalSign(VitalSign.WEIGHT, time);</span>
+
+<span class="fc bfc" id="L427" title="All 2 branches covered.">    if (age &lt; 20) {</span>
+      // follow growth charts
+<span class="fc" id="L429">      String gender = (String) person.attributes.get(Person.GENDER);</span>
+<span class="fc" id="L430">      int ageInMonths = person.ageInMonths(time);</span>
+<span class="fc" id="L431">      height = lookupGrowthChart(&quot;height&quot;, gender, ageInMonths,</span>
+<span class="fc" id="L432">          person.getVitalSign(VitalSign.HEIGHT_PERCENTILE, time));</span>
+<span class="fc" id="L433">      weight = lookupGrowthChart(&quot;weight&quot;, gender, ageInMonths,</span>
+<span class="fc" id="L434">          person.getVitalSign(VitalSign.WEIGHT_PERCENTILE, time));</span>
+<span class="fc bfc" id="L435" title="All 2 branches covered.">    } else if (age &lt;= ADULT_MAX_WEIGHT_AGE) {</span>
+      // getting older and fatter
+<span class="fc" id="L437">      double adultWeightGain = person.rand(ADULT_WEIGHT_GAIN_RANGE);</span>
+<span class="fc" id="L438">      weight += adultWeightGain;</span>
+<span class="fc bfc" id="L439" title="All 2 branches covered.">    } else if (age &gt;= GERIATRIC_WEIGHT_LOSS_AGE) {</span>
+      // getting older and wasting away
+<span class="fc" id="L441">      double geriatricWeightLoss = person.rand(GERIATRIC_WEIGHT_LOSS_RANGE);</span>
+<span class="fc" id="L442">      weight -= geriatricWeightLoss;</span>
+    }
+
+<span class="fc" id="L445">    person.setVitalSign(VitalSign.HEIGHT, height);</span>
+<span class="fc" id="L446">    person.setVitalSign(VitalSign.WEIGHT, weight);</span>
+<span class="fc" id="L447">    person.setVitalSign(VitalSign.BMI, bmi(height, weight));</span>
+<span class="fc" id="L448">  }</span>
+  
+  /**
+   * Lookup and calculate values from the CDC growth charts, using the LMS
+   * values to calculate the intermediate values.
+   * Reference : https://www.cdc.gov/growthcharts/percentile_data_files.htm
+   * @param heightOrWeight &quot;height&quot; | &quot;weight&quot;
+   * @param gender &quot;M&quot; | &quot;F&quot;
+   * @param ageInMonths 0 - 240
+   * @param percentile 0.0 - 1.0
+   * @return The height (cm) or weight (kg)
+   */
+  @SuppressWarnings(&quot;rawtypes&quot;)
+  public static double lookupGrowthChart(String heightOrWeight, String gender, int ageInMonths,
+      double percentile) {
+<span class="fc" id="L463">    Map chart = (Map) growthChart.get(heightOrWeight);</span>
+<span class="fc" id="L464">    Map byGender = (Map) chart.get(gender);</span>
+<span class="fc" id="L465">    Map byAge = (Map) byGender.get(Integer.toString(ageInMonths));</span>
+
+<span class="fc" id="L467">    double l = Double.parseDouble((String) byAge.get(&quot;l&quot;));</span>
+<span class="fc" id="L468">    double m = Double.parseDouble((String) byAge.get(&quot;m&quot;));</span>
+<span class="fc" id="L469">    double s = Double.parseDouble((String) byAge.get(&quot;s&quot;));</span>
+<span class="fc" id="L470">    double z = calculateZScore(percentile);</span>
+
+<span class="pc bpc" id="L472" title="1 of 2 branches missed.">    if (l == 0) {</span>
+<span class="nc" id="L473">      return m * Math.exp((s * z));</span>
+    } else {
+<span class="fc" id="L475">      return m * Math.pow((1 + (l * s * z)), (1.0 / l));</span>
+    }
+  }
+
+  /**
+   * Z is the z-score that corresponds to the percentile.
+   * z-scores correspond exactly to percentiles, e.g.,
+   * z-scores of:
+   * -1.881, // 3rd
+   * -1.645, // 5th
+   * -1.282, // 10th
+   * -0.674, // 25th
+   *  0,     // 50th
+   *  0.674, // 75th
+   *  1.036, // 85th
+   *  1.282, // 90th
+   *  1.645, // 95th
+   *  1.881  // 97th
+   * @param percentile 0.0 - 1.0
+   * @return z-score that corresponds to the percentile.
+   */
+  protected static double calculateZScore(double percentile) {
+    // Set percentile gt0 and lt1, otherwise the error
+    // function will return Infinity.
+<span class="fc bfc" id="L499" title="All 2 branches covered.">    if (percentile &gt;= 1.0) {</span>
+<span class="fc" id="L500">      percentile = 0.999;</span>
+<span class="fc bfc" id="L501" title="All 2 branches covered.">    } else if (percentile &lt;= 0.0) {</span>
+<span class="fc" id="L502">      percentile = 0.001;</span>
+    }
+<span class="fc" id="L504">    return -1 * Math.sqrt(2) * Erf.erfcInv(2 * percentile);</span>
+  }
+
+  private static double bmi(double heightCM, double weightKG) {
+<span class="fc" id="L508">    return (weightKG / ((heightCM / 100.0) * (heightCM / 100.0)));</span>
+  }
+
+  /**
+   * Map of RxNorm drug codes to the expected impact to HbA1c.
+   * Impacts should be negative numbers.
+   */
+<span class="fc" id="L515">  private static final Map&lt;String, Double&gt; DIABETES_DRUG_HBA1C_IMPACTS = createDrugImpactsMap();</span>
+
+  /**
+   * Populate the entries of the drug -&gt; impacts map.
+   * @return a map of drug code -&gt; expected hba1c delta
+   */
+  private static Map&lt;String, Double&gt; createDrugImpactsMap() {
+    // How much does A1C need to be lowered to get to goal?
+    // Metformin and sulfonylureas may lower A1C 1.5 to 2 percentage points,
+    // GLP-1 agonists and DPP-4 inhibitors 0.5 to 1 percentage point on average, and
+    // insulin as much as 6 points or more, depending on where you start.
+    // -- http://www.diabetesforecast.org/2013/mar/your-a1c-achieving-personal-blood-glucose-goals.html
+    // [:metformin, :glp1ra, :sglt2i, :basal_insulin, :prandial_insulin]
+    //     mono        bi      tri        insulin          insulin++
+<span class="fc" id="L529">    Map&lt;String,Double&gt; impacts = new HashMap&lt;&gt;();</span>
+    // key is the RxNorm code
+<span class="fc" id="L531">    impacts.put(&quot;860975&quot;, -1.5); // metformin</span>
+<span class="fc" id="L532">    impacts.put(&quot;897122&quot;, -0.5); // liraglutide</span>
+<span class="fc" id="L533">    impacts.put(&quot;1373463&quot;, -0.5); // canagliflozin</span>
+<span class="fc" id="L534">    impacts.put(&quot;106892&quot;, -3.0); // basal insulin</span>
+<span class="fc" id="L535">    impacts.put(&quot;865098&quot;, -6.0); // prandial insulin</span>
+    
+<span class="fc" id="L537">    return impacts;</span>
+  }
+  
+
+  
+<span class="fc" id="L542">  private static final int[] CHOLESTEROL_RANGE =</span>
+<span class="fc" id="L543">      BiometricsConfig.ints(&quot;metabolic.lipid_panel.cholesterol&quot;);</span>
+<span class="fc" id="L544">  private static final int[] TRIGLYCERIDES_RANGE =</span>
+<span class="fc" id="L545">      BiometricsConfig.ints(&quot;metabolic.lipid_panel.triglycerides&quot;);</span>
+<span class="fc" id="L546">  private static final int[] HDL_RANGE =</span>
+<span class="fc" id="L547">      BiometricsConfig.ints(&quot;metabolic.lipid_panel.hdl&quot;);</span>
+  
+<span class="fc" id="L549">  private static final int[] GLUCOSE_RANGE =</span>
+<span class="fc" id="L550">      BiometricsConfig.ints(&quot;metabolic.basic_panel.glucose&quot;);</span>
+
+<span class="fc" id="L552">  private static final int[] UREA_NITROGEN_RANGE =</span>
+<span class="fc" id="L553">      BiometricsConfig.ints(&quot;metabolic.basic_panel.normal.urea_nitrogen&quot;);</span>
+<span class="fc" id="L554">  private static final double[] CALCIUM_RANGE =</span>
+<span class="fc" id="L555">      BiometricsConfig.doubles(&quot;metabolic.basic_panel.normal.calcium&quot;);</span>
+
+
+<span class="fc" id="L558">  private static final int[] MILD_KIDNEY_DMG_CC_RANGE = </span>
+<span class="fc" id="L559">      BiometricsConfig.ints(&quot;metabolic.basic_panel.creatinine_clearance.mild_kidney_damage&quot;);</span>
+<span class="fc" id="L560">  private static final int[] MODERATE_KIDNEY_DMG_CC_RANGE = </span>
+<span class="fc" id="L561">      BiometricsConfig.ints(&quot;metabolic.basic_panel.creatinine_clearance.moderate_kidney_damage&quot;);</span>
+<span class="fc" id="L562">  private static final int[] SEVERE_KIDNEY_DMG_CC_RANGE = </span>
+<span class="fc" id="L563">      BiometricsConfig.ints(&quot;metabolic.basic_panel.creatinine_clearance.severe_kidney_damage&quot;);</span>
+<span class="fc" id="L564">  private static final int[] ESRD_CC_RANGE = </span>
+<span class="fc" id="L565">      BiometricsConfig.ints(&quot;metabolic.basic_panel.creatinine_clearance.esrd&quot;);</span>
+<span class="fc" id="L566">  private static final int[] NORMAL_FEMALE_CC_RANGE = </span>
+<span class="fc" id="L567">      BiometricsConfig.ints(&quot;metabolic.basic_panel.creatinine_clearance.normal.female&quot;);</span>
+<span class="fc" id="L568">  private static final int[] NORMAL_MALE_CC_RANGE = </span>
+<span class="fc" id="L569">      BiometricsConfig.ints(&quot;metabolic.basic_panel.creatinine_clearance.normal.male&quot;);</span>
+  
+<span class="fc" id="L571">  private static final int[] NORMAL_MCR_RANGE = </span>
+<span class="fc" id="L572">      BiometricsConfig.ints(&quot;metabolic.basic_panel.microalbumin_creatinine_ratio.normal&quot;);</span>
+<span class="fc" id="L573">  private static final int[] CONTROLLED_MCR_RANGE = </span>
+      BiometricsConfig
+<span class="fc" id="L575">      .ints(&quot;metabolic.basic_panel.microalbumin_creatinine_ratio.microalbuminuria_controlled&quot;);</span>
+
+<span class="fc" id="L577">  private static final int[] UNCONTROLLED_MCR_RANGE = </span>
+      BiometricsConfig
+<span class="fc" id="L579">     .ints(&quot;metabolic.basic_panel.microalbumin_creatinine_ratio.microalbuminuria_uncontrolled&quot;);</span>
+
+<span class="fc" id="L581">  private static final int[] PROTEINURIA_MCR_RANGE = </span>
+      BiometricsConfig
+<span class="fc" id="L583">      .ints(&quot;metabolic.basic_panel.microalbumin_creatinine_ratio.proteinuria&quot;);</span>
+
+<span class="fc" id="L585">  private static final double[] CHLORIDE_RANGE = </span>
+<span class="fc" id="L586">      BiometricsConfig.doubles(&quot;metabolic.basic_panel.normal.chloride&quot;);</span>
+<span class="fc" id="L587">  private static final double[] POTASSIUM_RANGE = </span>
+<span class="fc" id="L588">      BiometricsConfig.doubles(&quot;metabolic.basic_panel.normal.potassium&quot;);</span>
+<span class="fc" id="L589">  private static final double[] CO2_RANGE = </span>
+<span class="fc" id="L590">      BiometricsConfig.doubles(&quot;metabolic.basic_panel.normal.carbon_dioxide&quot;);</span>
+<span class="fc" id="L591">  private static final double[] SODIUM_RANGE = </span>
+<span class="fc" id="L592">      BiometricsConfig.doubles(&quot;metabolic.basic_panel.normal.sodium&quot;);</span>
+  
+  /**
+   * Calculate this person's vital signs, 
+   * based on their conditions, medications, body composition, etc.
+   * @param person The person
+   * @param time Current simulation timestamp
+   */
+  private static void calculateVitalSigns(Person person, long time) {
+<span class="fc" id="L601">    int index = 0;</span>
+<span class="fc bfc" id="L602" title="All 2 branches covered.">    if (person.attributes.containsKey(&quot;diabetes_severity&quot;)) {</span>
+<span class="fc" id="L603">      index = (Integer) person.attributes.getOrDefault(&quot;diabetes_severity&quot;, 1);</span>
+    }
+    
+<span class="fc" id="L606">    double totalCholesterol = person.rand(CHOLESTEROL_RANGE[index], CHOLESTEROL_RANGE[index + 1]);</span>
+<span class="fc" id="L607">    double triglycerides = person.rand(TRIGLYCERIDES_RANGE[index], TRIGLYCERIDES_RANGE[index + 1]);</span>
+<span class="fc" id="L608">    double hdl = person.rand(HDL_RANGE[index], HDL_RANGE[index + 1]);</span>
+<span class="fc" id="L609">    double ldl = totalCholesterol - hdl - (0.2 * triglycerides);</span>
+    
+<span class="fc" id="L611">    person.setVitalSign(VitalSign.TOTAL_CHOLESTEROL, totalCholesterol);</span>
+<span class="fc" id="L612">    person.setVitalSign(VitalSign.TRIGLYCERIDES, triglycerides);</span>
+<span class="fc" id="L613">    person.setVitalSign(VitalSign.HDL, hdl);</span>
+<span class="fc" id="L614">    person.setVitalSign(VitalSign.LDL, ldl);</span>
+    
+<span class="fc" id="L616">    double bmi = person.getVitalSign(VitalSign.BMI, time);</span>
+<span class="fc" id="L617">    boolean prediabetes = (boolean)person.attributes.getOrDefault(&quot;prediabetes&quot;, false);</span>
+<span class="fc" id="L618">    boolean diabetes = (boolean)person.attributes.getOrDefault(&quot;diabetes&quot;, false);</span>
+<span class="fc" id="L619">    double hbA1c = estimateHbA1c(bmi, prediabetes, diabetes, person);</span>
+    
+<span class="fc bfc" id="L621" title="All 4 branches covered.">    if (prediabetes || diabetes) {</span>
+      // drugs reduce hbA1c.
+      // only do this for people that have pre/diabetes, 
+      // because these drugs are only prescribed if they do
+<span class="fc bfc" id="L625" title="All 2 branches covered.">      for (Map.Entry&lt;String, Double&gt; e : DIABETES_DRUG_HBA1C_IMPACTS.entrySet()) {</span>
+<span class="fc" id="L626">        String medicationCode = e.getKey();</span>
+<span class="fc" id="L627">        double impact = e.getValue();</span>
+<span class="fc bfc" id="L628" title="All 2 branches covered.">        if (person.record.medicationActive(medicationCode)) {</span>
+          // impacts are negative, so add them
+<span class="fc" id="L630">          hbA1c += impact;</span>
+        }
+<span class="fc" id="L632">      }</span>
+    }
+
+<span class="fc" id="L635">    person.setVitalSign(VitalSign.BLOOD_GLUCOSE, hbA1c);</span>
+    
+    // CKD == stage of &quot;Chronic Kidney Disease&quot; or the level of diabetic kidney damage
+<span class="fc" id="L638">    int kidneyDamage = (Integer) person.attributes.getOrDefault(&quot;ckd&quot;, 0);</span>
+    int[] ccRange;
+    int[] mcrRange;
+<span class="pc bpc" id="L641" title="1 of 5 branches missed.">    switch (kidneyDamage) {</span>
+      case 1:
+<span class="fc" id="L643">        ccRange = MILD_KIDNEY_DMG_CC_RANGE;</span>
+<span class="fc" id="L644">        mcrRange = NORMAL_MCR_RANGE;</span>
+<span class="fc" id="L645">        break;</span>
+      case 2:
+<span class="fc" id="L647">        ccRange = MODERATE_KIDNEY_DMG_CC_RANGE;</span>
+<span class="fc" id="L648">        mcrRange = CONTROLLED_MCR_RANGE;</span>
+<span class="fc" id="L649">        break;</span>
+      case 3:
+<span class="fc" id="L651">        ccRange = SEVERE_KIDNEY_DMG_CC_RANGE;</span>
+<span class="fc" id="L652">        mcrRange = UNCONTROLLED_MCR_RANGE;</span>
+<span class="fc" id="L653">        break;</span>
+      case 4:
+<span class="nc" id="L655">        ccRange = ESRD_CC_RANGE;</span>
+<span class="nc" id="L656">        mcrRange = PROTEINURIA_MCR_RANGE;</span>
+<span class="nc" id="L657">        break;</span>
+      default:
+<span class="fc bfc" id="L659" title="All 2 branches covered.">        if (&quot;F&quot;.equals(person.attributes.get(Person.GENDER))) {</span>
+<span class="fc" id="L660">          ccRange = NORMAL_FEMALE_CC_RANGE;</span>
+        } else {
+<span class="fc" id="L662">          ccRange = NORMAL_MALE_CC_RANGE;</span>
+        }
+<span class="fc" id="L664">        mcrRange = NORMAL_MCR_RANGE;</span>
+    }
+<span class="fc" id="L666">    double creatinineClearance = person.rand(ccRange);</span>
+<span class="fc" id="L667">    person.setVitalSign(VitalSign.EGFR, creatinineClearance);</span>
+    
+<span class="fc" id="L669">    double microalbuminCreatinineRatio = person.rand(mcrRange);</span>
+<span class="fc" id="L670">    person.setVitalSign(VitalSign.MICROALBUMIN_CREATININE_RATIO, microalbuminCreatinineRatio);</span>
+    
+<span class="fc" id="L672">    double creatinine = reverseCalculateCreatinine(person, creatinineClearance, time);</span>
+<span class="fc" id="L673">    person.setVitalSign(VitalSign.CREATININE, creatinine);</span>
+    
+<span class="fc" id="L675">    person.setVitalSign(VitalSign.UREA_NITROGEN, person.rand(UREA_NITROGEN_RANGE));</span>
+<span class="fc" id="L676">    person.setVitalSign(VitalSign.CALCIUM, person.rand(CALCIUM_RANGE));</span>
+    
+<span class="fc" id="L678">    index = Math.min(index, 2); // note this continues from the index logic above</span>
+    
+<span class="fc" id="L680">    double glucose = person.rand(GLUCOSE_RANGE[index], GLUCOSE_RANGE[index + 1]);</span>
+<span class="fc" id="L681">    person.setVitalSign(VitalSign.GLUCOSE, glucose);</span>
+
+<span class="fc" id="L683">    person.setVitalSign(VitalSign.CHLORIDE, person.rand(CHLORIDE_RANGE));</span>
+<span class="fc" id="L684">    person.setVitalSign(VitalSign.POTASSIUM, person.rand(POTASSIUM_RANGE));</span>
+<span class="fc" id="L685">    person.setVitalSign(VitalSign.CARBON_DIOXIDE, person.rand(CO2_RANGE));</span>
+<span class="fc" id="L686">    person.setVitalSign(VitalSign.SODIUM, person.rand(SODIUM_RANGE));</span>
+<span class="fc" id="L687">  }</span>
+
+  /**
+   * Estimate the person's HbA1c using BMI and whether or not they have diabetes or prediabetes as a
+   * rough guideline.
+   * 
+   * @param bmi
+   *          The person's BMI.
+   * @param prediabetes
+   *          Whether or not the person is prediabetic. (Diagnosed or undiagnosed)
+   * @param diabetes
+   *          Whether or not the person is diabetic. (Diagnosed or undiagnosed)
+   * @param p
+   *          The person
+   * @return A calculated HbA1c value.
+   */
+  private static double estimateHbA1c(double bmi, boolean prediabetes, boolean diabetes, Person p) {
+<span class="fc bfc" id="L704" title="All 2 branches covered.">    if (diabetes) {</span>
+<span class="fc bfc" id="L705" title="All 2 branches covered.">      if (bmi &gt; 48.0) {</span>
+<span class="fc" id="L706">        return 12.0;</span>
+<span class="fc bfc" id="L707" title="All 2 branches covered.">      } else if (bmi &lt;= 27.0) {</span>
+<span class="fc" id="L708">        return 6.6;</span>
+      } else {
+<span class="fc" id="L710">        return bmi / 4.0;</span>
+        // very simple BMI function so that BMI 40 --&gt; blood glucose ~ 10,
+        // but with a bounded min at 6.6 and bounded max at 12.0
+      }
+<span class="fc bfc" id="L714" title="All 2 branches covered.">    } else if (prediabetes) {</span>
+<span class="fc" id="L715">      return p.rand(5.8, 6.4);</span>
+    } else {
+<span class="fc" id="L717">      return p.rand(5.0, 5.7);</span>
+    }
+  }
+
+  /**
+   * Calculate Creatinine from Creatinine Clearance.
+   *  Source: http://www.mcw.edu/calculators/creatinine.htm
+   * @param person The person
+   * @param crcl Creatinine Clearance
+   * @param time Current Time
+   * @return Estimated Creatinine
+   */
+  private static double reverseCalculateCreatinine(Person person, double crcl, long time) {
+    try {
+<span class="fc" id="L731">      int age = person.ageInYears(time);</span>
+<span class="fc" id="L732">      boolean female = &quot;F&quot;.equals(person.attributes.get(Person.GENDER));</span>
+<span class="fc" id="L733">      double weight = person.getVitalSign(VitalSign.WEIGHT, time); // kg</span>
+<span class="fc" id="L734">      crcl = Math.max(1, Math.min(crcl, 100)); // clamp between 1-100</span>
+<span class="fc" id="L735">      double creatinine = ((140.0 - age) * weight) / (72.0 * crcl);</span>
+<span class="fc bfc" id="L736" title="All 2 branches covered.">      if (female) {</span>
+<span class="fc" id="L737">        creatinine *= 0.85;</span>
+      }
+<span class="fc" id="L739">      return creatinine;</span>
+<span class="nc" id="L740">    } catch (Exception e) {</span>
+<span class="nc" id="L741">      return 1.0;</span>
+    }
+  }
+
+<span class="fc" id="L745">  protected static boolean ENABLE_DEATH_BY_NATURAL_CAUSES =</span>
+<span class="fc" id="L746">      Boolean.parseBoolean(Config.get(&quot;lifecycle.death_by_natural_causes&quot;));</span>
+  
+<span class="fc" id="L748">  private static final Code NATURAL_CAUSES = new Code(&quot;SNOMED-CT&quot;, &quot;9855000&quot;,</span>
+      &quot;Natural death with unknown cause&quot;);
+
+  protected static void death(Person person, long time) {
+<span class="fc bfc" id="L752" title="All 2 branches covered.">    if (ENABLE_DEATH_BY_NATURAL_CAUSES) {</span>
+<span class="fc" id="L753">      double roll = person.rand();</span>
+<span class="fc" id="L754">      double likelihoodOfDeath = likelihoodOfDeath(person.ageInYears(time));</span>
+<span class="fc bfc" id="L755" title="All 2 branches covered.">      if (roll &lt; likelihoodOfDeath) {</span>
+<span class="fc" id="L756">        person.recordDeath(time, NATURAL_CAUSES, &quot;death&quot;);</span>
+      }
+    }
+<span class="fc" id="L759">  }</span>
+
+  protected static double likelihoodOfDeath(int age) {
+    double yearlyRisk;
+
+<span class="fc bfc" id="L764" title="All 2 branches covered.">    if (age &lt; 1) {</span>
+<span class="fc" id="L765">      yearlyRisk = 508.1 / 100_000.0;</span>
+<span class="pc bpc" id="L766" title="1 of 4 branches missed.">    } else if (age &gt;= 1 &amp;&amp; age &lt;= 4) {</span>
+<span class="fc" id="L767">      yearlyRisk = 15.6 / 100_000.0;</span>
+<span class="pc bpc" id="L768" title="1 of 4 branches missed.">    } else if (age &gt;= 5 &amp;&amp; age &lt;= 14) {</span>
+<span class="fc" id="L769">      yearlyRisk = 10.6 / 100_000.0;</span>
+<span class="pc bpc" id="L770" title="1 of 4 branches missed.">    } else if (age &gt;= 15 &amp;&amp; age &lt;= 24) {</span>
+<span class="fc" id="L771">      yearlyRisk = 56.4 / 100_000.0;</span>
+<span class="pc bpc" id="L772" title="1 of 4 branches missed.">    } else if (age &gt;= 25 &amp;&amp; age &lt;= 34) {</span>
+<span class="fc" id="L773">      yearlyRisk = 74.7 / 100_000.0;</span>
+<span class="pc bpc" id="L774" title="1 of 4 branches missed.">    } else if (age &gt;= 35 &amp;&amp; age &lt;= 44) {</span>
+<span class="fc" id="L775">      yearlyRisk = 145.7 / 100_000.0;</span>
+<span class="pc bpc" id="L776" title="1 of 4 branches missed.">    } else if (age &gt;= 45 &amp;&amp; age &lt;= 54) {</span>
+<span class="fc" id="L777">      yearlyRisk = 326.5 / 100_000.0;</span>
+<span class="pc bpc" id="L778" title="1 of 4 branches missed.">    } else if (age &gt;= 55 &amp;&amp; age &lt;= 64) {</span>
+<span class="fc" id="L779">      yearlyRisk = 737.8 / 100_000.0;</span>
+<span class="pc bpc" id="L780" title="1 of 4 branches missed.">    } else if (age &gt;= 65 &amp;&amp; age &lt;= 74) {</span>
+<span class="fc" id="L781">      yearlyRisk = 1817.0 / 100_000.0;</span>
+<span class="pc bpc" id="L782" title="1 of 4 branches missed.">    } else if (age &gt;= 75 &amp;&amp; age &lt;= 84) {</span>
+<span class="fc" id="L783">      yearlyRisk = 4877.3 / 100_000.0;</span>
+<span class="pc bpc" id="L784" title="1 of 4 branches missed.">    } else if (age &gt;= 85 &amp;&amp; age &lt;= 94) {</span>
+<span class="fc" id="L785">      yearlyRisk = 13_499.4 / 100_000.0;</span>
+    } else {
+<span class="fc" id="L787">      yearlyRisk = 50_000.0 / 100_000.0;</span>
+    }
+
+<span class="fc" id="L790">    double oneYearInMs = TimeUnit.DAYS.toMillis(365);</span>
+<span class="fc" id="L791">    double adjustedRisk = Utilities.convertRiskToTimestep(yearlyRisk, oneYearInMs);</span>
+
+<span class="fc" id="L793">    return adjustedRisk;</span>
+  }
+
+  private static void startSmoking(Person person, long time) {
+    // 9/10 smokers start before age 18. We will use 16.
+    // http://www.cdc.gov/tobacco/data_statistics/fact_sheets/youth_data/tobacco_use/
+<span class="fc bfc" id="L799" title="All 4 branches covered.">    if (person.attributes.get(Person.SMOKER) == null &amp;&amp; person.ageInYears(time) == 16) {</span>
+<span class="fc" id="L800">      int year = Utilities.getYear(time);</span>
+<span class="fc bfc" id="L801" title="All 2 branches covered.">      Boolean smoker = person.rand() &lt; likelihoodOfBeingASmoker(year);</span>
+<span class="fc" id="L802">      person.attributes.put(Person.SMOKER, smoker);</span>
+<span class="fc" id="L803">      double quitSmokingBaseline = Double</span>
+<span class="fc" id="L804">          .parseDouble(Config.get(&quot;lifecycle.quit_smoking.baseline&quot;, &quot;0.01&quot;));</span>
+<span class="fc" id="L805">      person.attributes.put(LifecycleModule.QUIT_SMOKING_PROBABILITY, quitSmokingBaseline);</span>
+    }
+<span class="fc" id="L807">  }</span>
+
+  private static double likelihoodOfBeingASmoker(int year) {
+    // 16.1% of MA are smokers in 2016.
+    // http://www.cdc.gov/tobacco/data_statistics/state_data/state_highlights/2010/states/massachusetts/
+    // but the rate is decreasing over time
+    // http://www.cdc.gov/tobacco/data_statistics/tables/trends/cig_smoking/
+    // selected #s:
+    // 1965 - 42.4%
+    // 1975 - 37.1%
+    // 1985 - 30.1%
+    // 1995 - 24.7%
+    // 2005 - 20.9%
+    // 2015 - 16.1%
+    // assume that it was never significantly higher than 42% pre-1960s, but will continue to drop
+    // slowly after 2016
+    // it's decreasing about .5% per year
+<span class="fc bfc" id="L824" title="All 2 branches covered.">    if (year &lt; 1965) {</span>
+<span class="fc" id="L825">      return 0.424;</span>
+    }
+
+<span class="fc" id="L828">    return ((year * -0.4865) + 996.41) / 100.0;</span>
+  }
+
+  private static void startAlcoholism(Person person, long time) {
+    // there are various types of alcoholics with different characteristics
+    // including age of onset of dependence. we pick 25 as a starting point
+    // https://www.therecoveryvillage.com/alcohol-abuse/types-alcoholics/
+<span class="fc bfc" id="L835" title="All 4 branches covered.">    if (person.attributes.get(Person.ALCOHOLIC) == null &amp;&amp; person.ageInYears(time) == 25) {</span>
+      // assume about 8 mil alcoholics/320 mil gen pop
+<span class="fc bfc" id="L837" title="All 2 branches covered.">      Boolean alcoholic = person.rand() &lt; 0.025;</span>
+<span class="fc" id="L838">      person.attributes.put(Person.ALCOHOLIC, alcoholic);</span>
+<span class="fc" id="L839">      double quitAlcoholismBaseline = Double</span>
+<span class="fc" id="L840">          .parseDouble(Config.get(&quot;lifecycle.quit_alcoholism.baseline&quot;, &quot;0.05&quot;));</span>
+<span class="fc" id="L841">      person.attributes.put(QUIT_ALCOHOLISM_PROBABILITY, quitAlcoholismBaseline);</span>
+    }
+<span class="fc" id="L843">  }</span>
+
+  /**
+   * If the person is a smoker, there is a small chance they will quit.
+   * @param person The person who might quit smoking.
+   * @param time The current time in the simulation.
+   */
+  public static void quitSmoking(Person person, long time) {
+<span class="fc" id="L851">    int age = person.ageInYears(time);</span>
+<span class="fc bfc" id="L852" title="All 2 branches covered.">    if (person.attributes.containsKey(Person.SMOKER)) {</span>
+<span class="fc bfc" id="L853" title="All 2 branches covered.">      if (person.attributes.get(Person.SMOKER).equals(true)) {</span>
+<span class="fc" id="L854">        double probability = (double) person.attributes.get(QUIT_SMOKING_PROBABILITY);</span>
+<span class="fc bfc" id="L855" title="All 2 branches covered.">        if (person.rand() &lt; probability) {</span>
+<span class="fc" id="L856">          person.attributes.put(Person.SMOKER, false);</span>
+<span class="fc" id="L857">          person.attributes.put(QUIT_SMOKING_AGE, age);</span>
+        } else {
+<span class="fc" id="L859">          double quitSmokingBaseline = Double</span>
+<span class="fc" id="L860">              .parseDouble(Config.get(&quot;lifecycle.quit_smoking.baseline&quot;, &quot;0.01&quot;));</span>
+<span class="fc" id="L861">          double quitSmokingTimestepDelta = Double</span>
+<span class="fc" id="L862">              .parseDouble(Config.get(&quot;lifecycle.quit_smoking.timestep_delta&quot;, &quot;-0.1&quot;));</span>
+<span class="fc" id="L863">          probability += quitSmokingTimestepDelta;</span>
+<span class="pc bpc" id="L864" title="1 of 2 branches missed.">          if (probability &lt; quitSmokingBaseline) {</span>
+<span class="fc" id="L865">            probability = quitSmokingBaseline;</span>
+          }
+<span class="fc" id="L867">          person.attributes.put(QUIT_SMOKING_PROBABILITY, probability);</span>
+        }
+      }
+    }
+<span class="fc" id="L871">  }</span>
+
+  /**
+   * If the person is an alcoholic, there is a small chance they will quit.
+   * @param person The person who might quit drinking.
+   * @param time The current time in the simulation.
+   */
+  public static void quitAlcoholism(Person person, long time) {
+<span class="fc" id="L879">    int age = person.ageInYears(time);</span>
+
+<span class="fc bfc" id="L881" title="All 2 branches covered.">    if (person.attributes.containsKey(Person.ALCOHOLIC)) {</span>
+<span class="fc bfc" id="L882" title="All 2 branches covered.">      if (person.attributes.get(Person.ALCOHOLIC).equals(true)) {</span>
+<span class="fc" id="L883">        double probability = (double) person.attributes.get(QUIT_ALCOHOLISM_PROBABILITY);</span>
+<span class="fc bfc" id="L884" title="All 2 branches covered.">        if (person.rand() &lt; probability) {</span>
+<span class="fc" id="L885">          person.attributes.put(Person.ALCOHOLIC, false);</span>
+<span class="fc" id="L886">          person.attributes.put(QUIT_ALCOHOLISM_AGE, age);</span>
+        } else {
+<span class="fc" id="L888">          double quitAlcoholismBaseline = Double</span>
+<span class="fc" id="L889">              .parseDouble(Config.get(&quot;lifecycle.quit_alcoholism.baseline&quot;, &quot;0.01&quot;));</span>
+<span class="fc" id="L890">          double quitAlcoholismTimestepDelta = Double</span>
+<span class="fc" id="L891">              .parseDouble(Config.get(&quot;lifecycle.quit_alcoholism.timestep_delta&quot;, &quot;-0.1&quot;));</span>
+<span class="fc" id="L892">          probability += quitAlcoholismTimestepDelta;</span>
+<span class="pc bpc" id="L893" title="1 of 2 branches missed.">          if (probability &lt; quitAlcoholismBaseline) {</span>
+<span class="fc" id="L894">            probability = quitAlcoholismBaseline;</span>
+          }
+<span class="fc" id="L896">          person.attributes.put(QUIT_ALCOHOLISM_PROBABILITY, probability);</span>
+        }
+      }
+    }
+<span class="fc" id="L900">  }</span>
+
+  /**
+   * Adjust the probability of a patients adherence to Doctor orders, whether
+   * medication, careplans, whatever.
+   * @param person The patient to consider.
+   * @param time The time in the simulation.
+   */
+  public static void adherence(Person person, long time) {
+<span class="fc bfc" id="L909" title="All 2 branches covered.">    if (person.attributes.containsKey(Person.ADHERENCE)) {</span>
+<span class="fc" id="L910">      double probability = (double) person.attributes.get(ADHERENCE_PROBABILITY);</span>
+<span class="fc" id="L911">      double adherenceBaseline = Double</span>
+<span class="fc" id="L912">          .parseDouble(Config.get(&quot;lifecycle.adherence.baseline&quot;, &quot;0.05&quot;));</span>
+<span class="fc" id="L913">      double adherenceTimestepDelta = Double</span>
+<span class="fc" id="L914">          .parseDouble(Config.get(&quot;lifecycle.adherence.timestep_delta&quot;, &quot;-.01&quot;));</span>
+<span class="fc" id="L915">      probability += adherenceTimestepDelta;</span>
+<span class="pc bpc" id="L916" title="1 of 2 branches missed.">      if (probability &lt; adherenceBaseline) {</span>
+<span class="nc" id="L917">        probability = adherenceBaseline;</span>
+      }
+<span class="fc" id="L919">      person.attributes.put(ADHERENCE_PROBABILITY, probability);</span>
+    }
+<span class="fc" id="L921">  }</span>
+
+  /**
+   * Creates a &quot;probability_of_fall_injury&quot; attribute that gets referenced in the Injuries module
+   * where adults &gt; age 65 have multiple screenings that affect fall.
+   * @param person The person to calculate risk for.
+   * @param time The time within the simulation.
+   */
+  private void calculateFallRisk(Person person, long time) {
+<span class="fc bfc" id="L930" title="All 2 branches covered.">    if (person.ageInYears(time) &gt;= 65) {</span>
+<span class="fc" id="L931">      boolean hasOsteoporosis = (boolean) person.attributes.getOrDefault(&quot;osteporosis&quot;, false);</span>
+<span class="pc bpc" id="L932" title="1 of 2 branches missed.">      double baselineFallRisk = hasOsteoporosis ? 0.06 : 0.035;// numbers from injuries module</span>
+
+<span class="fc" id="L934">      int activeInterventions = 0;</span>
+
+      // careplan for exercise or PT
+<span class="pc bpc" id="L937" title="1 of 2 branches missed.">      if (person.record.careplanActive(&quot;Physical therapy procedure&quot;)</span>
+<span class="pc bpc" id="L938" title="1 of 2 branches missed.">          || person.record.careplanActive(&quot;Physical activity target light exercise&quot;)) {</span>
+<span class="nc" id="L939">        activeInterventions++;</span>
+      }
+
+      // taking vitamin D
+<span class="pc bpc" id="L943" title="1 of 2 branches missed.">      if (person.record.medicationActive(&quot;Cholecalciferol 600 UNT&quot;)) {</span>
+<span class="nc" id="L944">        activeInterventions++;</span>
+      }
+
+      // osteoporosis diagnosis makes them more careful
+<span class="pc bpc" id="L948" title="1 of 2 branches missed.">      if (person.record.conditionActive(&quot;Osteoporosis (disorder)&quot;)) {</span>
+<span class="nc" id="L949">        activeInterventions++;</span>
+      }
+
+<span class="fc" id="L952">      double fallRisk = baselineFallRisk * (1 - 0.02 * activeInterventions);</span>
+      // reduce the fall risk by 2% per intervention
+      // TODO - research actual effectiveness of these interventions
+
+<span class="fc" id="L956">      person.attributes.put(&quot;probability_of_fall_injury&quot;, fallRisk);</span>
+    }
+<span class="fc" id="L958">  }</span>
+
+  /**
+   * Get all of the Codes this module uses, for inventory purposes.
+   * 
+   * @return Collection of all codes and concepts this module uses
+   */
+  public static Collection&lt;Code&gt; getAllCodes() {
+<span class="fc" id="L966">    return Collections.singleton(NATURAL_CAUSES);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

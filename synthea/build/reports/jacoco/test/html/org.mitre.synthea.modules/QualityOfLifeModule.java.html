@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>QualityOfLifeModule.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.modules</a> &gt; <span class="el_source">QualityOfLifeModule.java</span></div><h1>QualityOfLifeModule.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.modules;
+
+import com.google.gson.Gson;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import org.mitre.synthea.engine.Module;
+import org.mitre.synthea.helpers.Utilities;
+import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.concepts.HealthRecord.Encounter;
+import org.mitre.synthea.world.concepts.HealthRecord.Entry;
+
+public class QualityOfLifeModule extends Module {
+
+<span class="fc" id="L20">  private static Map&lt;String, Map&lt;String, Object&gt;&gt; disabilityWeights = loadDisabilityWeights();</span>
+
+<span class="fc" id="L22">  public QualityOfLifeModule() {</span>
+<span class="fc" id="L23">    this.name = &quot;Quality of Life&quot;;</span>
+<span class="fc" id="L24">  }</span>
+
+  @SuppressWarnings(&quot;unchecked&quot;)
+  @Override
+  public boolean process(Person person, long time) {
+<span class="fc bfc" id="L29" title="All 2 branches covered.">    if (!person.attributes.containsKey(&quot;QALY&quot;)) {</span>
+<span class="fc" id="L30">      person.attributes.put(&quot;QALY&quot;, new LinkedHashMap&lt;Integer, Double&gt;());</span>
+<span class="fc" id="L31">      person.attributes.put(&quot;DALY&quot;, new LinkedHashMap&lt;Integer, Double&gt;());</span>
+<span class="fc" id="L32">      person.attributes.put(&quot;QOL&quot;, new LinkedHashMap&lt;Integer, Double&gt;());</span>
+      // linked hashmaps to preserve insertion order, and then we can iterate by year
+    }
+
+<span class="fc" id="L36">    Map&lt;Integer, Double&gt; qalys = (Map&lt;Integer, Double&gt;) person.attributes.get(&quot;QALY&quot;);</span>
+<span class="fc" id="L37">    Map&lt;Integer, Double&gt; dalys = (Map&lt;Integer, Double&gt;) person.attributes.get(&quot;DALY&quot;);</span>
+<span class="fc" id="L38">    Map&lt;Integer, Double&gt; qols = (Map&lt;Integer, Double&gt;) person.attributes.get(&quot;QOL&quot;);</span>
+
+<span class="fc" id="L40">    int year = Utilities.getYear(time);</span>
+
+<span class="fc bfc" id="L42" title="All 2 branches covered.">    if (!qalys.containsKey(year)) {</span>
+      // double age = person.ageInYears(time) + 1;
+<span class="fc" id="L44">      double[] values = calculate(person, time);</span>
+
+<span class="fc" id="L46">      dalys.put(year, values[0]);</span>
+<span class="fc" id="L47">      qalys.put(year, values[1]);</span>
+<span class="fc" id="L48">      qols.put(year, values[2]);</span>
+<span class="fc" id="L49">      person.attributes.put(&quot;most-recent-daly&quot;, values[0]);</span>
+<span class="fc" id="L50">      person.attributes.put(&quot;most-recent-qaly&quot;, values[1]);</span>
+    }
+
+    // java modules will never &quot;finish&quot;
+<span class="fc" id="L54">    return false;</span>
+  }
+
+  @SuppressWarnings(&quot;unchecked&quot;)
+  private static Map&lt;String, Map&lt;String, Object&gt;&gt; loadDisabilityWeights() {
+<span class="fc" id="L59">    String filename = &quot;gbd_disability_weights.json&quot;;</span>
+    try {
+<span class="fc" id="L61">      String json = Utilities.readResource(filename);</span>
+<span class="fc" id="L62">      Gson g = new Gson();</span>
+<span class="fc" id="L63">      return g.fromJson(json, HashMap.class);</span>
+<span class="nc" id="L64">    } catch (Exception e) {</span>
+<span class="nc" id="L65">      System.err.println(&quot;ERROR: unable to load json: &quot; + filename);</span>
+<span class="nc" id="L66">      e.printStackTrace();</span>
+<span class="nc" id="L67">      throw new ExceptionInInitializerError(e);</span>
+    }
+  }
+
+  /**
+   * Calculate the HALYs for this person, at the given time. HALYs include QALY and DALY.
+   * 
+   * @param person
+   *          Person to calculate
+   * @param stop
+   *          current timestamp
+   * @return array of [daly (cumulative), qaly (cumulative), current disability weight]
+   */
+  public static double[] calculate(Person person, long stop) {
+    // Disability-Adjusted Life Year = DALY = YLL + YLD
+    // Years of Life Lost = YLL = (1) * (standard life expectancy at age of death in years)
+    // Years Lost due to Disability = YLD = (disability weight) * (average duration of case)
+    // from http://www.who.int/healthinfo/global_burden_disease/metrics_daly/en/
+<span class="fc" id="L85">    double yll = 0.0;</span>
+<span class="fc" id="L86">    double yld = 0.0;</span>
+
+<span class="fc" id="L88">    int age = person.ageInYears(stop);</span>
+<span class="fc" id="L89">    long birthdate = (long) person.attributes.get(&quot;birthdate&quot;);</span>
+
+<span class="fc bfc" id="L91" title="All 2 branches covered.">    if (!person.alive(stop)) {</span>
+      // life expectancy equation derived from IHME GBD 2015 Reference Life Table
+      // 6E-5x^3 - 0.0054x^2 - 0.8502x + 86.16
+      // R^2 = 0.99978
+<span class="fc" id="L95">      double l = ((0.00006 * Math.pow(age, 3)) - (0.0054 * Math.pow(age, 2)) - (0.8502 * age)</span>
+          + 86.16);
+<span class="fc" id="L97">      yll = l;</span>
+    }
+    // get list of conditions
+<span class="fc" id="L100">    List&lt;Entry&gt; allConditions = new ArrayList&lt;Entry&gt;();</span>
+<span class="fc bfc" id="L101" title="All 2 branches covered.">    for (Encounter encounter : person.record.encounters) {</span>
+<span class="fc bfc" id="L102" title="All 2 branches covered.">      for (Entry condition : encounter.conditions) {</span>
+<span class="fc" id="L103">        allConditions.add(condition);</span>
+<span class="fc" id="L104">      }</span>
+<span class="fc" id="L105">    }</span>
+
+<span class="fc" id="L107">    double disabilityWeight = 0.0;</span>
+    // calculate yld with yearly timestep
+<span class="fc bfc" id="L109" title="All 2 branches covered.">    for (int i = 0; i &lt; age + 1; i++) {</span>
+<span class="fc" id="L110">      long yearStart = birthdate + TimeUnit.DAYS.toMillis((long) (365.25 * i));</span>
+<span class="fc" id="L111">      long yearEnd = birthdate + (TimeUnit.DAYS.toMillis((long) (365.25 * (i + 1) - 1)));</span>
+<span class="fc" id="L112">      List&lt;Entry&gt; conditionsInYear = conditionsInYear(allConditions, yearStart, yearEnd);</span>
+
+<span class="fc" id="L114">      disabilityWeight = 0.0;</span>
+
+<span class="fc bfc" id="L116" title="All 2 branches covered.">      for (Entry condition : conditionsInYear) {</span>
+<span class="fc" id="L117">        disabilityWeight += (double) disabilityWeights.get(condition.codes.get(0).display)</span>
+<span class="fc" id="L118">            .get(&quot;disability_weight&quot;);</span>
+<span class="fc" id="L119">      }</span>
+
+<span class="fc" id="L121">      disabilityWeight = Math.min(1.0, weight(disabilityWeight, i + 1));</span>
+<span class="fc" id="L122">      yld += disabilityWeight;</span>
+    }
+
+<span class="fc" id="L125">    double daly = yll + yld;</span>
+<span class="fc" id="L126">    double qaly = age - yld;</span>
+
+<span class="fc" id="L128">    return new double[] { daly, qaly, 1 - disabilityWeight };</span>
+  }
+
+  public static List&lt;Entry&gt; conditionsInYear(List&lt;Entry&gt; conditions, long yearStart, long yearEnd) {
+<span class="fc" id="L132">    List&lt;Entry&gt; conditionsInYear = new ArrayList&lt;Entry&gt;();</span>
+<span class="fc bfc" id="L133" title="All 2 branches covered.">    for (Entry condition : conditions) {</span>
+<span class="fc bfc" id="L134" title="All 2 branches covered.">      if (disabilityWeights.containsKey(condition.codes.get(0).display)) {</span>
+        // condition.stop == 0 for conditions that have not yet ended
+<span class="pc bpc" id="L136" title="1 of 8 branches missed.">        if (yearStart &gt;= condition.start &amp;&amp; condition.start &lt;= yearEnd</span>
+            &amp;&amp; (condition.stop &gt; yearStart || condition.stop == 0)) {
+<span class="fc" id="L138">          conditionsInYear.add(condition);</span>
+        }
+      }
+<span class="fc" id="L141">    }</span>
+<span class="fc" id="L142">    return conditionsInYear;</span>
+  }
+
+  public static double weight(double disabilityWeight, int age) {
+    // age_weight = 0.1658 * age * e^(-0.04 * age)
+    // from http://www.who.int/quantifying_ehimpacts/publications/9241546204/en/
+    // weight = age_weight * disability_weight
+<span class="fc" id="L149">    double ageWeight = 0.1658 * age * Math.exp(-0.04 * age);</span>
+<span class="fc" id="L150">    double weight = ageWeight * disabilityWeight;</span>
+<span class="fc" id="L151">    return weight;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

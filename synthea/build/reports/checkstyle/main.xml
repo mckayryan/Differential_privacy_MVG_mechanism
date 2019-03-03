@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<checkstyle version="8.4">
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/App.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/Graphviz.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/datastore/DataStore.java">
+<error line="55" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="206" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="213" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="633" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/engine/Components.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/engine/Event.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/engine/EventList.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/engine/Generator.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/engine/Logic.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/engine/Module.java">
+<error line="80" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="133" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/engine/State.java">
+<error line="21" severity="warning" message="Wrong lexicographical order for &apos;org.mitre.synthea.helpers.ConstantValueGenerator&apos; import. Should be before &apos;org.mitre.synthea.helpers.RandomValueGenerator&apos;." source="com.puppycrawl.tools.checkstyle.checks.imports.CustomImportOrderCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/engine/Transition.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/CCDAExporter.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/CDWExporter.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/CSVExporter.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/CustomSqlReport.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/ExportHelper.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/Exporter.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/FhirDstu2.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/FhirPractitionerExporterDstu2.java">
+<error line="36" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/FhirPractitionerExporterR4.java">
+<error line="34" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/FhirPractitionerExporterStu3.java">
+<error line="34" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/FhirR4.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/FhirStu3.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/HospitalExporterDstu2.java">
+<error line="33" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="72" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/HospitalExporterR4.java">
+<error line="33" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="72" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/HospitalExporterStu3.java">
+<error line="32" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="71" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/PrevalenceReport.java">
+<error line="36" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/ReportExporter.java">
+<error line="30" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/export/TextExporter.java">
+<error line="404" severity="warning" message="&apos;+&apos; has incorrect indentation level 9, expected level should be 10." source="com.puppycrawl.tools.checkstyle.checks.indentation.IndentationCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/helpers/Concepts.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/helpers/Config.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/helpers/ConstantValueGenerator.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/helpers/FactTable.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/helpers/InnerClassTypeAdapterFactory.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/helpers/RandomCollection.java">
+<error line="15" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/helpers/RandomValueGenerator.java">
+<error line="13" severity="warning" message="Summary javadoc is missing." source="com.puppycrawl.tools.checkstyle.checks.javadoc.SummaryJavadocCheck"/>
+<error line="15" severity="warning" message="At-clause should have a non-empty description." source="com.puppycrawl.tools.checkstyle.checks.javadoc.NonEmptyAtclauseDescriptionCheck"/>
+<error line="16" severity="warning" message="At-clause should have a non-empty description." source="com.puppycrawl.tools.checkstyle.checks.javadoc.NonEmptyAtclauseDescriptionCheck"/>
+<error line="17" severity="warning" message="At-clause should have a non-empty description." source="com.puppycrawl.tools.checkstyle.checks.javadoc.NonEmptyAtclauseDescriptionCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/helpers/SimpleCSV.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/helpers/SimpleYML.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/helpers/TransitionMetrics.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/helpers/TrendingValueGenerator.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/helpers/Utilities.java">
+<error line="56" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="62" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="93" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="99" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="121" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="145" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="169" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="193" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="217" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/helpers/ValueGenerator.java">
+<error line="17" severity="warning" message="First sentence of Javadoc is missing an ending period." source="com.puppycrawl.tools.checkstyle.checks.javadoc.SummaryJavadocCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/modules/BloodPressureValueGenerator.java">
+<error line="12" severity="warning" message="Javadoc comment at column 14 has parse error. Details: mismatched input &apos;:&apos; expecting &lt;EOF&gt; while parsing JAVADOC" source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocTagContinuationIndentationCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/modules/CardiovascularDiseaseModule.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/modules/DeathModule.java">
+<error line="22" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/modules/EncounterModule.java">
+<error line="135" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="169" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="185" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="200" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/modules/HealthInsuranceModule.java">
+<error line="26" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="38" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/modules/Immunizations.java">
+<error line="48" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/modules/LifecycleModule.java">
+<error line="228" severity="warning" message="At-clause should have a non-empty description." source="com.puppycrawl.tools.checkstyle.checks.javadoc.NonEmptyAtclauseDescriptionCheck"/>
+<error line="229" severity="warning" message="At-clause should have a non-empty description." source="com.puppycrawl.tools.checkstyle.checks.javadoc.NonEmptyAtclauseDescriptionCheck"/>
+<error line="238" severity="warning" message="Block comment has incorrect indentation level 0, expected is 2, indentation should be the same level as line 245." source="com.puppycrawl.tools.checkstyle.checks.indentation.CommentsIndentationCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/modules/QualityOfLifeModule.java">
+<error line="131" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="145" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/world/agents/Clinician.java">
+<error line="47" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/world/agents/Person.java">
+<error line="91" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="174" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="218" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="227" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="241" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="260" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="263" severity="warning" message="Line is longer than 100 characters (found 122)." source="com.puppycrawl.tools.checkstyle.checks.sizes.LineLengthCheck"/>
+<error line="272" severity="warning" message="First sentence of Javadoc is missing an ending period." source="com.puppycrawl.tools.checkstyle.checks.javadoc.SummaryJavadocCheck"/>
+<error line="279" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="314" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="332" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="340" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="361" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="374" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="394" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="412" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="422" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="430" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/world/agents/Provider.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/world/concepts/BiometricsConfig.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/world/concepts/BirthStatistics.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/world/concepts/ClinicianSpecialty.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/world/concepts/Costs.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/world/concepts/HealthRecord.java">
+<error line="77" column="5" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="111" column="5" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="117" column="5" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="140" column="5" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="162" column="5" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="182" column="5" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="195" column="5" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="207" column="5" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="254" column="5" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="270" column="5" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="280" column="5" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="293" column="5" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="323" column="5" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="356" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="362" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="397" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="409" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="419" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="425" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="440" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="452" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="463" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="470" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="490" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="499" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="506" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="522" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="531" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="547" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="553" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="576" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="584" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="596" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="605" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="626" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="638" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="647" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="668" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/world/concepts/RaceAndEthnicity.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/world/concepts/VitalSign.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/world/geography/Demographics.java">
+<error line="42" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="65" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="78" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="93" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="136" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="254" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="282" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="301" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="310" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="346" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+<error line="358" column="3" severity="warning" message="Missing a Javadoc comment." source="com.puppycrawl.tools.checkstyle.checks.javadoc.JavadocMethodCheck"/>
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/world/geography/Location.java">
+</file>
+<file name="/home/ryan/projects/perlin_hackathon/synthea/src/main/java/org/mitre/synthea/world/geography/Place.java">
+</file>
+</checkstyle>

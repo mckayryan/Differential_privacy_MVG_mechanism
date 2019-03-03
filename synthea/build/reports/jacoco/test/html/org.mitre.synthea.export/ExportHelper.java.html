@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ExportHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.export</a> &gt; <span class="el_source">ExportHelper.java</span></div><h1>ExportHelper.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.export;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
+
+import org.hl7.fhir.dstu3.model.Condition;
+import org.mitre.synthea.world.concepts.HealthRecord;
+import org.mitre.synthea.world.concepts.HealthRecord.Code;
+import org.mitre.synthea.world.concepts.HealthRecord.Observation;
+
+/**
+ * Helper class for common logic that is used by more than one otherwise unrelated exporter.
+ */
+<span class="nc" id="L16">public abstract class ExportHelper {</span>
+
+  /**
+   * Helper to get a readable string representation of an Observation's value.
+   * Units are not included.
+   * 
+   * @param observation The observation to get the value from
+   * @return A human-readable string representation of observation.value
+   */
+  public static String getObservationValue(Observation observation) {
+<span class="fc" id="L26">    String value = null;</span>
+    
+<span class="pc bpc" id="L28" title="1 of 2 branches missed.">    if (observation.value instanceof Condition) {</span>
+<span class="nc" id="L29">      Code conditionCode = ((HealthRecord.Entry)observation.value).codes.get(0); </span>
+<span class="nc" id="L30">      value = conditionCode.display;</span>
+<span class="pc bfc" id="L31" title="All 2 branches covered.">    } else if (observation.value instanceof Code) {</span>
+<span class="fc" id="L32">      value = ((Code)observation.value).display;</span>
+<span class="fc bfc" id="L33" title="All 2 branches covered.">    } else if (observation.value instanceof String) {</span>
+<span class="fc" id="L34">      value = (String)observation.value;</span>
+<span class="fc bfc" id="L35" title="All 2 branches covered.">    } else if (observation.value instanceof Double) {</span>
+      // round to 1 decimal place for display
+<span class="fc" id="L37">      value = String.format(Locale.US, &quot;%.1f&quot;, observation.value);</span>
+<span class="pc bpc" id="L38" title="1 of 2 branches missed.">    } else if (observation.value != null) {</span>
+<span class="nc" id="L39">      value = observation.value.toString();</span>
+    }
+    
+<span class="fc" id="L42">    return value;</span>
+  }
+
+  /**
+   * Helper to get a readable string representation of an Observation's value.
+   * Units are not included.
+   * 
+   * @param observation The observation to get the value from.
+   * @param code The observation or component observation matching this code.
+   * @return A human-readable string representation of observation with the given code.
+   */
+  public static String getObservationValue(Observation observation, String code) {
+    // Check whether this observation has the desired code.
+<span class="fc bfc" id="L55" title="All 2 branches covered.">    for (Code c : observation.codes) {</span>
+<span class="fc bfc" id="L56" title="All 2 branches covered.">      if (c.code.equals(code)) {</span>
+<span class="fc" id="L57">        return getObservationValue(observation);</span>
+      }
+<span class="fc" id="L59">    }</span>
+
+    // Check whether any of the contained observations have the desired code.
+<span class="fc" id="L62">    String value = null;</span>
+<span class="fc bfc" id="L63" title="All 2 branches covered.">    for (Observation o : observation.observations) {</span>
+<span class="fc" id="L64">      value = getObservationValue(o, code);</span>
+<span class="fc bfc" id="L65" title="All 2 branches covered.">      if (value != null) {</span>
+<span class="fc" id="L66">        return value;</span>
+      }
+<span class="fc" id="L68">    }</span>
+
+<span class="fc" id="L70">    return null;</span>
+  }
+
+  /**
+   * Helper to get a readable string representation of an Observation's type.
+   * 
+   * @param observation The observation to get the type from
+   * @return A human-readable string representation of the type of observation.value
+   */
+  public static String getObservationType(Observation observation) {
+<span class="fc" id="L80">    String type = null;</span>
+    
+<span class="pc bpc" id="L82" title="1 of 2 branches missed.">    if (observation.value instanceof Condition) {</span>
+<span class="nc" id="L83">      type = &quot;text&quot;;</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">    } else if (observation.value instanceof Code) {</span>
+<span class="fc" id="L85">      type = &quot;text&quot;;</span>
+<span class="fc bfc" id="L86" title="All 2 branches covered.">    } else if (observation.value instanceof String) {</span>
+<span class="fc" id="L87">      type = &quot;text&quot;;</span>
+<span class="pc bpc" id="L88" title="1 of 2 branches missed.">    } else if (observation.value instanceof Double) {</span>
+<span class="fc" id="L89">      type = &quot;numeric&quot;;</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">    } else if (observation.value != null) {</span>
+<span class="nc" id="L91">      type = &quot;text&quot;;</span>
+    }
+    
+<span class="fc" id="L94">    return type;</span>
+  }
+
+  /**
+   * Year-Month-Day date format.
+   */
+<span class="fc" id="L100">  private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat(&quot;yyyy-MM-dd&quot;);</span>
+
+  /**
+   * Iso8601 date time format.
+   */
+<span class="fc" id="L105">  private static final SimpleDateFormat ISO_DATE_FORMAT = iso();</span>
+
+  /**
+   * Create a SimpleDateFormat for iso8601.
+   * @return Iso8601 date time format.
+   */
+  private static final SimpleDateFormat iso() {
+<span class="fc" id="L112">    SimpleDateFormat f = new SimpleDateFormat(&quot;yyyy-MM-dd'T'HH:mm:ss'Z'&quot;);</span>
+<span class="fc" id="L113">    f.setTimeZone(TimeZone.getTimeZone(&quot;UTC&quot;));</span>
+<span class="fc" id="L114">    return f;</span>
+  }
+
+  /**
+   * Get a date string in the format YYYY-MM-DD from the given time stamp.
+   */
+  public static String dateFromTimestamp(long time) {
+<span class="fc" id="L121">    synchronized (DATE_FORMAT) {</span>
+      // http://bugs.java.com/bugdatabase/view_bug.do?bug_id=6231579
+<span class="fc" id="L123">      return DATE_FORMAT.format(new Date(time));</span>
+    }
+  }
+
+  /**
+   * Get an iso8601 string for the given time stamp.
+   */
+  public static String iso8601Timestamp(long time) {
+<span class="fc" id="L131">    synchronized (ISO_DATE_FORMAT) {</span>
+      // http://bugs.java.com/bugdatabase/view_bug.do?bug_id=6231579
+<span class="fc" id="L133">      return ISO_DATE_FORMAT.format(new Date(time));</span>
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

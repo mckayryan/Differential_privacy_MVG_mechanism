@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.modules.QualityOfLifeTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:18:25" hostname="ryan-B250M-HD3" time="0.001">
+  <properties/>
+  <testcase name="testCalculateLiving" classname="org.mitre.synthea.modules.QualityOfLifeTest" time="0.0"/>
+  <testcase name="testConditionsInYear" classname="org.mitre.synthea.modules.QualityOfLifeTest" time="0.0"/>
+  <testcase name="testCalculateDeceased" classname="org.mitre.synthea.modules.QualityOfLifeTest" time="0.001"/>
+  <testcase name="testWeight" classname="org.mitre.synthea.modules.QualityOfLifeTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

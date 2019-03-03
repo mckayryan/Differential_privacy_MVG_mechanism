@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="AppTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:20:03" hostname="ryan-B250M-HD3" time="6.822">
+  <properties/>
+  <testcase name="testInvalidArgs" classname="AppTest" time="0.001"/>
+  <testcase name="testApp" classname="AppTest" time="0.662"/>
+  <testcase name="testAppWithDifferentLocation" classname="AppTest" time="4.194"/>
+  <testcase name="testAppWithAges" classname="AppTest" time="0.53"/>
+  <testcase name="testAppWithOverflow" classname="AppTest" time="0.516"/>
+  <testcase name="testAppWithGender" classname="AppTest" time="0.486"/>
+  <testcase name="testAppWithConfigSetting" classname="AppTest" time="0.433"/>
+  <system-out><![CDATA[Running with options:
+Population: 0
+Seed: 0
+Location: Massachusetts
+Min Age: 0
+Max Age: 140
+{alive=0, dead=0}
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

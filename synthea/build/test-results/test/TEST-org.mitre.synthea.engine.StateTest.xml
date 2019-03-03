@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.engine.StateTest" tests="52" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:15:49" hostname="ryan-B250M-HD3" time="6.25">
+  <properties/>
+  <testcase name="medication_end_by_medication_order" classname="org.mitre.synthea.engine.StateTest" time="5.261"/>
+  <testcase name="condition_onset_during_encounter" classname="org.mitre.synthea.engine.StateTest" time="0.008"/>
+  <testcase name="condition_onset_diagnosed_by_target_encounter" classname="org.mitre.synthea.engine.StateTest" time="0.008"/>
+  <testcase name="allergy_end_by_state_name" classname="org.mitre.synthea.engine.StateTest" time="0.007"/>
+  <testcase name="careplan_end_by_entity_attribute" classname="org.mitre.synthea.engine.StateTest" time="0.012"/>
+  <testcase name="testDelayRewindTime" classname="org.mitre.synthea.engine.StateTest" time="0.008"/>
+  <testcase name="guard_passes_when_condition_is_met" classname="org.mitre.synthea.engine.StateTest" time="0.004"/>
+  <testcase name="vitalsign" classname="org.mitre.synthea.engine.StateTest" time="0.108"/>
+  <testcase name="careplan_assigns_entity_attribute" classname="org.mitre.synthea.engine.StateTest" time="0.008"/>
+  <testcase name="ed_visit_encounter" classname="org.mitre.synthea.engine.StateTest" time="0.012"/>
+  <testcase name="medication_order_assigns_entity_attribute" classname="org.mitre.synthea.engine.StateTest" time="0.009"/>
+  <testcase name="medication_order_during_wellness_encounter" classname="org.mitre.synthea.engine.StateTest" time="0.009"/>
+  <testcase name="careplan_end_by_code" classname="org.mitre.synthea.engine.StateTest" time="0.013"/>
+  <testcase name="imaging_study_during_encounter" classname="org.mitre.synthea.engine.StateTest" time="0.008"/>
+  <testcase name="testDiagnosticReport" classname="org.mitre.synthea.engine.StateTest" time="0.42"/>
+  <testcase name="cause_of_death_attribute" classname="org.mitre.synthea.engine.StateTest" time="0.009"/>
+  <testcase name="wellness_encounter" classname="org.mitre.synthea.engine.StateTest" time="0.011"/>
+  <testcase name="testMultiObservation" classname="org.mitre.synthea.engine.StateTest" time="0.018"/>
+  <testcase name="testSubmoduleDiagnosesAndEndingEncounters" classname="org.mitre.synthea.engine.StateTest" time="0.025"/>
+  <testcase name="setAttribute_without_value" classname="org.mitre.synthea.engine.StateTest" time="0.005"/>
+  <testcase name="cause_of_death_conditionOnset" classname="org.mitre.synthea.engine.StateTest" time="0.01"/>
+  <testcase name="medication_end_by_entity_attribute" classname="org.mitre.synthea.engine.StateTest" time="0.014"/>
+  <testcase name="initial_always_passes" classname="org.mitre.synthea.engine.StateTest" time="0.003"/>
+  <testcase name="symptoms50" classname="org.mitre.synthea.engine.StateTest" time="0.005"/>
+  <testcase name="death" classname="org.mitre.synthea.engine.StateTest" time="0.004"/>
+  <testcase name="observation" classname="org.mitre.synthea.engine.StateTest" time="0.008"/>
+  <testcase name="terminal_never_passes" classname="org.mitre.synthea.engine.StateTest" time="0.003"/>
+  <testcase name="careplan_start" classname="org.mitre.synthea.engine.StateTest" time="0.006"/>
+  <testcase name="condition_end_by_code" classname="org.mitre.synthea.engine.StateTest" time="0.012"/>
+  <testcase name="encounter_with_attribute_reason" classname="org.mitre.synthea.engine.StateTest" time="0.011"/>
+  <testcase name="condition_onset" classname="org.mitre.synthea.engine.StateTest" time="0.007"/>
+  <testcase name="cause_of_death_code" classname="org.mitre.synthea.engine.StateTest" time="0.009"/>
+  <testcase name="procedure_assigns_entity_attribute" classname="org.mitre.synthea.engine.StateTest" time="0.005"/>
+  <testcase name="wellness_encounter_diagnoses_condition" classname="org.mitre.synthea.engine.StateTest" time="0.011"/>
+  <testcase name="setAttribute_with_value" classname="org.mitre.synthea.engine.StateTest" time="0.004"/>
+  <testcase name="delay_passes_after_time_range" classname="org.mitre.synthea.engine.StateTest" time="0.019"/>
+  <testcase name="counter" classname="org.mitre.synthea.engine.StateTest" time="0.006"/>
+  <testcase name="medication_end_by_code" classname="org.mitre.synthea.engine.StateTest" time="0.013"/>
+  <testcase name="allergy_onset" classname="org.mitre.synthea.engine.StateTest" time="0.006"/>
+  <testcase name="allergy_onset_during_encounter" classname="org.mitre.synthea.engine.StateTest" time="0.006"/>
+  <testcase name="condition_end_by_condition_onset" classname="org.mitre.synthea.engine.StateTest" time="0.011"/>
+  <testcase name="medication_order_with_dosage" classname="org.mitre.synthea.engine.StateTest" time="0.009"/>
+  <testcase name="future_death" classname="org.mitre.synthea.engine.StateTest" time="0.006"/>
+  <testcase name="procedure_during_encounter" classname="org.mitre.synthea.engine.StateTest" time="0.004"/>
+  <testcase name="guard_blocks_when_condition_isnt_met" classname="org.mitre.synthea.engine.StateTest" time="0.003"/>
+  <testcase name="careplan_end_by_careplan" classname="org.mitre.synthea.engine.StateTest" time="0.012"/>
+  <testcase name="symptoms" classname="org.mitre.synthea.engine.StateTest" time="0.005"/>
+  <testcase name="delay_passes_after_exact_time" classname="org.mitre.synthea.engine.StateTest" time="0.021"/>
+  <testcase name="stateMustHaveTransition" classname="org.mitre.synthea.engine.StateTest" time="0.005"/>
+  <testcase name="medication_order_as_needed" classname="org.mitre.synthea.engine.StateTest" time="0.009"/>
+  <testcase name="testSubmoduleHistory" classname="org.mitre.synthea.engine.StateTest" time="0.02"/>
+  <testcase name="condition_end_by_entity_attribute" classname="org.mitre.synthea.engine.StateTest" time="0.01"/>
+  <system-out><![CDATA[Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/osteoarthritis.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/veteran_hyperlipidemia.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/homelessness.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/dialysis.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/sinusitis.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/contraceptives.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/rheumatoid_arthritis.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/total_joint_replacement.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/dementia.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/veteran_ptsd.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/allergies.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/pregnancy.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/dermatitis/early_severe_eczema_obs.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/dermatitis/moderate_cd_obs.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/dermatitis/severe_cd_obs.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/dermatitis/mid_severe_eczema_obs.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/dermatitis/mid_moderate_eczema_obs.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/dermatitis/early_moderate_eczema_obs.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/appendicitis.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/med_rec.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/contraceptives/ring_contraceptive.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/contraceptives/patch_contraceptive.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/contraceptives/female_sterilization.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/contraceptives/male_sterilization.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/contraceptives/clear_contraceptive.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/contraceptives/oral_contraceptive.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/contraceptives/implant_contraceptive.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/contraceptives/injectable_contraceptive.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/contraceptives/intrauterine_device.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/allergies/immunotherapy.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/allergies/outgrow_food_allergies.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/allergies/allergy_panel.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/allergies/outgrow_env_allergies.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/allergies/allergy_incidence.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/allergies/severe_allergic_reaction.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/allergic_rhinitis.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/veteran_prostate_cancer.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/self_harm.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/sexual_activity.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/copd.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/bronchitis.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/atopy.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/female_reproduction.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/veteran_mdd.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/veteran_lung_cancer.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/surgery/general_anesthesia.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/attention_deficit_disorder.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/cystic_fibrosis.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/veterans/veteran_suicide_probabilities.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/gallstones.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/colorectal_cancer.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/wellness_encounters.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/ear_infections.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/fibromyalgia.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/total_joint_replacement/functional_status_assessments.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/primary_atrophic_hypothyroidism.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/osteoporosis.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/metabolic_syndrome_care.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/dermatitis.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/congestive_heart_failure.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/anemia/anemia_sub.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/lung_cancer/lung_cancer_probabilities.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/sore_throat.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/opioid_addiction.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/veteran_substance_abuse_treatment.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/lupus.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/anemia___unknown_etiology.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/epilepsy.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/veteran_self_harm.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/medications/otc_antihistamine.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/medications/moderate_opioid_pain_reliever.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/medications/strong_opioid_pain_reliever.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/medications/otc_pain_reliever.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/medications/ear_infection_antibiotic.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/food_allergies.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/asthma.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/veteran.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/lung_cancer.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/veteran_substance_abuse_conditions.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/gout.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/hypothyroidism.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/contraceptive_maintenance.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/mTBI.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/urinary_tract_infections.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/metabolic_syndrome_disease.json
+Loading /home/ryan/projects/perlin_hackathon/synthea/build/resources/main/modules/injuries.json
+Loaded 90 modules.
+[Terminal 'Terminal', ConditionEnd 'End_Condition', CallSubmodule 'Call_Encounter_Submodule', Terminal 'Encounter_Terminal', Delay 'Delay_Some_More', CallSubmodule 'Call_MedicationOrder_Submodule', Terminal 'Med_Terminal', MedicationEnd 'End_Medication', Delay 'Delay_Yet_Again', MedicationOrder 'Examplitis_Medication', Initial 'Initial', CallSubmodule 'Call_MedicationOrder_Submodule', Encounter 'Encounter_In_Submodule', Delay 'Delay', Initial 'Initial', CallSubmodule 'Call_Encounter_Submodule', ConditionOnset 'Example_Condition', Initial 'Initial']
+]]></system-out>
+  <system-err><![CDATA[java.lang.RuntimeException: State `Simple` has no transition.
+
+	at org.mitre.synthea.engine.State.initialize(State.java:63)
+	at org.mitre.synthea.engine.State.build(State.java:89)
+	at org.mitre.synthea.engine.Module.<init>(Module.java:147)
+	at org.mitre.synthea.engine.StateTest.getModule(StateTest.java:76)
+	at org.mitre.synthea.engine.StateTest.stateMustHaveTransition(StateTest.java:105)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:50)
+	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:47)
+	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+	at org.junit.internal.runners.statements.ExpectException.evaluate(ExpectException.java:19)
+	at org.junit.internal.runners.statements.RunBefores.evaluate(RunBefores.java:26)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:325)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:78)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:57)
+	at org.junit.runners.ParentRunner$3.run(ParentRunner.java:290)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:71)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:288)
+	at org.junit.runners.ParentRunner.access$000(ParentRunner.java:58)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:268)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:363)
+	at org.gradle.api.internal.tasks.testing.junit.JUnitTestClassExecutor.runTestClass(JUnitTestClassExecutor.java:110)
+	at org.gradle.api.internal.tasks.testing.junit.JUnitTestClassExecutor.execute(JUnitTestClassExecutor.java:58)
+	at org.gradle.api.internal.tasks.testing.junit.JUnitTestClassExecutor.execute(JUnitTestClassExecutor.java:38)
+	at org.gradle.api.internal.tasks.testing.junit.AbstractJUnitTestClassProcessor.processTestClass(AbstractJUnitTestClassProcessor.java:62)
+	at org.gradle.api.internal.tasks.testing.SuiteTestClassProcessor.processTestClass(SuiteTestClassProcessor.java:51)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:35)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:24)
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:32)
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:93)
+	at com.sun.proxy.$Proxy2.processTestClass(Unknown Source)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.processTestClass(TestWorker.java:118)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:35)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:24)
+	at org.gradle.internal.remote.internal.hub.MessageHubBackedObjectConnection$DispatchWrapper.dispatch(MessageHubBackedObjectConnection.java:175)
+	at org.gradle.internal.remote.internal.hub.MessageHubBackedObjectConnection$DispatchWrapper.dispatch(MessageHubBackedObjectConnection.java:157)
+	at org.gradle.internal.remote.internal.hub.MessageHub$Handler.run(MessageHub.java:404)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:63)
+	at org.gradle.internal.concurrent.ManagedExecutorImpl$1.run(ManagedExecutorImpl.java:46)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at org.gradle.internal.concurrent.ThreadFactoryImpl$ManagedThreadRunnable.run(ThreadFactoryImpl.java:55)
+	at java.lang.Thread.run(Thread.java:748)
+]]></system-err>
+</testsuite>

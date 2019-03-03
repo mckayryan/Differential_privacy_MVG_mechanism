@@ -1,0 +1,695 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HealthRecord.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.world.concepts</a> &gt; <span class="el_source">HealthRecord.java</span></div><h1>HealthRecord.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.world.concepts;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
+import org.mitre.synthea.helpers.Utilities;
+import org.mitre.synthea.modules.HealthInsuranceModule;
+import org.mitre.synthea.world.agents.Clinician;
+import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.agents.Provider;
+
+/**
+ * HealthRecord contains all the coded entries in a person's health record. This class represents a
+ * logical health record. Exporters will convert this health record into various standardized
+ * formats.
+ */
+public class HealthRecord {
+  /**
+   * HealthRecord.Code represents a system, code, and display value.
+   */
+  public static class Code implements Comparable&lt;Code&gt; {
+    /** Code System (e.g. LOINC, RxNorm, SNOMED) identifier (typically a URI) */
+    public String system;
+    /** The code itself. */
+    public String code;
+    /** The human-readable description of the code. */
+    public String display;
+
+    /**
+     * Create a new code.
+     *
+     * @param system
+     *          the URI identifier of the code system
+     * @param code
+     *          the code itself
+     * @param display
+     *          human-readable description of the coe
+     */
+<span class="fc" id="L51">    public Code(String system, String code, String display) {</span>
+<span class="fc" id="L52">      this.system = system;</span>
+<span class="fc" id="L53">      this.code = code;</span>
+<span class="fc" id="L54">      this.display = display;</span>
+<span class="fc" id="L55">    }</span>
+
+    /**
+     * Create a new code from JSON.
+     *
+     * @param definition
+     *          JSON object that contains 'system', 'code', and 'display' attributes.
+     */
+<span class="fc" id="L63">    public Code(JsonObject definition) {</span>
+<span class="fc" id="L64">      this.system = definition.get(&quot;system&quot;).getAsString();</span>
+<span class="fc" id="L65">      this.code = definition.get(&quot;code&quot;).getAsString();</span>
+<span class="fc" id="L66">      this.display = definition.get(&quot;display&quot;).getAsString();</span>
+<span class="fc" id="L67">    }</span>
+
+    public boolean equals(Code other) {
+<span class="fc bfc" id="L70" title="All 4 branches covered.">      return this.system.equals(other.system) &amp;&amp; this.code.equals(other.code);</span>
+    }
+
+    public String toString() {
+<span class="fc" id="L74">      return String.format(&quot;%s %s %s&quot;, system, code, display);</span>
+    }
+
+    public static List&lt;Code&gt; fromJson(JsonArray jsonCodes) {
+<span class="fc" id="L78">      List&lt;Code&gt; codes = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L79">      jsonCodes.forEach(item -&gt; {</span>
+<span class="fc" id="L80">        codes.add(new Code((JsonObject) item));</span>
+<span class="fc" id="L81">      });</span>
+<span class="fc" id="L82">      return codes;</span>
+    }
+
+    @Override
+    public int compareTo(Code other) {
+<span class="fc" id="L87">      int compare = this.system.compareTo(other.system);</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">      if (compare == 0) {</span>
+<span class="fc" id="L89">        compare = this.code.compareTo(other.code);</span>
+      }
+<span class="fc" id="L91">      return compare;</span>
+    }
+  }
+
+  /**
+   * All things within a HealthRecord are instances of Entry. For example, Observations, Reports,
+   * Medications, etc. All Entries have a name, start and stop times, a type, and a list of
+   * associated codes.
+   */
+  public class Entry {
+    /** reference to the HealthRecord this entry belongs to. */
+<span class="fc" id="L102">    private HealthRecord record = HealthRecord.this;</span>
+    public String fullUrl;
+    public String name;
+    public long start;
+    public long stop;
+    public String type;
+    public List&lt;Code&gt; codes;
+    private BigDecimal cost;
+
+<span class="fc" id="L111">    public Entry(long start, String type) {</span>
+<span class="fc" id="L112">      this.start = start;</span>
+<span class="fc" id="L113">      this.type = type;</span>
+<span class="fc" id="L114">      this.codes = new ArrayList&lt;Code&gt;();</span>
+<span class="fc" id="L115">    }</span>
+
+    public BigDecimal cost() {
+<span class="fc bfc" id="L118" title="All 2 branches covered.">      if (cost == null) {</span>
+<span class="fc" id="L119">        Person patient = record.person;</span>
+<span class="fc" id="L120">        Provider provider = record.provider;</span>
+<span class="fc" id="L121">        String payer = null;</span>
+<span class="fc" id="L122">        cost = BigDecimal.valueOf(Costs.calculateCost(this, patient, provider, payer));</span>
+<span class="fc" id="L123">        cost = cost.setScale(2, RoundingMode.DOWN); // truncate to 2 decimal places</span>
+      }
+<span class="fc" id="L125">      return cost;</span>
+    }
+
+    public String toString() {
+<span class="fc" id="L129">      return String.format(&quot;%s %s&quot;, Instant.ofEpochMilli(start).toString(), type);</span>
+    }
+  }
+
+  public class Observation extends Entry {
+    public Object value;
+    public String category;
+    public String unit;
+    public List&lt;Observation&gt; observations;
+    public Report report;
+
+<span class="fc" id="L140">    public Observation(long time, String type, Object value) {</span>
+<span class="fc" id="L141">      super(time, type);</span>
+<span class="fc" id="L142">      this.value = value;</span>
+<span class="fc" id="L143">      this.observations = new ArrayList&lt;Observation&gt;();</span>
+<span class="fc" id="L144">    }</span>
+  }
+
+  public class Report extends Entry {
+    public List&lt;Observation&gt; observations;
+
+<span class="fc" id="L150">    public Report(long time, String type, List&lt;Observation&gt; observations) {</span>
+<span class="fc" id="L151">      super(time, type);</span>
+<span class="fc" id="L152">      this.observations = observations;</span>
+<span class="fc" id="L153">    }</span>
+  }
+
+  public class Medication extends Entry {
+    public List&lt;Code&gt; reasons;
+    public Code stopReason;
+    public JsonObject prescriptionDetails;
+    public Claim claim;
+
+<span class="fc" id="L162">    public Medication(long time, String type) {</span>
+<span class="fc" id="L163">      super(time, type);</span>
+<span class="fc" id="L164">      this.reasons = new ArrayList&lt;Code&gt;();</span>
+<span class="fc" id="L165">      this.claim = new Claim(this);</span>
+<span class="fc" id="L166">    }</span>
+  }
+
+  public class Immunization extends Entry {
+<span class="fc" id="L170">    public int series = -1;</span>
+
+<span class="fc" id="L172">    public Immunization(long start, String type) {</span>
+<span class="fc" id="L173">      super(start, type);</span>
+<span class="fc" id="L174">    }</span>
+  }
+
+  public class Procedure extends Entry {
+    public List&lt;Code&gt; reasons;
+    public Provider provider;
+    public Clinician clinician;
+
+<span class="fc" id="L182">    public Procedure(long time, String type) {</span>
+<span class="fc" id="L183">      super(time, type);</span>
+<span class="fc" id="L184">      this.reasons = new ArrayList&lt;Code&gt;();</span>
+<span class="fc" id="L185">      this.stop = this.start + TimeUnit.MINUTES.toMillis(15);</span>
+<span class="fc" id="L186">    }</span>
+  }
+
+  public class CarePlan extends Entry {
+    public Set&lt;Code&gt; activities;
+    public List&lt;Code&gt; reasons;
+    public Set&lt;JsonObject&gt; goals;
+    public Code stopReason;
+
+<span class="fc" id="L195">    public CarePlan(long time, String type) {</span>
+<span class="fc" id="L196">      super(time, type);</span>
+<span class="fc" id="L197">      this.activities = new LinkedHashSet&lt;Code&gt;();</span>
+<span class="fc" id="L198">      this.reasons = new ArrayList&lt;Code&gt;();</span>
+<span class="fc" id="L199">      this.goals = new LinkedHashSet&lt;JsonObject&gt;();</span>
+<span class="fc" id="L200">    }</span>
+  }
+
+  public class ImagingStudy extends Entry {
+    public String dicomUid;
+    public List&lt;Series&gt; series;
+
+<span class="fc" id="L207">    public ImagingStudy(long time, String type) {</span>
+<span class="fc" id="L208">      super(time, type);</span>
+<span class="fc" id="L209">      this.dicomUid = Utilities.randomDicomUid(0, 0);</span>
+<span class="fc" id="L210">      this.series = new ArrayList&lt;Series&gt;();</span>
+<span class="fc" id="L211">    }</span>
+
+    /**
+     * ImagingStudy.Series represents a series of images that were taken of
+     * a specific part of the body.
+     */
+<span class="nc" id="L217">    public class Series {</span>
+      /** A randomly assigned DICOM UID. */
+      public transient String dicomUid;
+      /** A SNOMED-CT body structures code. */
+      public Code bodySite;
+      /** A DICOM acquisition modality code.
+       * @see &lt;a href=&quot;https://www.hl7.org/fhir/valueset-dicom-cid29.html&quot;&gt;DICOM modality codes&lt;/a&gt;
+       */
+      public Code modality;
+      /** One or more imaging Instances that belong to this Series. */
+      public List&lt;Instance&gt; instances;
+    }
+
+    /**
+     * ImagingStudy.Instance represents a single imaging Instance taken as
+     * part of a Series of images.
+     */
+<span class="nc" id="L234">    public class Instance {</span>
+      /** A randomly assigned DICOM UID. */
+      public transient String dicomUid;
+      /** A title for this image. */
+      public String title;
+      /**
+       * A DICOM Service-Object Pair (SOP) class.
+       * @see &lt;a href=&quot;https://www.dicomlibrary.com/dicom/sop/&quot;&gt;DICOM SOP codes&lt;/a&gt;
+       */
+      public Code sopClass;
+    }
+  }
+
+  public class Claim {
+    public double baseCost;
+    public Encounter encounter;
+    public Medication medication;
+    public List&lt;Entry&gt; items;
+    public String insurance;
+
+<span class="fc" id="L254">    public Claim(Encounter encounter) {</span>
+<span class="fc" id="L255">      this.insurance = HealthInsuranceModule.getCurrentInsurance(person, encounter.start);</span>
+
+      // Encounter inpatient
+<span class="fc bfc" id="L258" title="All 2 branches covered.">      if (encounter.type.equalsIgnoreCase(&quot;inpatient&quot;)) {</span>
+<span class="fc" id="L259">        baseCost = 75.00;</span>
+      } else {
+        // Outpatient Encounter, Encounter for 'checkup', Encounter for symptom, Encounter for
+        // problem,
+        // patient initiated encounter, patient encounter procedure
+<span class="fc" id="L264">        baseCost = 125.00;</span>
+      }
+<span class="fc" id="L266">      this.encounter = encounter;</span>
+<span class="fc" id="L267">      items = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L268">    }</span>
+
+<span class="fc" id="L270">    public Claim(Medication medication) {</span>
+<span class="fc" id="L271">      baseCost = 255.0;</span>
+<span class="fc" id="L272">      this.medication = medication;</span>
+<span class="fc" id="L273">      items = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L274">    }</span>
+
+    public void addItem(Entry entry) {
+<span class="fc" id="L277">      items.add(entry);</span>
+<span class="fc" id="L278">    }</span>
+
+    public BigDecimal total() {
+<span class="fc" id="L281">      BigDecimal total = BigDecimal.valueOf(baseCost);</span>
+
+<span class="fc bfc" id="L283" title="All 2 branches covered.">      for (Entry lineItem : items) {</span>
+<span class="fc" id="L284">        total = total.add(lineItem.cost());</span>
+<span class="fc" id="L285">      }</span>
+<span class="fc" id="L286">      return total;</span>
+    }
+  }
+
+<span class="fc" id="L290">  public enum EncounterType {</span>
+<span class="fc" id="L291">    WELLNESS, AMBULATORY, OUTPATIENT, INPATIENT, EMERGENCY, URGENTCARE;</span>
+
+    public static EncounterType fromString(String value) {
+<span class="pc bpc" id="L294" title="1 of 2 branches missed.">      if (value == null) {</span>
+<span class="nc" id="L295">        return EncounterType.AMBULATORY;</span>
+      } else {
+<span class="fc" id="L297">        return EncounterType.valueOf(value.toUpperCase());</span>
+      }
+    }
+
+    public String toString() {
+<span class="fc" id="L302">      return this.name().toLowerCase();</span>
+    }
+  }
+
+  public class Encounter extends Entry {
+    public List&lt;Observation&gt; observations;
+    public List&lt;Report&gt; reports;
+    public List&lt;Entry&gt; conditions;
+    public List&lt;Entry&gt; allergies;
+    public List&lt;Procedure&gt; procedures;
+    public List&lt;Immunization&gt; immunizations;
+    public List&lt;Medication&gt; medications;
+    public List&lt;CarePlan&gt; careplans;
+    public List&lt;ImagingStudy&gt; imagingStudies;
+    public Claim claim; // for now assume 1 claim per encounter
+    public Code reason;
+    public Code discharge;
+    public Provider provider;
+    public Clinician clinician;
+    public boolean ended;
+
+<span class="fc" id="L323">    public Encounter(long time, String type) {</span>
+<span class="fc" id="L324">      super(time, type);</span>
+<span class="fc bfc" id="L325" title="All 2 branches covered.">      if (type.equalsIgnoreCase(EncounterType.EMERGENCY.toString())) {</span>
+        // Emergency encounters should take at least an hour.
+<span class="fc" id="L327">        this.stop = this.start + TimeUnit.MINUTES.toMillis(60);</span>
+<span class="fc bfc" id="L328" title="All 2 branches covered.">      } else if (type.equalsIgnoreCase(EncounterType.INPATIENT.toString())) {</span>
+        // Inpatient encounters should last at least a day (1440 minutes).
+<span class="fc" id="L330">        this.stop = this.start + TimeUnit.MINUTES.toMillis(1440);</span>
+      } else {
+        // Other encounters will default to 15 minutes.
+<span class="fc" id="L333">        this.stop = this.start + TimeUnit.MINUTES.toMillis(15);</span>
+      }
+<span class="fc" id="L335">      ended = false;</span>
+<span class="fc" id="L336">      observations = new ArrayList&lt;Observation&gt;();</span>
+<span class="fc" id="L337">      reports = new ArrayList&lt;Report&gt;();</span>
+<span class="fc" id="L338">      conditions = new ArrayList&lt;Entry&gt;();</span>
+<span class="fc" id="L339">      allergies = new ArrayList&lt;Entry&gt;();</span>
+<span class="fc" id="L340">      procedures = new ArrayList&lt;Procedure&gt;();</span>
+<span class="fc" id="L341">      immunizations = new ArrayList&lt;Immunization&gt;();</span>
+<span class="fc" id="L342">      medications = new ArrayList&lt;Medication&gt;();</span>
+<span class="fc" id="L343">      careplans = new ArrayList&lt;CarePlan&gt;();</span>
+<span class="fc" id="L344">      imagingStudies = new ArrayList&lt;ImagingStudy&gt;();</span>
+<span class="fc" id="L345">      claim = new Claim(this);</span>
+<span class="fc" id="L346">    }</span>
+  }
+
+  private Person person;
+  public Provider provider;
+  public List&lt;Encounter&gt; encounters;
+  public Map&lt;String, Entry&gt; present;
+  /** recorded death date/time. */
+  public Long death;
+
+<span class="fc" id="L356">  public HealthRecord(Person person) {</span>
+<span class="fc" id="L357">    this.person = person;</span>
+<span class="fc" id="L358">    encounters = new ArrayList&lt;Encounter&gt;();</span>
+<span class="fc" id="L359">    present = new HashMap&lt;String, Entry&gt;();</span>
+<span class="fc" id="L360">  }</span>
+
+  public String textSummary() {
+<span class="fc" id="L363">    int observations = 0;</span>
+<span class="fc" id="L364">    int reports = 0;</span>
+<span class="fc" id="L365">    int conditions = 0;</span>
+<span class="fc" id="L366">    int allergies = 0;</span>
+<span class="fc" id="L367">    int procedures = 0;</span>
+<span class="fc" id="L368">    int immunizations = 0;</span>
+<span class="fc" id="L369">    int medications = 0;</span>
+<span class="fc" id="L370">    int careplans = 0;</span>
+<span class="fc" id="L371">    int imagingStudies = 0;</span>
+<span class="fc bfc" id="L372" title="All 2 branches covered.">    for (Encounter enc : encounters) {</span>
+<span class="fc" id="L373">      observations += enc.observations.size();</span>
+<span class="fc" id="L374">      reports += enc.reports.size();</span>
+<span class="fc" id="L375">      conditions += enc.conditions.size();</span>
+<span class="fc" id="L376">      allergies += enc.allergies.size();</span>
+<span class="fc" id="L377">      procedures += enc.procedures.size();</span>
+<span class="fc" id="L378">      immunizations += enc.immunizations.size();</span>
+<span class="fc" id="L379">      medications += enc.medications.size();</span>
+<span class="fc" id="L380">      careplans += enc.careplans.size();</span>
+<span class="fc" id="L381">      imagingStudies += enc.imagingStudies.size();</span>
+<span class="fc" id="L382">    }</span>
+<span class="fc" id="L383">    StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L384">    sb.append(String.format(&quot;Encounters:      %d\n&quot;, encounters.size()));</span>
+<span class="fc" id="L385">    sb.append(String.format(&quot;Observations:    %d\n&quot;, observations));</span>
+<span class="fc" id="L386">    sb.append(String.format(&quot;Reports:         %d\n&quot;, reports));</span>
+<span class="fc" id="L387">    sb.append(String.format(&quot;Conditions:      %d\n&quot;, conditions));</span>
+<span class="fc" id="L388">    sb.append(String.format(&quot;Allergies:       %d\n&quot;, allergies));</span>
+<span class="fc" id="L389">    sb.append(String.format(&quot;Procedures:      %d\n&quot;, procedures));</span>
+<span class="fc" id="L390">    sb.append(String.format(&quot;Immunizations:   %d\n&quot;, immunizations));</span>
+<span class="fc" id="L391">    sb.append(String.format(&quot;Medications:     %d\n&quot;, medications));</span>
+<span class="fc" id="L392">    sb.append(String.format(&quot;Care Plans:      %d\n&quot;, careplans));</span>
+<span class="fc" id="L393">    sb.append(String.format(&quot;Imaging Studies: %d\n&quot;, imagingStudies));</span>
+<span class="fc" id="L394">    return sb.toString();</span>
+  }
+
+  public Encounter currentEncounter(long time) {
+<span class="fc" id="L398">    Encounter encounter = null;</span>
+<span class="fc bfc" id="L399" title="All 2 branches covered.">    if (encounters.size() &gt;= 1) {</span>
+<span class="fc" id="L400">      encounter = encounters.get(encounters.size() - 1);</span>
+    } else {
+<span class="fc" id="L402">      encounter = new Encounter(time, EncounterType.WELLNESS.toString());</span>
+<span class="fc" id="L403">      encounter.name = &quot;First Wellness&quot;;</span>
+<span class="fc" id="L404">      encounters.add(encounter);</span>
+    }
+<span class="fc" id="L406">    return encounter;</span>
+  }
+
+  public long timeSinceLastWellnessEncounter(long time) {
+<span class="fc bfc" id="L410" title="All 2 branches covered.">    for (int i = encounters.size() - 1; i &gt;= 0; i--) {</span>
+<span class="fc" id="L411">      Encounter encounter = encounters.get(i);</span>
+<span class="fc bfc" id="L412" title="All 2 branches covered.">      if (encounter.type.equals(EncounterType.WELLNESS.toString())) {</span>
+<span class="fc" id="L413">        return (time - encounter.start);</span>
+      }
+    }
+<span class="fc" id="L416">    return Long.MAX_VALUE;</span>
+  }
+
+  public Observation observation(long time, String type, Object value) {
+<span class="fc" id="L420">    Observation observation = new Observation(time, type, value);</span>
+<span class="fc" id="L421">    currentEncounter(time).observations.add(observation);</span>
+<span class="fc" id="L422">    return observation;</span>
+  }
+
+  public Observation multiObservation(long time, String type, int numberOfObservations) {
+<span class="fc" id="L426">    Observation observation = new Observation(time, type, null);</span>
+<span class="fc" id="L427">    Encounter encounter = currentEncounter(time);</span>
+<span class="fc" id="L428">    int count = numberOfObservations;</span>
+<span class="pc bpc" id="L429" title="1 of 2 branches missed.">    if (encounter.observations.size() &gt;= numberOfObservations) {</span>
+<span class="fc bfc" id="L430" title="All 2 branches covered.">      while (count &gt; 0) {</span>
+<span class="fc" id="L431">        observation.observations</span>
+<span class="fc" id="L432">            .add(encounter.observations.remove(encounter.observations.size() - 1));</span>
+<span class="fc" id="L433">        count--;</span>
+      }
+    }
+<span class="fc" id="L436">    encounter.observations.add(observation);</span>
+<span class="fc" id="L437">    return observation;</span>
+  }
+
+  public Observation getLatestObservation(String type) {
+<span class="fc bfc" id="L441" title="All 2 branches covered.">    for (int i = encounters.size() - 1; i &gt;= 0; i--) {</span>
+<span class="fc" id="L442">      Encounter encounter = encounters.get(i);</span>
+<span class="fc bfc" id="L443" title="All 2 branches covered.">      for (Observation observation : encounter.observations) {</span>
+<span class="fc bfc" id="L444" title="All 2 branches covered.">        if (observation.type.equals(type)) {</span>
+<span class="fc" id="L445">          return observation;</span>
+        }
+<span class="fc" id="L447">      }</span>
+    }
+<span class="fc" id="L449">    return null;</span>
+  }
+
+  public Entry conditionStart(long time, String primaryCode) {
+<span class="fc bfc" id="L453" title="All 2 branches covered.">    if (!present.containsKey(primaryCode)) {</span>
+<span class="fc" id="L454">      Entry condition = new Entry(time, primaryCode);</span>
+<span class="fc" id="L455">      Encounter encounter = currentEncounter(time);</span>
+<span class="fc" id="L456">      encounter.conditions.add(condition);</span>
+<span class="fc" id="L457">      encounter.claim.addItem(condition);</span>
+<span class="fc" id="L458">      present.put(primaryCode, condition);</span>
+    }
+<span class="fc" id="L460">    return present.get(primaryCode);</span>
+  }
+
+  public void conditionEnd(long time, String primaryCode) {
+<span class="fc bfc" id="L464" title="All 2 branches covered.">    if (present.containsKey(primaryCode)) {</span>
+<span class="fc" id="L465">      present.get(primaryCode).stop = time;</span>
+<span class="fc" id="L466">      present.remove(primaryCode);</span>
+    }
+<span class="fc" id="L468">  }</span>
+
+  public void conditionEndByState(long time, String stateName) {
+<span class="fc" id="L471">    Entry condition = null;</span>
+<span class="fc" id="L472">    Iterator&lt;Entry&gt; iter = present.values().iterator();</span>
+<span class="fc bfc" id="L473" title="All 2 branches covered.">    while (iter.hasNext()) {</span>
+<span class="fc" id="L474">      Entry e = iter.next();</span>
+<span class="fc bfc" id="L475" title="All 4 branches covered.">      if (e.name != null &amp;&amp; e.name.equals(stateName)) {</span>
+<span class="fc" id="L476">        condition = e;</span>
+<span class="fc" id="L477">        break;</span>
+      }
+<span class="fc" id="L479">    }</span>
+<span class="fc bfc" id="L480" title="All 2 branches covered.">    if (condition != null) {</span>
+<span class="fc" id="L481">      condition.stop = time;</span>
+<span class="fc" id="L482">      present.remove(condition.type);</span>
+    }
+<span class="fc" id="L484">  }</span>
+
+  public boolean conditionActive(String type) {
+<span class="pc bpc" id="L487" title="1 of 4 branches missed.">    return present.containsKey(type) &amp;&amp; present.get(type).stop == 0L;</span>
+  }
+
+  public Entry allergyStart(long time, String primaryCode) {
+<span class="pc bpc" id="L491" title="1 of 2 branches missed.">    if (!present.containsKey(primaryCode)) {</span>
+<span class="fc" id="L492">      Entry allergy = new Entry(time, primaryCode);</span>
+<span class="fc" id="L493">      currentEncounter(time).allergies.add(allergy);</span>
+<span class="fc" id="L494">      present.put(primaryCode, allergy);</span>
+    }
+<span class="fc" id="L496">    return present.get(primaryCode);</span>
+  }
+
+  public void allergyEnd(long time, String primaryCode) {
+<span class="nc bnc" id="L500" title="All 2 branches missed.">    if (present.containsKey(primaryCode)) {</span>
+<span class="nc" id="L501">      present.get(primaryCode).stop = time;</span>
+<span class="nc" id="L502">      present.remove(primaryCode);</span>
+    }
+<span class="nc" id="L504">  }</span>
+
+  public void allergyEndByState(long time, String stateName) {
+<span class="fc" id="L507">    Entry allergy = null;</span>
+<span class="fc" id="L508">    Iterator&lt;Entry&gt; iter = present.values().iterator();</span>
+<span class="pc bpc" id="L509" title="1 of 2 branches missed.">    while (iter.hasNext()) {</span>
+<span class="fc" id="L510">      Entry e = iter.next();</span>
+<span class="pc bpc" id="L511" title="2 of 4 branches missed.">      if (e.name != null &amp;&amp; e.name.equals(stateName)) {</span>
+<span class="fc" id="L512">        allergy = e;</span>
+<span class="fc" id="L513">        break;</span>
+      }
+<span class="nc" id="L515">    }</span>
+<span class="pc bpc" id="L516" title="1 of 2 branches missed.">    if (allergy != null) {</span>
+<span class="fc" id="L517">      allergy.stop = time;</span>
+<span class="fc" id="L518">      present.remove(allergy.type);</span>
+    }
+<span class="fc" id="L520">  }</span>
+
+  public Procedure procedure(long time, String type) {
+<span class="fc" id="L523">    Procedure procedure = new Procedure(time, type);</span>
+<span class="fc" id="L524">    Encounter encounter = currentEncounter(time);</span>
+<span class="fc" id="L525">    encounter.procedures.add(procedure);</span>
+<span class="fc" id="L526">    encounter.claim.addItem(procedure);</span>
+<span class="fc" id="L527">    present.put(type, procedure);</span>
+<span class="fc" id="L528">    return procedure;</span>
+  }
+
+  public Report report(long time, String type, int numberOfObservations) {
+<span class="fc" id="L532">    Encounter encounter = currentEncounter(time);</span>
+<span class="fc" id="L533">    List&lt;Observation&gt; observations = new ArrayList&lt;Observation&gt;();</span>
+<span class="fc bfc" id="L534" title="All 2 branches covered.">    if (encounter.observations.size() &gt; numberOfObservations) {</span>
+<span class="fc" id="L535">      int fromIndex = encounter.observations.size() - numberOfObservations;</span>
+<span class="fc" id="L536">      int toIndex = encounter.observations.size();</span>
+<span class="fc" id="L537">      observations.addAll(encounter.observations.subList(fromIndex, toIndex));</span>
+<span class="fc" id="L538">    } else {</span>
+<span class="fc" id="L539">      observations.addAll(encounter.observations);</span>
+    }
+<span class="fc" id="L541">    Report report = new Report(time, type, observations);</span>
+<span class="fc" id="L542">    encounter.reports.add(report);</span>
+<span class="fc" id="L543">    observations.forEach(o -&gt; o.report = report);</span>
+<span class="fc" id="L544">    return report;</span>
+  }
+
+  public Encounter encounterStart(long time, EncounterType type) {
+<span class="fc" id="L548">    Encounter encounter = new Encounter(time, type.toString());</span>
+<span class="fc" id="L549">    encounters.add(encounter);</span>
+<span class="fc" id="L550">    return encounter;</span>
+  }
+
+  public void encounterEnd(long time, EncounterType type) {
+<span class="fc bfc" id="L554" title="All 2 branches covered.">    for (int i = encounters.size() - 1; i &gt;= 0; i--) {</span>
+<span class="fc" id="L555">      Encounter encounter = encounters.get(i);</span>
+<span class="fc" id="L556">      EncounterType encounterType = EncounterType.fromString(encounter.type);</span>
+<span class="fc bfc" id="L557" title="All 4 branches covered.">      if (encounterType == type &amp;&amp; !encounter.ended) {</span>
+<span class="fc" id="L558">        encounter.ended = true;</span>
+        // Only override the stop time if it is longer than the default.
+<span class="fc bfc" id="L560" title="All 2 branches covered.">        if (time &gt; encounter.stop) {</span>
+<span class="fc" id="L561">          encounter.stop = time;</span>
+        }
+        // Now, add time for each procedure.
+        long procedureTime;
+<span class="fc bfc" id="L565" title="All 2 branches covered.">        for (Procedure p : encounter.procedures) {</span>
+<span class="fc" id="L566">          procedureTime = (p.stop - p.start);</span>
+<span class="pc bpc" id="L567" title="1 of 2 branches missed.">          if (procedureTime &gt; 0) {</span>
+<span class="fc" id="L568">            encounter.stop += procedureTime;</span>
+          }
+<span class="fc" id="L570">        }</span>
+<span class="fc" id="L571">        return;</span>
+      }
+    }
+<span class="fc" id="L574">  }</span>
+
+  public Immunization immunization(long time, String type) {
+<span class="fc" id="L577">    Immunization immunization = new Immunization(time, type);</span>
+<span class="fc" id="L578">    Encounter encounter = currentEncounter(time);</span>
+<span class="fc" id="L579">    encounter.immunizations.add(immunization);</span>
+<span class="fc" id="L580">    encounter.claim.addItem(immunization);</span>
+<span class="fc" id="L581">    return immunization;</span>
+  }
+
+  public Medication medicationStart(long time, String type) {
+    Medication medication;
+<span class="fc bfc" id="L586" title="All 2 branches covered.">    if (!present.containsKey(type)) {</span>
+<span class="fc" id="L587">      medication = new Medication(time, type);</span>
+<span class="fc" id="L588">      currentEncounter(time).medications.add(medication);</span>
+<span class="fc" id="L589">      present.put(type, medication);</span>
+    } else {
+<span class="fc" id="L591">      medication = (Medication) present.get(type);</span>
+    }
+<span class="fc" id="L593">    return medication;</span>
+  }
+
+  public void medicationEnd(long time, String type, Code reason) {
+<span class="pc bpc" id="L597" title="1 of 2 branches missed.">    if (present.containsKey(type)) {</span>
+<span class="fc" id="L598">      Medication medication = (Medication) present.get(type);</span>
+<span class="fc" id="L599">      medication.stop = time;</span>
+<span class="fc" id="L600">      medication.stopReason = reason;</span>
+<span class="fc" id="L601">      present.remove(type);</span>
+    }
+<span class="fc" id="L603">  }</span>
+
+  public void medicationEndByState(long time, String stateName, Code reason) {
+<span class="fc" id="L606">    Medication medication = null;</span>
+<span class="fc" id="L607">    Iterator&lt;Entry&gt; iter = present.values().iterator();</span>
+<span class="pc bpc" id="L608" title="1 of 2 branches missed.">    while (iter.hasNext()) {</span>
+<span class="fc" id="L609">      Entry e = iter.next();</span>
+<span class="fc bfc" id="L610" title="All 4 branches covered.">      if (e.name != null &amp;&amp; e.name.equals(stateName)) {</span>
+<span class="fc" id="L611">        medication = (Medication) e;</span>
+<span class="fc" id="L612">        break;</span>
+      }
+<span class="fc" id="L614">    }</span>
+<span class="pc bpc" id="L615" title="1 of 2 branches missed.">    if (medication != null) {</span>
+<span class="fc" id="L616">      medication.stop = time;</span>
+<span class="fc" id="L617">      medication.stopReason = reason;</span>
+<span class="fc" id="L618">      present.remove(medication.type);</span>
+    }
+<span class="fc" id="L620">  }</span>
+
+  public boolean medicationActive(String type) {
+<span class="pc bpc" id="L623" title="1 of 4 branches missed.">    return present.containsKey(type) &amp;&amp; ((Medication) present.get(type)).stop == 0L;</span>
+  }
+
+  public CarePlan careplanStart(long time, String type) {
+    CarePlan careplan;
+<span class="fc bfc" id="L628" title="All 2 branches covered.">    if (!present.containsKey(type)) {</span>
+<span class="fc" id="L629">      careplan = new CarePlan(time, type);</span>
+<span class="fc" id="L630">      currentEncounter(time).careplans.add(careplan);</span>
+<span class="fc" id="L631">      present.put(type, careplan);</span>
+    } else {
+<span class="fc" id="L633">      careplan = (CarePlan) present.get(type);</span>
+    }
+<span class="fc" id="L635">    return careplan;</span>
+  }
+
+  public void careplanEnd(long time, String type, Code reason) {
+<span class="pc bpc" id="L639" title="1 of 2 branches missed.">    if (present.containsKey(type)) {</span>
+<span class="fc" id="L640">      CarePlan careplan = (CarePlan) present.get(type);</span>
+<span class="fc" id="L641">      careplan.stop = time;</span>
+<span class="fc" id="L642">      careplan.stopReason = reason;</span>
+<span class="fc" id="L643">      present.remove(type);</span>
+    }
+<span class="fc" id="L645">  }</span>
+
+  public void careplanEndByState(long time, String stateName, Code reason) {
+<span class="fc" id="L648">    CarePlan careplan = null;</span>
+<span class="fc" id="L649">    Iterator&lt;Entry&gt; iter = present.values().iterator();</span>
+<span class="pc bpc" id="L650" title="1 of 2 branches missed.">    while (iter.hasNext()) {</span>
+<span class="fc" id="L651">      Entry e = iter.next();</span>
+<span class="fc bfc" id="L652" title="All 4 branches covered.">      if (e.name != null &amp;&amp; e.name.equals(stateName)) {</span>
+<span class="fc" id="L653">        careplan = (CarePlan) e;</span>
+<span class="fc" id="L654">        break;</span>
+      }
+<span class="fc" id="L656">    }</span>
+<span class="pc bpc" id="L657" title="1 of 2 branches missed.">    if (careplan != null) {</span>
+<span class="fc" id="L658">      careplan.stop = time;</span>
+<span class="fc" id="L659">      careplan.stopReason = reason;</span>
+<span class="fc" id="L660">      present.remove(careplan.type);</span>
+    }
+<span class="fc" id="L662">  }</span>
+
+  public boolean careplanActive(String type) {
+<span class="pc bpc" id="L665" title="1 of 4 branches missed.">    return present.containsKey(type) &amp;&amp; ((CarePlan) present.get(type)).stop == 0L;</span>
+  }
+
+  public ImagingStudy imagingStudy(long time, String type, List&lt;ImagingStudy.Series&gt; series) {
+<span class="fc" id="L669">    ImagingStudy study = new ImagingStudy(time, type);</span>
+<span class="fc" id="L670">    study.series = series;</span>
+<span class="fc" id="L671">    assignImagingStudyDicomUids(study);</span>
+<span class="fc" id="L672">    currentEncounter(time).imagingStudies.add(study);</span>
+<span class="fc" id="L673">    return study;</span>
+  }
+
+  /**
+   * Assigns random DICOM UIDs to each Series and Instance in an imaging study after creation.
+   * @param study the ImagingStudy to populate with DICOM UIDs.
+   */
+  private void assignImagingStudyDicomUids(ImagingStudy study) {
+
+<span class="fc" id="L682">    int seriesNo = 1;</span>
+<span class="fc bfc" id="L683" title="All 2 branches covered.">    for (ImagingStudy.Series series : study.series) {</span>
+<span class="fc" id="L684">      series.dicomUid = Utilities.randomDicomUid(seriesNo, 0);</span>
+
+<span class="fc" id="L686">      int instanceNo = 1;</span>
+<span class="fc bfc" id="L687" title="All 2 branches covered.">      for (ImagingStudy.Instance instance : series.instances) {</span>
+<span class="fc" id="L688">        instance.dicomUid = Utilities.randomDicomUid(seriesNo, instanceNo);</span>
+<span class="fc" id="L689">        instanceNo += 1;</span>
+<span class="fc" id="L690">      }</span>
+<span class="fc" id="L691">      seriesNo += 1;</span>
+<span class="fc" id="L692">    }</span>
+<span class="fc" id="L693">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

@@ -1,14 +1,23 @@
-from model_evaluation import cross_validation_split
-from model_evaluation import test_train_split
-from model_evaluation import root_mean_squared_error
 from tensorflow.keras import metrics
 from tensorflow.keras import layers
 import tensorflow as tf
 
+from numpy.random import uniform
+import pandas
+import numpy
+
+# Local imports
+from thundersvmScikit import SVR
+
+from model_evaluation import cross_validation_split
+from model_evaluation import test_train_split
+
+from metrics import root_mean_squared_error
+
 # Remove below if with to use GPU
-import os
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
-os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
+# import os
+# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+# os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
 
 
 def keras_seq_reg_model_compilation(features, tf_loss, tf_metrics):
@@ -30,6 +39,65 @@ def keras_seq_reg_model_compilation(features, tf_loss, tf_metrics):
                   metrics=tf_metrics)
 
     return model
+
+
+def svr_parameter_tuning(X,
+                         y,
+                         scoring_function,
+                         rand_iters=100,
+                         search_range=(0.001, 3),
+                         holdout_split=0.2,
+                         kernel='rbf',
+                         privacy_mechanism_sampler=None,
+                         privacy_mechanism_params=None,
+                         privacy_sample_iterations=5):
+
+    import operator
+
+    # Randomised parameter search
+    param_selections = dict()
+
+    for i in range(rand_iters):
+
+        train_ind, test_ind = test_train_split(y_len=len(y),
+                                               test_perc=holdout_split)
+
+        if (privacy_mechanism_sampler is not None
+                and privacy_mechanism_params is not None):
+            #           Sample periodically for efficiency
+            if i % privacy_sample_iterations == 0:
+                sample = privacy_mechanism_sampler(
+                    pandas.DataFrame(
+                        numpy.append(X[train_ind],
+                                     y[train_ind],
+                                     axis=1)),
+                    **privacy_mechanism_params)
+                train_X = sample.values[:, :-1]
+                train_y = sample.values[:, -1]
+        else:
+            train_X = X[train_ind]
+            train_y = y[train_ind]
+
+        c = round(uniform(search_range[0], search_range[1]), 4)
+        g = round(uniform(search_range[0], search_range[1]), 4)
+
+        model = SVR(kernel=kernel, C=c, gamma=g)
+        model.fit(train_X, train_y)
+
+        param_selections[(c, g)] = \
+            scoring_function(
+                y[test_ind],
+                model.predict(X[test_ind]).reshape(-1, 1),
+                100)
+
+    best_C, best_gamma = \
+        min(param_selections.items(), key=operator.itemgetter(1))[0]
+
+    return dict(
+        best_C=best_C,
+        best_gamma=best_gamma,
+        best_rmse=min(param_selections.values()),
+        results=param_selections)
 
 
 def seq_nn_cross_validation(train_data,

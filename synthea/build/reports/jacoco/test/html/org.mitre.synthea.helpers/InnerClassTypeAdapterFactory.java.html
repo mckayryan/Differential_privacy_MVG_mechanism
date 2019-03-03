@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>InnerClassTypeAdapterFactory.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.helpers</a> &gt; <span class="el_source">InnerClassTypeAdapterFactory.java</span></div><h1>InnerClassTypeAdapterFactory.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.helpers;
+
+/*
+ * Copyright (C) 2011 Google Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * 
+ * Modified extensively for the Synthea project, to no longer require registration of subtypes,
+ * but only allow subtypes defined within the same class file. (ex. Class1$Subclass2)
+ * Original source:
+ * https://github.com/google/gson/blob/86d88c32cf6a6b7a6e0bbc855d76e4ccf6f120bb/extras/src/main/java/com/google/gson/typeadapters/RuntimeTypeAdapterFactory.java
+ */
+
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import com.google.gson.TypeAdapter;
+import com.google.gson.TypeAdapterFactory;
+import com.google.gson.internal.Streams;
+import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
+
+import java.io.IOException;
+
+import org.apache.commons.lang3.NotImplementedException;
+
+/**
+ * Adapts values whose runtime type may differ from their declaration type. This
+ * is necessary when a field's type is not the same type that GSON should create
+ * when deserializing that field. For example, consider these types:
+ * &lt;pre&gt;   {@code
+ *   abstract class Shape {
+ *     int x;
+ *     int y;
+ *   }
+ *   class Circle extends Shape {
+ *     int radius;
+ *   }
+ *   class Rectangle extends Shape {
+ *     int width;
+ *     int height;
+ *   }
+ *   class Diamond extends Shape {
+ *     int width;
+ *     int height;
+ *   }
+ *   class Drawing {
+ *     Shape bottomShape;
+ *     Shape topShape;
+ *   }
+ * }&lt;/pre&gt;
+ * 
+ * &lt;p&gt;Without additional type information, the serialized JSON is ambiguous. Is
+ * the bottom shape in this drawing a rectangle or a diamond? &lt;pre&gt;   {@code
+ *   {
+ *     &quot;bottomShape&quot;: {
+ *       &quot;width&quot;: 10,
+ *       &quot;height&quot;: 5,
+ *       &quot;x&quot;: 0,
+ *       &quot;y&quot;: 0
+ *     },
+ *     &quot;topShape&quot;: {
+ *       &quot;radius&quot;: 2,
+ *       &quot;x&quot;: 4,
+ *       &quot;y&quot;: 1
+ *     }
+ *   }}&lt;/pre&gt;
+ * This class addresses this problem by adding type information to the
+ * serialized JSON and honoring that type information when the JSON is
+ * deserialized: &lt;pre&gt;   {@code
+ *   {
+ *     &quot;bottomShape&quot;: {
+ *       &quot;type&quot;: &quot;Diamond&quot;,
+ *       &quot;width&quot;: 10,
+ *       &quot;height&quot;: 5,
+ *       &quot;x&quot;: 0,
+ *       &quot;y&quot;: 0
+ *     },
+ *     &quot;topShape&quot;: {
+ *       &quot;type&quot;: &quot;Circle&quot;,
+ *       &quot;radius&quot;: 2,
+ *       &quot;x&quot;: 4,
+ *       &quot;y&quot;: 1
+ *     }
+ *   }}&lt;/pre&gt;
+ * Both the type field name ({@code &quot;type&quot;}) and the type labels ({@code
+ * &quot;Rectangle&quot;}) are configurable.
+ *
+ * &lt;h3&gt;Registering Types&lt;/h3&gt;
+ * Create an {@code InnerClassTypeAdapterFactory} by passing the base type and type field
+ * name to the {@link #of} factory method. If you don't supply an explicit type
+ * field name, {@code &quot;type&quot;} will be used. &lt;pre&gt;   {@code
+ *   InnerClassTypeAdapterFactory&lt;Shape&gt; shapeAdapterFactory
+ *       = InnerClassTypeAdapterFactory.of(Shape.class, &quot;type&quot;);
+ * }&lt;/pre&gt;
+ * Finally, register the type adapter factory in your application's GSON builder:
+ * &lt;pre&gt;   {@code
+ *   Gson gson = new GsonBuilder()
+ *       .registerTypeAdapterFactory(shapeAdapterFactory)
+ *       .create();
+ * }&lt;/pre&gt;
+ */
+public final class InnerClassTypeAdapterFactory&lt;T&gt; implements TypeAdapterFactory {
+  private final Class&lt;?&gt; baseType;
+  private final String typeFieldName;
+
+<span class="fc" id="L118">  private InnerClassTypeAdapterFactory(Class&lt;?&gt; baseType, String typeFieldName) {</span>
+<span class="pc bpc" id="L119" title="2 of 4 branches missed.">    if (typeFieldName == null || baseType == null) {</span>
+<span class="nc" id="L120">      throw new NullPointerException();</span>
+    }
+<span class="fc" id="L122">    this.baseType = baseType;</span>
+<span class="fc" id="L123">    this.typeFieldName = typeFieldName;</span>
+<span class="fc" id="L124">  }</span>
+
+  /**
+   * Creates a new runtime type adapter using for {@code baseType} using {@code
+   * typeFieldName} as the type field name. Type field names are case sensitive.
+   */
+  public static &lt;T&gt; InnerClassTypeAdapterFactory&lt;T&gt; of(Class&lt;T&gt; baseType, String typeFieldName) {
+<span class="fc" id="L131">    return new InnerClassTypeAdapterFactory&lt;T&gt;(baseType, typeFieldName);</span>
+  }
+
+  @Override
+  public &lt;R&gt; TypeAdapter&lt;R&gt; create(Gson gson, TypeToken&lt;R&gt; type) {
+<span class="fc bfc" id="L136" title="All 2 branches covered.">    if (type.getRawType() != baseType) {</span>
+<span class="fc" id="L137">      return null;</span>
+    }
+
+<span class="fc" id="L140">    return new TypeAdapter&lt;R&gt;() {</span>
+      @Override public R read(JsonReader in) throws IOException {
+<span class="fc" id="L142">        JsonElement jsonElement = Streams.parse(in);</span>
+<span class="fc" id="L143">        JsonElement labelJsonElement = jsonElement.getAsJsonObject().remove(typeFieldName);</span>
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">        if (labelJsonElement == null) {</span>
+<span class="nc" id="L145">          throw new JsonParseException(&quot;cannot deserialize &quot; + baseType</span>
+<span class="nc" id="L146">              + &quot; because it does not define a field named &quot; + typeFieldName);</span>
+        }
+<span class="fc" id="L148">        String label = labelJsonElement.getAsString();</span>
+        
+        try {
+<span class="fc" id="L151">          String subclassName = baseType.getName() + &quot;$&quot; + label.replaceAll(&quot;\\s&quot;, &quot;&quot;);</span>
+<span class="fc" id="L152">          Class&lt;?&gt; subclass = Class.forName(subclassName);</span>
+          @SuppressWarnings(&quot;unchecked&quot;)
+<span class="fc" id="L154">          TypeAdapter&lt;R&gt; delegate = (TypeAdapter&lt;R&gt;) gson.getDelegateAdapter(</span>
+<span class="fc" id="L155">              InnerClassTypeAdapterFactory.this, TypeToken.get(subclass));</span>
+<span class="pc bpc" id="L156" title="1 of 2 branches missed.">          if (delegate == null) {</span>
+<span class="nc" id="L157">            throw new JsonParseException(&quot;cannot deserialize &quot; + baseType + &quot; subtype named &quot;</span>
+                + label);
+          }
+<span class="fc" id="L160">          return delegate.fromJsonTree(jsonElement);</span>
+<span class="nc" id="L161">        } catch (ClassNotFoundException e) {</span>
+<span class="nc" id="L162">          throw new JsonParseException(&quot;cannot deserialize &quot; + baseType + &quot; subtype named &quot;</span>
+              + label);
+        }
+      }
+
+      @Override public void write(JsonWriter out, R value) throws IOException {
+<span class="nc" id="L168">        throw new NotImplementedException(&quot;Write not implemented for InnerClassTypeAdapter&quot;);</span>
+      }
+<span class="fc" id="L170">    }.nullSafe();</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

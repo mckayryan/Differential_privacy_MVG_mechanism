@@ -1,0 +1,547 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Logic.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.engine</a> &gt; <span class="el_source">Logic.java</span></div><h1>Logic.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.engine;
+
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.List;
+import java.util.TimeZone;
+
+import org.mitre.synthea.engine.Components.DateInput;
+import org.mitre.synthea.engine.Components.ExactWithUnit;
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.Utilities;
+import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.concepts.HealthRecord;
+import org.mitre.synthea.world.concepts.HealthRecord.CarePlan;
+import org.mitre.synthea.world.concepts.HealthRecord.Code;
+import org.mitre.synthea.world.concepts.HealthRecord.Entry;
+import org.mitre.synthea.world.concepts.HealthRecord.Medication;
+
+/**
+ * Logic represents any portion of a generic module that requires a logical
+ * expression. This class is stateless, and calling 'test' on an instance
+ * must not modify state as instances of Logic within Modules are shared
+ * across the population.
+ */
+<span class="fc" id="L25">public abstract class Logic {</span>
+  public List&lt;String&gt; remarks;
+
+  /**
+   * Test whether the logic is true for the given person at the given time.
+   * 
+   * @param person Person to execute logic against
+   * @param time Timestamp to execute logic against
+   * @return boolean - whether or not the given condition is true or not
+   */
+  public abstract boolean test(Person person, long time);
+
+  /**
+   * Find the most recent entry, of a specific type of HealthRecord.Entry
+   * within the patient history. May return null.
+   * @param person Person the logic is executing against
+   * @param classType Must be a HealthRecord.Entry or subclass.
+   * @param code The code being searched for.
+   * @return The HealthRecord.Entry (or subclass) that was found.
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  private static &lt;T extends HealthRecord.Entry&gt; HealthRecord.Entry findEntryFromHistory(
+      Person person, Class&lt;T&gt; classType, Code code) {
+    // Find the most recent health record entry from the patient history
+<span class="fc" id="L49">    HealthRecord.Entry entry = null;</span>
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">    for (State state : person.history) {</span>
+<span class="fc bfc" id="L51" title="All 4 branches covered.">      if (state.entry != null &amp;&amp; classType.isInstance(state.entry)) {</span>
+<span class="fc" id="L52">        T candidate = (T) state.entry;</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        for (Code candidateCode : candidate.codes) {</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">          if (candidateCode.equals(code)) {</span>
+<span class="fc" id="L55">            entry = candidate;</span>
+<span class="fc" id="L56">            break;</span>
+          }
+<span class="fc" id="L58">        }</span>
+      }
+<span class="fc bfc" id="L60" title="All 2 branches covered.">      if (entry != null) {</span>
+<span class="fc" id="L61">        break;</span>
+      }
+<span class="fc" id="L63">    }</span>
+<span class="fc" id="L64">    return entry;</span>
+  }
+
+  /**
+   * The Gender condition type tests the patient's gender. (M or F)
+   */
+<span class="fc" id="L70">  public static class Gender extends Logic {</span>
+    private String gender;
+
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc" id="L75">      return gender.equals(person.attributes.get(Person.GENDER));</span>
+    }
+  }
+  
+  /**
+   * The Age condition type tests the patient's age, in a given unit. 
+   * (Ex, years for adults or months for young children)
+   */
+<span class="fc" id="L83">  public static class Age extends Logic {</span>
+    private Double quantity;
+    private String unit;
+    private String operator;
+
+    @Override
+    public boolean test(Person person, long time) {
+      double age;
+
+<span class="pc bpc" id="L92" title="2 of 3 branches missed.">      switch (unit) {</span>
+        case &quot;years&quot;:
+<span class="fc" id="L94">          age = person.ageInYears(time);</span>
+<span class="fc" id="L95">          break;</span>
+        case &quot;months&quot;:
+<span class="nc" id="L97">          age = person.ageInMonths(time);</span>
+<span class="nc" id="L98">          break;</span>
+        default:
+          // TODO - add more unit types if we determine they are necessary
+<span class="nc" id="L101">          throw new UnsupportedOperationException(&quot;Units '&quot; + unit</span>
+            + &quot;' not currently supported in Age logic.&quot;);
+      }
+
+<span class="fc" id="L105">      return Utilities.compare(age, quantity, operator);</span>
+    }
+  }
+  
+  /**
+   * The Date condition type tests the current year, month, or date being simulated.
+   * For example, this may be used to drive different logic depending on the suggested
+   * medications or procedures of different time periods, or model different frequency
+   * of conditions.
+   */
+<span class="fc" id="L115">  public static class Date extends Logic {</span>
+    private Integer year;
+    private Integer month;
+    private DateInput date;
+    private String operator;
+
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc bfc" id="L123" title="All 2 branches covered.">      if (year != null) {</span>
+<span class="fc" id="L124">        int currentyear = Utilities.getYear(time);</span>
+<span class="fc" id="L125">        return Utilities.compare(currentyear, year, operator);</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">      } else if (month != null) {</span>
+<span class="fc" id="L127">        int currentmonth = Utilities.getMonth(time);</span>
+<span class="fc" id="L128">        return Utilities.compare(currentmonth, month, operator);</span>
+<span class="pc bpc" id="L129" title="1 of 2 branches missed.">      } else if (date != null) {</span>
+<span class="fc" id="L130">        Calendar testDate = Calendar.getInstance(TimeZone.getTimeZone(&quot;UTC&quot;));</span>
+<span class="fc" id="L131">        testDate.set(date.year, date.month - 1, date.day, date.hour, date.minute, date.second);</span>
+<span class="fc" id="L132">        testDate.set(Calendar.MILLISECOND,date.millisecond);</span>
+<span class="fc" id="L133">        long testTime = testDate.getTimeInMillis();</span>
+<span class="fc" id="L134">        return Utilities.compare(time, testTime, operator);</span>
+      } else {
+<span class="nc" id="L136">        throw new UnsupportedOperationException(&quot;Date type &quot;</span>
+            + &quot;not currently supported in Date logic.&quot;);
+      }
+    }
+  }
+
+  /**
+   * The Socioeconomic Status condition type tests the patient's socioeconomic status. Socioeconomic
+   * status is based on income, education, and occupation, and is categorized in Synthea as &quot;High&quot;,
+   * &quot;Middle&quot;, or &quot;Low&quot;.
+   */
+<span class="fc" id="L147">  public static class SocioeconomicStatus extends Logic {</span>
+    private String category;
+
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc" id="L152">      return category.equals(person.attributes.get(Person.SOCIOECONOMIC_CATEGORY));</span>
+    }
+  }
+  
+  /**
+   * The Race condition type tests a patient's race. Synthea supports the following races:
+   * &quot;White&quot;, &quot;Native&quot; (Native American), &quot;Hispanic&quot;, &quot;Black&quot;, &quot;Asian&quot;, and &quot;Other&quot;.
+   */
+<span class="fc" id="L160">  public static class Race extends Logic {</span>
+    private String race;
+
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc" id="L165">      return race.equalsIgnoreCase((String) person.attributes.get(Person.RACE));</span>
+    }
+  }
+
+  /**
+   * The Symptom condition type tests a patient's current symptoms. Synthea tracks symptoms in order
+   * to drive a patient's encounters, on a scale of 1-100. A symptom may be tracked for multiple
+   * conditions, in these cases only the highest value is considered. See also the Symptom State.
+   */
+<span class="fc" id="L174">  public static class Symptom extends Logic {</span>
+    private String symptom;
+    private String operator;
+    private double value;
+
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc" id="L181">      return Utilities.compare((double) person.getSymptom(symptom), value, operator);</span>
+    }
+  }
+
+  /**
+   * The Observation condition type tests the most recent observation of a given type against a
+   * given value. 
+   * Implementation Warnings:
+   * - Synthea does not support conversion between arbitrary units, so all observations of a given
+   *   type are expected to be made in the same units. 
+   * - The given observation must have been recorded prior to performing this logical check, 
+   *   unless the operator is is nil or is not nil. Otherwise, the GMF will raise an exception
+   *   that the observation value cannot be compared as there has been no observation made.
+   */
+<span class="fc" id="L195">  public static class Observation extends Logic {</span>
+    private String operator;
+    private List&lt;Code&gt; codes;
+    private String referencedByAttribute;
+    private Object value;
+    private Code valueCode;
+
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc" id="L204">      HealthRecord.Observation observation = null;</span>
+<span class="fc bfc" id="L205" title="All 2 branches covered.">      if (this.codes != null) {</span>
+<span class="fc bfc" id="L206" title="All 2 branches covered.">        for (Code code : this.codes) {</span>
+          // First, look in the current health record for the latest observation
+<span class="fc" id="L208">          HealthRecord.Observation last = person.record.getLatestObservation(code.code);</span>
+<span class="fc bfc" id="L209" title="All 4 branches covered.">          if (last == null &amp;&amp; person.hasMultipleRecords) {</span>
+            // If the latest observation is not in the current health record,
+            // then look in the module history.
+<span class="fc" id="L212">            last = (HealthRecord.Observation)</span>
+<span class="fc" id="L213">                findEntryFromHistory(person, HealthRecord.Observation.class, code);</span>
+<span class="fc bfc" id="L214" title="All 2 branches covered.">            if (Boolean.parseBoolean(</span>
+<span class="fc" id="L215">                Config.get(&quot;exporter.split_records.duplicate_data&quot;, &quot;false&quot;))) {</span>
+<span class="fc" id="L216">              person.record.currentEncounter(time).observations.add(last);</span>
+            }
+          }
+<span class="fc bfc" id="L219" title="All 2 branches covered.">          if (last != null) {</span>
+<span class="fc" id="L220">            observation = last;</span>
+<span class="fc" id="L221">            break;</span>
+          }
+<span class="fc" id="L223">        }</span>
+<span class="pc bpc" id="L224" title="1 of 2 branches missed.">      } else if (this.referencedByAttribute != null) {</span>
+<span class="fc bfc" id="L225" title="All 2 branches covered.">        if (person.attributes.containsKey(this.referencedByAttribute)) {</span>
+<span class="fc" id="L226">          observation = </span>
+<span class="fc" id="L227">              (HealthRecord.Observation) person.attributes.get(this.referencedByAttribute);</span>
+        } else {
+<span class="fc" id="L229">          return false;</span>
+        }
+      }
+<span class="fc bfc" id="L232" title="All 2 branches covered.">      if (valueCode != null) {</span>
+<span class="fc" id="L233">        value = valueCode;</span>
+      } 
+<span class="pc bpc" id="L235" title="1 of 2 branches missed.">      if (operator.equals(&quot;is nil&quot;)) {</span>
+<span class="nc bnc" id="L236" title="All 2 branches missed.">        return observation == null;</span>
+<span class="fc bfc" id="L237" title="All 2 branches covered.">      } else if (operator.equals(&quot;is not nil&quot;)) {</span>
+<span class="pc bpc" id="L238" title="1 of 2 branches missed.">        return observation != null;</span>
+<span class="fc bfc" id="L239" title="All 2 branches covered.">      } else if (observation == null) {</span>
+<span class="fc" id="L240">        throw new NullPointerException(&quot;Required observation is null.&quot;);</span>
+      } else {
+<span class="fc" id="L242">        return Utilities.compare(observation.value, this.value, operator);</span>
+      }
+    }
+  }
+  
+  /**
+   * The Attribute condition type tests a named attribute on the patient entity.
+   */
+<span class="fc" id="L250">  public static class Attribute extends Logic {</span>
+    private String attribute;
+    private String operator;
+    
+    private Object value;
+
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc bfc" id="L258" title="All 2 branches covered.">      if (value instanceof String) {</span>
+<span class="fc" id="L259">        return value.equals(person.attributes.get(attribute));</span>
+      } else {
+<span class="fc" id="L261">        return Utilities.compare(person.attributes.get(attribute), value, operator);</span>
+      }
+    }
+  }
+
+  /**
+   * GroupedCondition is the parent class for Logic that aggregates multiple conditions.
+   * It should never be used directly in a JSON file.
+   */
+  private abstract static class GroupedCondition extends Logic {
+    protected Collection&lt;Logic&gt; conditions;
+  }
+  
+  /**
+   * The And condition type tests that a set of sub-conditions are all true. 
+   * If all sub-conditions are true, it will return true, 
+   * but if any are false, it will return false.
+   */
+<span class="fc" id="L279">  public static class And extends GroupedCondition {</span>
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc" id="L282">      return conditions.stream().allMatch(c -&gt; c.test(person, time));</span>
+    }
+  }
+
+  /**
+   * The Or condition type tests that at least one of its sub-conditions is true. 
+   * If any sub-condition is true, it will return true, 
+   * but if all sub-conditions are false, it will return false.
+   */
+<span class="fc" id="L291">  public static class Or extends GroupedCondition {</span>
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc" id="L294">      return conditions.stream().anyMatch(c -&gt; c.test(person, time));</span>
+    }
+  }
+
+  /**
+   * The Not condition type negates its sub-condition. 
+   * If the sub-condition is true, it will return false; 
+   * if the sub-condition is false, it will return true.
+   */
+<span class="fc" id="L303">  public static class Not extends Logic {</span>
+    private Logic condition;
+
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc bfc" id="L308" title="All 2 branches covered.">      return !condition.test(person, time);</span>
+    }
+  }
+
+  /**
+   * The At Least condition type tests that a minimum number of conditions
+   * from a set of sub-conditions are true.
+   * If the minimum number or more sub-conditions are true, it will return true,
+   * but if less than the minimum are true, it will return false.
+   * (If the minimum is the same as the number of sub-conditions provided,
+   * this is equivalent to the And condition. 
+   * If the minimum is 1, this is equivalent to the Or condition.)
+   */
+<span class="fc" id="L321">  public static class AtLeast extends GroupedCondition {</span>
+    private Integer minimum;
+
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc bfc" id="L326" title="All 2 branches covered.">      return conditions.stream().filter(c -&gt; c.test(person, time)).count() &gt;= minimum;</span>
+    }
+  }
+
+  /**
+   * The At Most condition type tests that a maximum number of conditions
+   * from a set of sub-conditions are true. If the maximum number or fewer sub-conditions are true,
+   * it will return true, but if more than the maximum are true, it will return false.
+   */
+<span class="fc" id="L335">  public static class AtMost extends GroupedCondition {</span>
+    private Integer maximum;
+
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc bfc" id="L340" title="All 2 branches covered.">      return conditions.stream().filter(c -&gt; c.test(person, time)).count() &lt;= maximum;</span>
+    }
+  }
+  
+
+  /**
+   * The True condition always returns true. 
+   * This condition is mainly used for testing purposes
+   * and is not expected to be used in any real module.
+   */
+<span class="fc" id="L350">  public static class True extends Logic {</span>
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc" id="L353">      return true;</span>
+    }
+  }
+
+  /**
+   * The False condition always returns false.
+   * This condition is mainly used for testing purposes
+   * and is not expected to be used in any real module.
+   */
+<span class="fc" id="L362">  public static class False extends Logic {</span>
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc" id="L365">      return false;</span>
+    }
+  }
+
+  /**
+   * The PriorState condition type tests the progression of the patient through the module, and
+   * checks if a specific state has already been processed (in other words, the state is in the
+   * module's state history). The search for the state may be limited by time or the name of another
+   * state.
+   */
+<span class="fc" id="L375">  public static class PriorState extends Logic {</span>
+    private String name;
+    private String since;
+    private ExactWithUnit&lt;Long&gt; within;
+    private Long window;
+
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc" id="L383">      Long sinceTime = null;</span>
+      
+<span class="fc bfc" id="L385" title="All 2 branches covered.">      if (within != null) {</span>
+<span class="fc bfc" id="L386" title="All 2 branches covered.">        if (window == null) {</span>
+          // cache the value since it doesn't depend on person or time
+<span class="fc" id="L388">          window = Utilities.convertTime(within.unit, within.quantity);</span>
+        }
+<span class="fc" id="L390">        sinceTime = time - window;</span>
+      }
+
+<span class="fc" id="L393">      return person.hadPriorState(name, since, sinceTime);</span>
+    }
+  }
+  
+  /**
+   * Parent class for logics that look up &quot;active&quot; things.
+   * This class should never be referenced directly.
+   */
+  private abstract static class ActiveLogic extends Logic {
+    protected List&lt;Code&gt; codes;
+    protected String referencedByAttribute;
+  }
+
+  /**
+   * The Active Condition condition type tests whether a given condition is currently diagnosed and
+   * active on the patient.
+   * Future Implementation Considerations:
+   * Currently to check if a condition has been added but not diagnosed, it is possible to use the
+   * PriorState condition to check if the state has been processed. In the future it may be
+   * preferable to add a distinct &quot;Present Condition&quot; logical condition to clearly specify the
+   * intent of looking for a present but not diagnosed condition.
+   */
+<span class="fc" id="L415">  public static class ActiveCondition extends ActiveLogic {</span>
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc bfc" id="L418" title="All 2 branches covered.">      if (this.codes != null) {</span>
+<span class="fc bfc" id="L419" title="All 2 branches covered.">        for (Code code : this.codes) {</span>
+<span class="fc bfc" id="L420" title="All 2 branches covered.">          if (person.record.present.containsKey(code.code)) {</span>
+<span class="fc" id="L421">            return true;</span>
+          }
+<span class="fc bfc" id="L423" title="All 2 branches covered.">          if (person.hasMultipleRecords) {</span>
+            // If the condition is not in the current health record,
+            // then look in the module history.
+<span class="fc" id="L426">            HealthRecord.Entry condition = (HealthRecord.Entry)</span>
+<span class="fc" id="L427">                findEntryFromHistory(person, HealthRecord.Entry.class, code);</span>
+<span class="pc bpc" id="L428" title="2 of 4 branches missed.">            if (condition != null &amp;&amp; condition.stop == 0L) {</span>
+<span class="fc bfc" id="L429" title="All 2 branches covered.">              if (Boolean.parseBoolean(</span>
+<span class="fc" id="L430">                  Config.get(&quot;exporter.split_records.duplicate_data&quot;, &quot;false&quot;))) {</span>
+<span class="fc" id="L431">                person.record.currentEncounter(time).conditions.add(condition);</span>
+              }
+<span class="fc" id="L433">              return true;</span>
+            }
+          }
+<span class="fc" id="L436">        }</span>
+<span class="fc" id="L437">        return false;</span>
+<span class="pc bpc" id="L438" title="1 of 2 branches missed.">      } else if (referencedByAttribute != null) {</span>
+<span class="fc bfc" id="L439" title="All 2 branches covered.">        if (person.attributes.containsKey(referencedByAttribute)) {</span>
+<span class="fc" id="L440">          Entry diagnosis = (Entry) person.attributes.get(referencedByAttribute);</span>
+<span class="fc" id="L441">          return person.record.present.containsKey(diagnosis.type);</span>
+        } else {
+<span class="fc" id="L443">          return false;</span>
+        }
+      }
+
+<span class="nc" id="L447">      throw new RuntimeException(&quot;Active Condition logic must be specified by code or attribute&quot;);</span>
+    }
+  }
+
+  /**
+   * The Active Medication condition type tests whether a given medication is currently prescribed
+   * and active for the patient.
+   */
+<span class="fc" id="L455">  public static class ActiveMedication extends ActiveLogic {</span>
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc bfc" id="L458" title="All 2 branches covered.">      if (this.codes != null) {</span>
+<span class="fc bfc" id="L459" title="All 2 branches covered.">        for (Code code : this.codes) {</span>
+<span class="fc bfc" id="L460" title="All 2 branches covered.">          if (person.record.medicationActive(code.code)) {</span>
+<span class="fc" id="L461">            return true;</span>
+          }
+<span class="fc bfc" id="L463" title="All 2 branches covered.">          if (person.hasMultipleRecords) {</span>
+            // If the medication is not in the current health record,
+            // then look in the module history.
+<span class="fc" id="L466">            HealthRecord.Medication medication = (HealthRecord.Medication)</span>
+<span class="fc" id="L467">                findEntryFromHistory(person, HealthRecord.Medication.class, code);</span>
+<span class="pc bpc" id="L468" title="2 of 4 branches missed.">            if (medication != null &amp;&amp; medication.stop == 0L) {</span>
+<span class="fc bfc" id="L469" title="All 2 branches covered.">              if (Boolean.parseBoolean(</span>
+<span class="fc" id="L470">                  Config.get(&quot;exporter.split_records.duplicate_data&quot;, &quot;false&quot;))) {</span>
+<span class="fc" id="L471">                person.record.currentEncounter(time).medications.add(medication);</span>
+              }
+<span class="fc" id="L473">              return true;</span>
+            }
+          }
+<span class="fc" id="L476">        }</span>
+<span class="fc" id="L477">        return false;</span>
+<span class="pc bpc" id="L478" title="1 of 2 branches missed.">      } else if (this.referencedByAttribute != null) {</span>
+<span class="fc bfc" id="L479" title="All 2 branches covered.">        if (person.attributes.containsKey(this.referencedByAttribute)) {</span>
+<span class="fc" id="L480">          Medication medication = (Medication) person.attributes.get(this.referencedByAttribute);</span>
+<span class="fc" id="L481">          return person.record.medicationActive(medication.type);</span>
+        } else {
+<span class="fc" id="L483">          return false;</span>
+        }
+      }
+
+<span class="nc" id="L487">      throw new RuntimeException(&quot;Active Medication logic must be specified by code or attribute&quot;);</span>
+    }
+  }
+
+  /**
+   * The Active CarePlan condition type tests whether a given care plan is currently prescribed and
+   * active for the patient.
+   */
+<span class="fc" id="L495">  public static class ActiveCarePlan extends ActiveLogic {</span>
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc bfc" id="L498" title="All 2 branches covered.">      if (this.codes != null) {</span>
+<span class="fc bfc" id="L499" title="All 2 branches covered.">        for (Code code : this.codes) {</span>
+<span class="fc bfc" id="L500" title="All 2 branches covered.">          if (person.record.careplanActive(code.code)) {</span>
+<span class="fc" id="L501">            return true;</span>
+          }
+<span class="fc bfc" id="L503" title="All 2 branches covered.">          if (person.hasMultipleRecords) {</span>
+            // If the care plan is not in the current health record,
+            // then look in the module history.
+<span class="fc" id="L506">            HealthRecord.CarePlan carePlan = (HealthRecord.CarePlan)</span>
+<span class="fc" id="L507">                findEntryFromHistory(person, HealthRecord.CarePlan.class, code);</span>
+<span class="pc bpc" id="L508" title="2 of 4 branches missed.">            if (carePlan != null &amp;&amp; carePlan.stop == 0L) {</span>
+<span class="fc bfc" id="L509" title="All 2 branches covered.">              if (Boolean.parseBoolean(</span>
+<span class="fc" id="L510">                  Config.get(&quot;exporter.split_records.duplicate_data&quot;, &quot;false&quot;))) {</span>
+<span class="fc" id="L511">                person.record.currentEncounter(time).careplans.add(carePlan);</span>
+              }
+<span class="fc" id="L513">              return true;</span>
+            }
+          }
+<span class="fc" id="L516">        }</span>
+<span class="fc" id="L517">        return false;</span>
+<span class="pc bpc" id="L518" title="1 of 2 branches missed.">      } else if (this.referencedByAttribute != null) {</span>
+<span class="fc bfc" id="L519" title="All 2 branches covered.">        if (person.attributes.containsKey(this.referencedByAttribute)) {</span>
+<span class="fc" id="L520">          CarePlan carePlan = (CarePlan) person.attributes.get(this.referencedByAttribute);</span>
+<span class="fc" id="L521">          return person.record.careplanActive(carePlan.type);</span>
+        } else {
+<span class="fc" id="L523">          return false;</span>
+        }
+      }
+
+<span class="nc" id="L527">      throw new RuntimeException(&quot;Active CarePlan logic must be specified by code or attribute&quot;);</span>
+    }
+  }
+  
+  /**
+   * The Vital Sign condition type tests a patient's current vital signs. Synthea tracks vital signs
+   * in order to drive a patient's physical condition, and are recorded in observations. See also
+   * the Symptom State.
+   */
+<span class="fc" id="L536">  public static class VitalSign extends Logic {</span>
+    private org.mitre.synthea.world.concepts.VitalSign vitalSign;
+    private String operator;
+    private double value;
+
+    @Override
+    public boolean test(Person person, long time) {
+<span class="fc" id="L543">      return Utilities.compare(person.getVitalSign(vitalSign, time), value, operator);</span>
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

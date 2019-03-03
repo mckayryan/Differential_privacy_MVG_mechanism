@@ -1,0 +1,499 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Provider.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.world.agents</a> &gt; <span class="el_source">Provider.java</span></div><h1>Provider.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.world.agents;
+
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Table;
+import com.google.gson.internal.LinkedTreeMap;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.apache.sis.geometry.DirectPosition2D;
+import org.apache.sis.index.tree.QuadTree;
+import org.apache.sis.index.tree.QuadTreeData;
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.SimpleCSV;
+import org.mitre.synthea.helpers.Utilities;
+import org.mitre.synthea.modules.LifecycleModule;
+import org.mitre.synthea.world.concepts.ClinicianSpecialty;
+import org.mitre.synthea.world.concepts.HealthRecord.EncounterType;
+import org.mitre.synthea.world.geography.Demographics;
+import org.mitre.synthea.world.geography.Location;
+
+public class Provider implements QuadTreeData {
+
+  public static final String ENCOUNTERS = &quot;encounters&quot;;
+  public static final String PROCEDURES = &quot;procedures&quot;;
+  public static final String LABS = &quot;labs&quot;;
+  public static final String PRESCRIPTIONS = &quot;prescriptions&quot;;
+
+  // ArrayList of all providers imported
+<span class="fc" id="L39">  private static ArrayList&lt;Provider&gt; providerList = new ArrayList&lt;Provider&gt;();</span>
+<span class="fc" id="L40">  private static QuadTree providerMap = generateQuadTree();</span>
+<span class="fc" id="L41">  private static Set&lt;String&gt; statesLoaded = new HashSet&lt;String&gt;();</span>
+<span class="fc" id="L42">  private static int loaded = 0;</span>
+
+<span class="fc" id="L44">  private static final double MAX_PROVIDER_SEARCH_DISTANCE =</span>
+<span class="fc" id="L45">      Double.parseDouble(Config.get(&quot;generate.maximum_provider_search_distance&quot;, &quot;500&quot;));</span>
+  
+  public Map&lt;String, Object&gt; attributes;
+  public String uuid;
+  public String id;
+  public String name;
+  private Location location;
+  public String address;
+  public String city;
+  public String state;
+  public String zip;
+  public String phone;
+  public String type;
+  public String ownership;
+  public int quality;
+  private DirectPosition2D coordinates;
+  public ArrayList&lt;EncounterType&gt; servicesProvided;
+  public Map&lt;String, ArrayList&lt;Clinician&gt;&gt; clinicianMap;
+  // row: year, column: type, value: count
+  private Table&lt;Integer, String, AtomicInteger&gt; utilization;
+
+<span class="fc" id="L66">  protected Provider() {</span>
+<span class="fc" id="L67">    uuid = UUID.randomUUID().toString();</span>
+<span class="fc" id="L68">    attributes = new LinkedTreeMap&lt;&gt;();</span>
+<span class="fc" id="L69">    utilization = HashBasedTable.create();</span>
+<span class="fc" id="L70">    servicesProvided = new ArrayList&lt;EncounterType&gt;();</span>
+<span class="fc" id="L71">    clinicianMap = new HashMap&lt;String, ArrayList&lt;Clinician&gt;&gt;();</span>
+<span class="fc" id="L72">  }</span>
+
+  public String getResourceID() {
+<span class="fc" id="L75">    return uuid;</span>
+  }
+
+  public Map&lt;String, Object&gt; getAttributes() {
+<span class="fc" id="L79">    return attributes;</span>
+  }
+
+  public DirectPosition2D getCoordinates() {
+<span class="nc" id="L83">    return coordinates;</span>
+  }
+
+  public boolean hasService(EncounterType service) {
+<span class="fc" id="L87">    return servicesProvided.contains(service);</span>
+  }
+
+  public void incrementEncounters(EncounterType service, int year) {
+<span class="fc" id="L91">    increment(year, ENCOUNTERS);</span>
+<span class="fc" id="L92">    increment(year, ENCOUNTERS + &quot;-&quot; + service);</span>
+<span class="fc" id="L93">  }</span>
+
+  public void incrementProcedures(int year) {
+<span class="fc" id="L96">    increment(year, PROCEDURES);</span>
+<span class="fc" id="L97">  }</span>
+
+  public void incrementLabs(int year) {
+<span class="fc" id="L100">    increment(year, LABS);</span>
+<span class="fc" id="L101">  }</span>
+
+  public void incrementPrescriptions(int year) {
+<span class="fc" id="L104">    increment(year, PRESCRIPTIONS);</span>
+<span class="fc" id="L105">  }</span>
+
+  private synchronized void increment(Integer year, String key) {
+<span class="fc bfc" id="L108" title="All 2 branches covered.">    if (!utilization.contains(year, key)) {</span>
+<span class="fc" id="L109">      utilization.put(year, key, new AtomicInteger(0));</span>
+    }
+
+<span class="fc" id="L112">    utilization.get(year, key).incrementAndGet();</span>
+<span class="fc" id="L113">  }</span>
+
+  public Table&lt;Integer, String, AtomicInteger&gt; getUtilization() {
+<span class="fc" id="L116">    return utilization;</span>
+  }
+
+  /**
+   * Get the bed count for this Provider facility.
+   * @return The number of beds, if they exist, otherwise null.
+   */
+  public Integer getBedCount() {
+<span class="pc bpc" id="L124" title="1 of 2 branches missed.">    if (attributes.containsKey(&quot;bed_count&quot;)) {</span>
+<span class="nc" id="L125">      return Integer.parseInt(attributes.get(&quot;bed_count&quot;).toString());</span>
+    } else {
+<span class="fc" id="L127">      return null;</span>
+    }
+  }
+  
+  /**
+   * Will this provider accept the given person as a patient at the given time?.
+   * @param person Person to consider
+   * @param time Time the person seeks care
+   * @return whether or not the person can receive care by this provider
+   */
+  public boolean accepts(Person person, long time) {
+    // for now assume every provider accepts every patient
+    // UNLESS it's a VA facility and the person is not a veteran
+    // eventually we may want to expand this (ex. capacity?)
+<span class="fc bfc" id="L141" title="All 4 branches covered.">    if (&quot;VA Facility&quot;.equals(this.type) &amp;&amp; !person.attributes.containsKey(&quot;veteran&quot;)) {</span>
+<span class="fc" id="L142">      return false;</span>
+    }
+<span class="fc" id="L144">    return true;</span>
+  }
+
+  /**
+   * Find specific service closest to the person, with a maximum distance of 500 kilometers.
+   * @param person The patient who requires the service.
+   * @param service The service required. For example, EncounterType.AMBULATORY.
+   * @param time The date/time within the simulated world, in milliseconds.
+   * @return Service provider or null if none is available.
+   */
+  public static Provider findClosestService(Person person, EncounterType service, long time) {
+<span class="fc" id="L155">    double maxDistance = MAX_PROVIDER_SEARCH_DISTANCE;</span>
+<span class="fc" id="L156">    double distance = 100;</span>
+<span class="fc" id="L157">    double step = 100;</span>
+<span class="fc" id="L158">    Provider provider = null;</span>
+<span class="pc bpc" id="L159" title="1 of 2 branches missed.">    while (distance &lt;= maxDistance) {</span>
+<span class="fc" id="L160">      provider = findService(person, service, distance, time);</span>
+<span class="pc bpc" id="L161" title="1 of 2 branches missed.">      if (provider != null) {</span>
+<span class="fc" id="L162">        return provider;</span>
+      }
+<span class="nc" id="L164">      distance += step;</span>
+    }
+<span class="nc" id="L166">    return null;</span>
+  }
+
+  /**
+   * Find a service around a given point.
+   * @param person The patient who requires the service.
+   * @param service e.g. EncounterType.AMBULATORY
+   * @param searchDistance in kilometers
+   * @param time The date/time within the simulated world, in milliseconds.
+   * @return Service provider or null if none is available.
+   */
+  private static Provider findService(Person person,
+      EncounterType service, double searchDistance, long time) {
+<span class="fc" id="L179">    DirectPosition2D coord = person.getLatLon();</span>
+<span class="fc" id="L180">    List&lt;QuadTreeData&gt; results = providerMap.queryByPointRadius(coord, searchDistance);</span>
+
+<span class="fc" id="L182">    Provider closest = null;</span>
+<span class="fc" id="L183">    Provider provider = null;</span>
+<span class="fc" id="L184">    double minDistance = Double.MAX_VALUE;</span>
+    double distance;
+
+<span class="fc bfc" id="L187" title="All 2 branches covered.">    for (QuadTreeData item : results) {</span>
+<span class="fc" id="L188">      provider = (Provider) item;</span>
+<span class="fc bfc" id="L189" title="All 2 branches covered.">      if (provider.accepts(person, time)</span>
+<span class="pc bpc" id="L190" title="1 of 4 branches missed.">          &amp;&amp; (provider.hasService(service) || service == null)) {</span>
+<span class="fc" id="L191">        distance = item.getLatLon().distance(coord);</span>
+<span class="fc bfc" id="L192" title="All 2 branches covered.">        if (distance &lt; minDistance) {</span>
+<span class="fc" id="L193">          closest = (Provider) item;</span>
+<span class="fc" id="L194">          minDistance = distance;</span>
+        }
+      }
+<span class="fc" id="L197">    }</span>
+
+<span class="fc" id="L199">    return closest;</span>
+  }
+
+  /**
+   * Clear the list of loaded and cached providers.
+   */
+  public static void clear() {
+<span class="fc" id="L206">    providerList.clear();</span>
+<span class="fc" id="L207">    statesLoaded.clear();</span>
+<span class="fc" id="L208">    providerMap = generateQuadTree();</span>
+<span class="fc" id="L209">    loaded = 0;</span>
+<span class="fc" id="L210">  }</span>
+
+  /**
+   * Generate a quad tree with sufficient capacity and depth to load
+   * the biggest states.
+   * @return QuadTree.
+   */
+  private static QuadTree generateQuadTree() {
+<span class="fc" id="L218">    return new QuadTree(7500, 25); // capacity, depth</span>
+  }
+  
+  /**
+   * Load into cache the list of providers for a state.
+   * @param location the state being loaded.
+   */
+  public static void loadProviders(Location location) {
+<span class="fc bfc" id="L226" title="All 2 branches covered.">    if (!statesLoaded.contains(location.state)</span>
+<span class="pc bpc" id="L227" title="1 of 2 branches missed.">        || !statesLoaded.contains(Location.getAbbreviation(location.state))</span>
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">        || !statesLoaded.contains(Location.getStateName(location.state))) {</span>
+      try {
+<span class="fc" id="L230">        Set&lt;EncounterType&gt; servicesProvided = new HashSet&lt;EncounterType&gt;();</span>
+<span class="fc" id="L231">        servicesProvided.add(EncounterType.AMBULATORY);</span>
+<span class="fc" id="L232">        servicesProvided.add(EncounterType.OUTPATIENT);</span>
+<span class="fc" id="L233">        servicesProvided.add(EncounterType.INPATIENT);</span>
+      
+<span class="fc" id="L235">        String hospitalFile = Config.get(&quot;generate.providers.hospitals.default_file&quot;);</span>
+<span class="fc" id="L236">        loadProviders(location, hospitalFile, servicesProvided);</span>
+
+<span class="fc" id="L238">        String vaFile = Config.get(&quot;generate.providers.veterans.default_file&quot;);</span>
+<span class="fc" id="L239">        loadProviders(location, vaFile, servicesProvided);</span>
+
+<span class="fc" id="L241">        servicesProvided.clear();</span>
+<span class="fc" id="L242">        servicesProvided.add(EncounterType.WELLNESS);</span>
+<span class="fc" id="L243">        String primaryCareFile = Config.get(&quot;generate.providers.primarycare.default_file&quot;);</span>
+<span class="fc" id="L244">        loadProviders(location, primaryCareFile, servicesProvided);</span>
+        
+<span class="fc" id="L246">        servicesProvided.clear();</span>
+<span class="fc" id="L247">        servicesProvided.add(EncounterType.URGENTCARE);</span>
+<span class="fc" id="L248">        String urgentcareFile = Config.get(&quot;generate.providers.urgentcare.default_file&quot;);</span>
+<span class="fc" id="L249">        loadProviders(location, urgentcareFile, servicesProvided);</span>
+      
+<span class="fc" id="L251">        statesLoaded.add(location.state);</span>
+<span class="fc" id="L252">        statesLoaded.add(Location.getAbbreviation(location.state));</span>
+<span class="fc" id="L253">        statesLoaded.add(Location.getStateName(location.state));</span>
+<span class="nc" id="L254">      } catch (IOException e) {</span>
+<span class="nc" id="L255">        System.err.println(&quot;ERROR: unable to load providers for state: &quot; + location.state);</span>
+<span class="nc" id="L256">        e.printStackTrace();</span>
+<span class="fc" id="L257">      }</span>
+    }
+<span class="fc" id="L259">  }</span>
+
+  /**
+   * Read the providers from the given resource file, only importing the ones for the given state.
+   * THIS method is for loading providers and generating clinicians with specific specialties
+   * 
+   * @param location the state being loaded
+   * @param filename Location of the file, relative to src/main/resources
+   * @param servicesProvided Set of services provided by these facilities
+   * @throws IOException if the file cannot be read
+   */
+  public static void loadProviders(Location location, String filename,
+      Set&lt;EncounterType&gt; servicesProvided)
+      throws IOException {
+<span class="fc" id="L273">    String resource = Utilities.readResource(filename);</span>
+<span class="fc" id="L274">    Iterator&lt;? extends Map&lt;String,String&gt;&gt; csv = SimpleCSV.parseLineByLine(resource);</span>
+    
+<span class="fc bfc" id="L276" title="All 2 branches covered.">    while (csv.hasNext()) {</span>
+<span class="fc" id="L277">      Map&lt;String,String&gt; row = csv.next();</span>
+<span class="fc" id="L278">      String currState = row.get(&quot;state&quot;);</span>
+<span class="fc" id="L279">      String abbreviation = Location.getAbbreviation(location.state);</span>
+
+      // for now, only allow one state at a time
+<span class="pc bpc" id="L282" title="2 of 4 branches missed.">      if ((location.state == null)</span>
+<span class="pc bpc" id="L283" title="2 of 4 branches missed.">          || (location.state != null &amp;&amp; location.state.equalsIgnoreCase(currState))</span>
+<span class="fc bfc" id="L284" title="All 2 branches covered.">          || (abbreviation != null &amp;&amp; abbreviation.equalsIgnoreCase(currState))) {</span>
+    
+<span class="fc" id="L286">        Provider parsed = csvLineToProvider(row);</span>
+<span class="fc" id="L287">        parsed.servicesProvided.addAll(servicesProvided);</span>
+
+<span class="fc bfc" id="L289" title="All 2 branches covered.">        if (&quot;Yes&quot;.equals(row.remove(&quot;emergency&quot;))) {</span>
+<span class="fc" id="L290">          parsed.servicesProvided.add(EncounterType.EMERGENCY);</span>
+        }
+
+        // add any remaining columns we didn't explicitly map to first-class fields
+        // into the attributes table
+<span class="fc bfc" id="L295" title="All 2 branches covered.">        for (Map.Entry&lt;String, String&gt; e : row.entrySet()) {</span>
+<span class="fc" id="L296">          parsed.attributes.put(e.getKey(), e.getValue());</span>
+<span class="fc" id="L297">        }</span>
+
+<span class="fc" id="L299">        parsed.location = location;</span>
+        // String city = parsed.city;
+        // String address = parsed.address;
+
+<span class="fc bfc" id="L303" title="All 2 branches covered.">        if (row.get(&quot;hasSpecialties&quot;) == null</span>
+<span class="fc bfc" id="L304" title="All 2 branches covered.">            || row.get(&quot;hasSpecialties&quot;).equalsIgnoreCase(&quot;false&quot;)) {</span>
+<span class="fc" id="L305">          parsed.clinicianMap.put(ClinicianSpecialty.GENERAL_PRACTICE, </span>
+<span class="fc" id="L306">              parsed.generateClinicianList(1, ClinicianSpecialty.GENERAL_PRACTICE));</span>
+        } else {
+<span class="fc bfc" id="L308" title="All 2 branches covered.">          for (String specialty : ClinicianSpecialty.getSpecialties()) { </span>
+<span class="fc" id="L309">            String specialtyCount = row.get(specialty);</span>
+<span class="pc bpc" id="L310" title="2 of 4 branches missed.">            if (specialtyCount != null &amp;&amp; !specialtyCount.trim().equals(&quot;&quot;) </span>
+<span class="fc bfc" id="L311" title="All 2 branches covered.">                &amp;&amp; !specialtyCount.trim().equals(&quot;0&quot;)) {</span>
+<span class="fc" id="L312">              parsed.clinicianMap.put(specialty, </span>
+<span class="fc" id="L313">                  parsed.generateClinicianList(Integer.parseInt(row.get(specialty)), specialty));</span>
+            }
+          }
+<span class="fc bfc" id="L316" title="All 2 branches covered.">          if (row.get(ClinicianSpecialty.GENERAL_PRACTICE).equals(&quot;0&quot;)) {</span>
+<span class="fc" id="L317">            parsed.clinicianMap.put(ClinicianSpecialty.GENERAL_PRACTICE, </span>
+<span class="fc" id="L318">                parsed.generateClinicianList(1, ClinicianSpecialty.GENERAL_PRACTICE));</span>
+          }
+        }
+
+<span class="fc" id="L322">        providerList.add(parsed);</span>
+<span class="fc" id="L323">        boolean inserted = providerMap.insert(parsed);</span>
+<span class="pc bpc" id="L324" title="1 of 2 branches missed.">        if (!inserted) {</span>
+<span class="nc" id="L325">          throw new RuntimeException(&quot;Provider QuadTree Full! Dropping # &quot; + loaded + &quot;: &quot;</span>
+              + parsed.name + &quot; @ &quot; + parsed.city);
+        } else {
+<span class="fc" id="L328">          loaded++;</span>
+        }
+      }
+<span class="fc" id="L331">    }</span>
+<span class="fc" id="L332">  }</span>
+
+  /**
+   * Generates a list of clinicians, given the number to generate and the specialty.
+   * @param numClinicians - the number of clinicians to generate
+   * @param specialty - which specialty clinicians to generate
+   * @return
+   */
+  private ArrayList&lt;Clinician&gt; generateClinicianList(int numClinicians, String specialty) {
+<span class="fc" id="L341">    ArrayList&lt;Clinician&gt; clinicians = new ArrayList&lt;Clinician&gt;();</span>
+<span class="fc bfc" id="L342" title="All 2 branches covered.">    for (int i = 0; i &lt; numClinicians; i++) {</span>
+<span class="fc" id="L343">      Clinician clinician = null;</span>
+<span class="fc" id="L344">      clinician = generateClinician(Long.parseLong(loaded + &quot;&quot; + i), this);</span>
+<span class="fc" id="L345">      clinician.attributes.put(Clinician.SPECIALTY, specialty);</span>
+<span class="fc" id="L346">      clinicians.add(clinician);</span>
+    }
+<span class="fc" id="L348">    return clinicians;</span>
+  }
+
+  /**
+   * Generate a random clinician, from the given seed.
+   *
+   * @param clinicianSeed
+   *          Seed for the random clinician
+   * @return generated Clinician
+   */
+  private Clinician generateClinician(long clinicianSeed, Provider provider) {
+<span class="fc" id="L359">    Clinician clinician = null;</span>
+    try {
+<span class="fc" id="L361">      Random randomForDemographics = new Random(clinicianSeed);</span>
+<span class="fc" id="L362">      Demographics city = location.randomCity(randomForDemographics);</span>
+<span class="fc" id="L363">      Map&lt;String, Object&gt; out = new HashMap&lt;&gt;();</span>
+
+<span class="fc" id="L365">      String race = city.pickRace(randomForDemographics);</span>
+<span class="fc" id="L366">      out.put(Person.RACE, race);</span>
+<span class="fc" id="L367">      String ethnicity = city.ethnicityFromRace(race, randomForDemographics);</span>
+<span class="fc" id="L368">      out.put(Person.ETHNICITY, ethnicity);</span>
+<span class="fc" id="L369">      String language = city.languageFromEthnicity(ethnicity, randomForDemographics);</span>
+<span class="fc" id="L370">      out.put(Person.FIRST_LANGUAGE, language);</span>
+<span class="fc" id="L371">      String gender = city.pickGender(randomForDemographics);</span>
+<span class="pc bpc" id="L372" title="1 of 4 branches missed.">      if (gender.equalsIgnoreCase(&quot;male&quot;) || gender.equalsIgnoreCase(&quot;M&quot;)) {</span>
+<span class="fc" id="L373">        gender = &quot;M&quot;;</span>
+      } else {
+<span class="fc" id="L375">        gender = &quot;F&quot;;</span>
+      }
+<span class="fc" id="L377">      out.put(Person.GENDER, gender);</span>
+
+<span class="fc" id="L379">      clinician = new Clinician(clinicianSeed);</span>
+<span class="fc" id="L380">      clinician.attributes.putAll(out);</span>
+<span class="fc" id="L381">      clinician.attributes.put(Person.ADDRESS, provider.address);</span>
+<span class="fc" id="L382">      clinician.attributes.put(Person.CITY, provider.city);</span>
+<span class="fc" id="L383">      clinician.attributes.put(Person.STATE, provider.state);</span>
+<span class="fc" id="L384">      clinician.attributes.put(Person.ZIP, provider.zip);</span>
+
+<span class="fc" id="L386">      String firstName = LifecycleModule.fakeFirstName(gender, language, clinician.random);</span>
+<span class="fc" id="L387">      String lastName = LifecycleModule.fakeLastName(language, clinician.random);</span>
+
+<span class="pc bpc" id="L389" title="1 of 2 branches missed.">      if (LifecycleModule.appendNumbersToNames) {</span>
+<span class="fc" id="L390">        firstName = LifecycleModule.addHash(firstName);</span>
+<span class="fc" id="L391">        lastName = LifecycleModule.addHash(lastName);</span>
+      }
+<span class="fc" id="L393">      clinician.attributes.put(Clinician.FIRST_NAME, firstName);</span>
+<span class="fc" id="L394">      clinician.attributes.put(Clinician.LAST_NAME, lastName);</span>
+<span class="fc" id="L395">      clinician.attributes.put(Clinician.NAME, firstName + &quot; &quot; + lastName);</span>
+<span class="fc" id="L396">      clinician.attributes.put(Clinician.NAME_PREFIX, &quot;Dr.&quot;);</span>
+      // Degree's beyond a bachelors degree are not currently tracked.
+<span class="fc" id="L398">      clinician.attributes.put(Clinician.EDUCATION, &quot;bs_degree&quot;);</span>
+<span class="nc" id="L399">    } catch (Throwable e) {</span>
+<span class="nc" id="L400">      e.printStackTrace();</span>
+<span class="nc" id="L401">      throw e;</span>
+<span class="fc" id="L402">    }</span>
+<span class="fc" id="L403">    return clinician;</span>
+  }
+
+  /**
+   * Randomly chooses a clinician out of a given clinician list.
+   * @param specialty - the specialty to choose from
+   * @param random - random to help choose clinician
+   * @return A clinician with the required specialty.
+   */
+  public Clinician chooseClinicianList(String specialty, Random random) {
+<span class="fc" id="L413">    ArrayList&lt;Clinician&gt; clinicians = this.clinicianMap.get(specialty);</span>
+<span class="fc" id="L414">    Clinician doc = clinicians.get(random.nextInt(clinicians.size()));</span>
+<span class="fc" id="L415">    doc.incrementEncounters();</span>
+<span class="fc" id="L416">    return doc;</span>
+  }
+  
+  /**
+   * Given a line of parsed CSV input, convert the data into a Provider.
+   * @param line - read a csv line to a provider's attributes
+   * @return A provider.
+   */
+  private static Provider csvLineToProvider(Map&lt;String,String&gt; line) {
+<span class="fc" id="L425">    Provider d = new Provider();</span>
+    // using remove instead of get here so that we can iterate over the remaining keys later
+<span class="fc" id="L427">    d.id = line.remove(&quot;id&quot;);</span>
+<span class="fc" id="L428">    d.name = line.remove(&quot;name&quot;);</span>
+<span class="pc bpc" id="L429" title="1 of 4 branches missed.">    if (d.name == null || d.name.isEmpty()) {</span>
+<span class="fc" id="L430">      d.name = d.id;</span>
+    }
+<span class="fc" id="L432">    String base = d.id + d.name;</span>
+<span class="fc" id="L433">    d.uuid = UUID.nameUUIDFromBytes(base.getBytes()).toString();</span>
+<span class="fc" id="L434">    d.address = line.remove(&quot;address&quot;);</span>
+<span class="fc" id="L435">    d.city = line.remove(&quot;city&quot;);</span>
+<span class="fc" id="L436">    d.state = line.remove(&quot;state&quot;);</span>
+<span class="fc" id="L437">    d.zip = line.remove(&quot;zip&quot;);</span>
+<span class="fc" id="L438">    d.phone = line.remove(&quot;phone&quot;);</span>
+<span class="fc" id="L439">    d.type = line.remove(&quot;type&quot;);</span>
+<span class="fc" id="L440">    d.ownership = line.remove(&quot;ownership&quot;);</span>
+    try {
+<span class="fc" id="L442">      d.quality = Integer.parseInt(line.remove(&quot;quality&quot;));</span>
+<span class="fc" id="L443">    } catch (Exception e) {</span>
+      // Swallow invalid format data
+<span class="fc" id="L445">    }</span>
+    try {
+<span class="fc" id="L447">      double lat = Double.parseDouble(line.remove(&quot;LAT&quot;));</span>
+<span class="fc" id="L448">      double lon = Double.parseDouble(line.remove(&quot;LON&quot;));</span>
+<span class="fc" id="L449">      d.coordinates = new DirectPosition2D(lon, lat);</span>
+<span class="nc" id="L450">    } catch (Exception e) {</span>
+<span class="nc" id="L451">      double lat = 0.0;</span>
+<span class="nc" id="L452">      double lon = 0.0;</span>
+<span class="nc" id="L453">      d.coordinates = new DirectPosition2D(lon, lat);</span>
+<span class="fc" id="L454">    }</span>
+<span class="fc" id="L455">    return d;</span>
+  }
+
+  public static List&lt;Provider&gt; getProviderList() {
+<span class="fc" id="L459">    return providerList;</span>
+  }
+
+  /*
+   * (non-Javadoc)
+   * @see org.apache.sis.index.tree.QuadTreeData#getX()
+   */
+  @Override
+  public double getX() {
+<span class="fc" id="L468">    return coordinates.getX();</span>
+  }
+
+  /*
+   * (non-Javadoc)
+   * @see org.apache.sis.index.tree.QuadTreeData#getY()
+   */
+  @Override
+  public double getY() {
+<span class="fc" id="L477">    return coordinates.getY();</span>
+  }
+
+  /*
+   * (non-Javadoc)
+   * @see org.apache.sis.index.tree.QuadTreeData#getLatLon()
+   */
+  @Override
+  public DirectPosition2D getLatLon() {
+<span class="fc" id="L486">    return coordinates;</span>
+  }
+
+  /*
+   * (non-Javadoc)
+   * @see org.apache.sis.index.tree.QuadTreeData#getFileName()
+   */
+  @Override
+  public String getFileName() {
+<span class="nc" id="L495">    return null;</span>
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

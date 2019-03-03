@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HealthInsuranceModule.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.modules</a> &gt; <span class="el_source">HealthInsuranceModule.java</span></div><h1>HealthInsuranceModule.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.modules;
+
+import java.util.Arrays;
+import java.util.List;
+
+import org.mitre.synthea.engine.Module;
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.Utilities;
+import org.mitre.synthea.world.agents.Person;
+
+public class HealthInsuranceModule extends Module {
+  public static final String INSURANCE = &quot;insurance&quot;;
+
+  public static final String NO_INSURANCE = &quot;no_insurance&quot;;
+  public static final String PRIVATE = &quot;private&quot;;
+  public static final String MEDICAID = &quot;medicaid&quot;;
+  public static final String MEDICARE = &quot;medicare&quot;;
+  public static final String DUAL_ELIGIBLE = &quot;dual_eligible&quot;;
+
+  public long mandateTime;
+  public double mandateOccupation;
+  public int privateIncomeThreshold;
+  public double povertyLevel;
+  public double medicaidLevel;
+
+<span class="fc" id="L26">  public HealthInsuranceModule() {</span>
+<span class="fc" id="L27">    int mandateYear = Integer.parseInt(Config.get(&quot;generate.insurance.mandate.year&quot;, &quot;2006&quot;));</span>
+<span class="fc" id="L28">    mandateTime = Utilities.convertCalendarYearsToTime(mandateYear);</span>
+<span class="fc" id="L29">    mandateOccupation = Double</span>
+<span class="fc" id="L30">        .parseDouble(Config.get(&quot;generate.insurance.mandate.occupation&quot;, &quot;0.2&quot;));</span>
+<span class="fc" id="L31">    privateIncomeThreshold = Integer</span>
+<span class="fc" id="L32">        .parseInt(Config.get(&quot;generate.insurance.private.minimum_income&quot;, &quot;24000&quot;));</span>
+<span class="fc" id="L33">    povertyLevel = Double</span>
+<span class="fc" id="L34">        .parseDouble(Config.get(&quot;generate.demographics.socioeconomic.income.poverty&quot;, &quot;11000&quot;));</span>
+<span class="fc" id="L35">    medicaidLevel = 1.33 * povertyLevel;</span>
+<span class="fc" id="L36">  }</span>
+
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public boolean process(Person person, long time) {
+
+<span class="fc bfc" id="L41" title="All 2 branches covered.">    if (!person.attributes.containsKey(INSURANCE)) {</span>
+      // use 128 because it's a nice power of 2, and nobody will reach that age
+      // nulls indicate not set
+<span class="fc" id="L44">      person.attributes.put(INSURANCE, Arrays.asList(new String[128]));</span>
+    }
+
+<span class="fc" id="L47">    List&lt;String&gt; insurance = (List&lt;String&gt;) person.attributes.get(INSURANCE);</span>
+
+<span class="fc" id="L49">    int age = person.ageInYears(time);</span>
+
+<span class="fc bfc" id="L51" title="All 2 branches covered.">    if (insurance.get(age) == null) {</span>
+<span class="fc" id="L52">      insurance.set(age, determineInsurance(person, age, time));</span>
+    }
+
+    // java modules will never &quot;finish&quot;
+<span class="fc" id="L56">    return false;</span>
+  }
+
+  private String determineInsurance(Person person, int age, long time) {
+<span class="fc" id="L60">    boolean female = (person.attributes.get(Person.GENDER).equals(&quot;F&quot;));</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">    boolean pregnant = (person.attributes.containsKey(&quot;pregnant&quot;)</span>
+<span class="fc bfc" id="L62" title="All 2 branches covered.">        &amp;&amp; (boolean) person.attributes.get(&quot;pregnant&quot;));</span>
+<span class="pc bpc" id="L63" title="1 of 2 branches missed.">    boolean blind = (person.attributes.containsKey(&quot;blindness&quot;)</span>
+<span class="pc bnc" id="L64" title="All 2 branches missed.">        &amp;&amp; (boolean) person.attributes.get(&quot;blindness&quot;));</span>
+<span class="pc bpc" id="L65" title="1 of 2 branches missed.">    boolean esrd = (person.attributes.containsKey(&quot;end_stage_renal_disease&quot;)</span>
+<span class="pc bnc" id="L66" title="All 2 branches missed.">        &amp;&amp; (boolean) person.attributes.get(&quot;end_stage_renal_disease&quot;));</span>
+<span class="fc bfc" id="L67" title="All 2 branches covered.">    boolean sixtyFive = (age &gt;= 65);</span>
+<span class="fc" id="L68">    double occupation = (Double) person.attributes.get(Person.OCCUPATION_LEVEL);</span>
+<span class="fc" id="L69">    int income = (Integer) person.attributes.get(Person.INCOME);</span>
+<span class="fc bfc" id="L70" title="All 2 branches covered.">    boolean medicaidIncomeEligible = (income &lt;= medicaidLevel);</span>
+
+<span class="fc" id="L72">    boolean medicare = false;</span>
+<span class="fc" id="L73">    boolean medicaid = false;</span>
+
+<span class="pc bpc" id="L75" title="1 of 4 branches missed.">    if (sixtyFive || esrd) {</span>
+<span class="fc" id="L76">      medicare = true;</span>
+    }
+
+<span class="pc bpc" id="L79" title="1 of 8 branches missed.">    if ((female &amp;&amp; pregnant) || blind || medicaidIncomeEligible) {</span>
+<span class="fc" id="L80">      medicaid = true;</span>
+    }
+
+<span class="fc bfc" id="L83" title="All 4 branches covered.">    if (medicare &amp;&amp; medicaid) {</span>
+<span class="fc" id="L84">      return DUAL_ELIGIBLE;</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">    } else if (medicare) {</span>
+<span class="fc" id="L86">      return MEDICARE;</span>
+<span class="fc bfc" id="L87" title="All 2 branches covered.">    } else if (medicaid) {</span>
+<span class="fc" id="L88">      return MEDICAID;</span>
+    } else {
+<span class="fc bfc" id="L90" title="All 4 branches covered.">      if (time &gt;= mandateTime &amp;&amp; occupation &gt;= mandateOccupation) {</span>
+<span class="fc" id="L91">        return PRIVATE;</span>
+      }
+<span class="fc bfc" id="L93" title="All 2 branches covered.">      if (income &gt;= privateIncomeThreshold) {</span>
+<span class="fc" id="L94">        return PRIVATE;</span>
+      }
+    }
+
+<span class="fc" id="L98">    return NO_INSURANCE;</span>
+  }
+
+  /**
+   * Get the insurance recorded for a person at a given time. The time
+   * must not be in the future or beyond the latest simulated date.
+   * @param person The person under question.
+   * @return A string categorization of insurance.
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public static String getCurrentInsurance(Person person, long time) {
+<span class="fc" id="L109">    String result = NO_INSURANCE;</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">    if (person.attributes.containsKey(INSURANCE)) {</span>
+<span class="fc" id="L111">      List&lt;String&gt; insurance = (List&lt;String&gt;) person.attributes.get(INSURANCE);</span>
+<span class="fc" id="L112">      int age = person.ageInYears(time);</span>
+<span class="pc bpc" id="L113" title="1 of 4 branches missed.">      if (insurance.size() &gt; age &amp;&amp; insurance.get(age) != null) {</span>
+<span class="fc" id="L114">        result = insurance.get(age);</span>
+      }
+    }
+<span class="fc" id="L117">    return result;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

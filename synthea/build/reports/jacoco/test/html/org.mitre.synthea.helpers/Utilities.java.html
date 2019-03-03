@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Utilities.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.helpers</a> &gt; <span class="el_source">Utilities.java</span></div><h1>Utilities.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.helpers;
+
+import com.google.common.base.Charsets;
+import com.google.common.io.Resources;
+import com.google.gson.FieldNamingPolicy;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonPrimitive;
+
+import java.io.IOException;
+import java.net.URL;
+import java.util.Calendar;
+import java.util.Random;
+import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
+
+import org.mitre.synthea.engine.Logic;
+import org.mitre.synthea.engine.State;
+import org.mitre.synthea.world.concepts.HealthRecord.Code;
+
+<span class="nc" id="L21">public class Utilities {</span>
+  /**
+   * Convert a quantity of time in a specified units into milliseconds.
+   *
+   * @param units
+   *          : &quot;hours&quot;, &quot;minutes&quot;, &quot;seconds&quot;, &quot;days&quot;, &quot;weeks&quot;, &quot;years&quot;, or &quot;months&quot;
+   * @param value
+   *          : quantity of units
+   * @return milliseconds
+   */
+  public static long convertTime(String units, long value) {
+<span class="fc bfc" id="L32" title="All 8 branches covered.">    switch (units) {</span>
+      case &quot;hours&quot;:
+<span class="fc" id="L34">        return TimeUnit.HOURS.toMillis(value);</span>
+      case &quot;minutes&quot;:
+<span class="fc" id="L36">        return TimeUnit.MINUTES.toMillis(value);</span>
+      case &quot;seconds&quot;:
+<span class="fc" id="L38">        return TimeUnit.SECONDS.toMillis(value);</span>
+      case &quot;days&quot;:
+<span class="fc" id="L40">        return TimeUnit.DAYS.toMillis(value);</span>
+      case &quot;years&quot;:
+<span class="fc" id="L42">        return TimeUnit.DAYS.toMillis(365 * value);</span>
+      case &quot;months&quot;:
+<span class="fc" id="L44">        return TimeUnit.DAYS.toMillis(30 * value);</span>
+      case &quot;weeks&quot;:
+<span class="fc" id="L46">        return TimeUnit.DAYS.toMillis(7 * value);</span>
+      default:
+<span class="fc" id="L48">        throw new RuntimeException(&quot;Unexpected time unit: &quot; + units);</span>
+    }
+  }
+
+  public static long convertCalendarYearsToTime(int years) {
+<span class="fc" id="L53">    return convertTime(&quot;years&quot;, (long) (years - 1970));</span>
+  }
+
+  public static int getYear(long time) {
+<span class="fc" id="L57">    Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone(&quot;UTC&quot;));</span>
+<span class="fc" id="L58">    calendar.setTimeInMillis(time);</span>
+<span class="fc" id="L59">    return calendar.get(Calendar.YEAR);</span>
+  }
+
+  public static int getMonth(long time) {
+<span class="fc" id="L63">    Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone(&quot;UTC&quot;));</span>
+<span class="fc" id="L64">    calendar.setTimeInMillis(time);</span>
+<span class="fc" id="L65">    return calendar.get(Calendar.MONTH) + 1;</span>
+  }
+
+  /**
+   * Converts a JsonPrimitive into a primitive Boolean, Double, or String.
+   *
+   * @param p
+   *          : JsonPrimitive
+   * @return Boolean, Double, or String
+   */
+  public static Object primitive(JsonPrimitive p) {
+<span class="fc" id="L76">    Object retVal = null;</span>
+<span class="fc bfc" id="L77" title="All 2 branches covered.">    if (p.isBoolean()) {</span>
+<span class="fc" id="L78">      retVal = p.getAsBoolean();</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">    } else if (p.isNumber()) {</span>
+<span class="fc" id="L80">      double doubleVal = p.getAsDouble();</span>
+
+<span class="fc bfc" id="L82" title="All 2 branches covered.">      if (doubleVal == Math.rint(doubleVal)) {</span>
+<span class="fc" id="L83">        retVal = (int) doubleVal;</span>
+      } else {
+<span class="fc" id="L85">        retVal = doubleVal;</span>
+      }
+<span class="pc bpc" id="L87" title="1 of 2 branches missed.">    } else if (p.isString()) {</span>
+<span class="fc" id="L88">      retVal = p.getAsString();</span>
+    }
+<span class="fc" id="L90">    return retVal;</span>
+  }
+
+  public static double convertRiskToTimestep(double risk, double originalPeriodInMS) {
+<span class="fc" id="L94">    double currTimeStepInMS = Double.parseDouble(Config.get(&quot;generate.timestep&quot;));</span>
+
+<span class="fc" id="L96">    return 1 - Math.pow(1 - risk, currTimeStepInMS / originalPeriodInMS);</span>
+  }
+
+  public static boolean compare(Object lhs, Object rhs, String operator) {
+<span class="fc bfc" id="L100" title="All 2 branches covered.">    if (operator.equals(&quot;is nil&quot;)) {</span>
+<span class="fc bfc" id="L101" title="All 2 branches covered.">      return lhs == null;</span>
+<span class="fc bfc" id="L102" title="All 2 branches covered.">    } else if (operator.equals(&quot;is not nil&quot;)) {</span>
+<span class="fc bfc" id="L103" title="All 2 branches covered.">      return lhs != null;</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">    } else if (lhs == null) {</span>
+<span class="fc" id="L105">      return false;</span>
+    }
+<span class="pc bpc" id="L107" title="1 of 4 branches missed.">    if (lhs instanceof Number &amp;&amp; rhs instanceof Number) {</span>
+<span class="fc" id="L108">      return compare(((Number) lhs).doubleValue(), ((Number) rhs).doubleValue(), operator);</span>
+<span class="fc bfc" id="L109" title="All 4 branches covered.">    } else if (lhs instanceof Boolean &amp;&amp; rhs instanceof Boolean) {</span>
+<span class="fc" id="L110">      return compare((Boolean) lhs, (Boolean) rhs, operator);</span>
+<span class="pc bpc" id="L111" title="1 of 4 branches missed.">    } else if (lhs instanceof String &amp;&amp; rhs instanceof String) {</span>
+<span class="fc" id="L112">      return compare((String) lhs, (String) rhs, operator);</span>
+<span class="pc bpc" id="L113" title="1 of 4 branches missed.">    } else if (lhs instanceof Code &amp;&amp; rhs instanceof Code) {</span>
+<span class="fc" id="L114">      return compare((Code) lhs, (Code) rhs, operator);</span>
+    } else {
+<span class="fc" id="L116">      throw new RuntimeException(String.format(&quot;Cannot compare %s to %s.\n&quot;,</span>
+<span class="fc" id="L117">          lhs.getClass().getName(), rhs.getClass().getName()));</span>
+    }
+  }
+
+  public static boolean compare(Double lhs, Double rhs, String operator) {
+<span class="fc bfc" id="L122" title="All 9 branches covered.">    switch (operator) {</span>
+      case &quot;&lt;&quot;:
+<span class="fc bfc" id="L124" title="All 2 branches covered.">        return lhs &lt; rhs;</span>
+      case &quot;&lt;=&quot;:
+<span class="fc bfc" id="L126" title="All 2 branches covered.">        return lhs &lt;= rhs;</span>
+      case &quot;==&quot;:
+<span class="fc bfc" id="L128" title="All 2 branches covered.">        return lhs.doubleValue() == rhs.doubleValue();</span>
+      case &quot;&gt;=&quot;:
+<span class="fc bfc" id="L130" title="All 2 branches covered.">        return lhs &gt;= rhs;</span>
+      case &quot;&gt;&quot;:
+<span class="fc bfc" id="L132" title="All 2 branches covered.">        return lhs &gt; rhs;</span>
+      case &quot;!=&quot;:
+<span class="fc bfc" id="L134" title="All 2 branches covered.">        return lhs.doubleValue() != rhs.doubleValue();</span>
+      case &quot;is nil&quot;:
+<span class="fc bfc" id="L136" title="All 2 branches covered.">        return lhs == null;</span>
+      case &quot;is not nil&quot;:
+<span class="fc bfc" id="L138" title="All 2 branches covered.">        return lhs != null;</span>
+      default:
+<span class="fc" id="L140">        System.err.format(&quot;Unsupported operator: %s\n&quot;, operator);</span>
+<span class="fc" id="L141">        return false;</span>
+    }
+  }
+
+  public static boolean compare(Boolean lhs, Boolean rhs, String operator) {
+<span class="fc bfc" id="L146" title="All 9 branches covered.">    switch (operator) {</span>
+      case &quot;&lt;&quot;:
+<span class="pc bpc" id="L148" title="1 of 2 branches missed.">        return lhs != rhs;</span>
+      case &quot;&lt;=&quot;:
+<span class="pc bpc" id="L150" title="1 of 2 branches missed.">        return lhs != rhs;</span>
+      case &quot;==&quot;:
+<span class="fc bfc" id="L152" title="All 2 branches covered.">        return lhs == rhs;</span>
+      case &quot;&gt;=&quot;:
+<span class="pc bpc" id="L154" title="1 of 2 branches missed.">        return lhs != rhs;</span>
+      case &quot;&gt;&quot;:
+<span class="pc bpc" id="L156" title="1 of 2 branches missed.">        return lhs != rhs;</span>
+      case &quot;!=&quot;:
+<span class="pc bpc" id="L158" title="1 of 2 branches missed.">        return lhs != rhs;</span>
+      case &quot;is nil&quot;:
+<span class="fc bfc" id="L160" title="All 2 branches covered.">        return lhs == null;</span>
+      case &quot;is not nil&quot;:
+<span class="fc bfc" id="L162" title="All 2 branches covered.">        return lhs != null;</span>
+      default:
+<span class="fc" id="L164">        System.err.format(&quot;Unsupported operator: %s\n&quot;, operator);</span>
+<span class="fc" id="L165">        return false;</span>
+    }
+  }
+
+  public static boolean compare(String lhs, String rhs, String operator) {
+<span class="fc bfc" id="L170" title="All 9 branches covered.">    switch (operator) {</span>
+      case &quot;&lt;&quot;:
+<span class="pc bpc" id="L172" title="1 of 2 branches missed.">        return lhs.compareTo(rhs) &lt; 0;</span>
+      case &quot;&lt;=&quot;:
+<span class="pc bpc" id="L174" title="1 of 2 branches missed.">        return lhs.compareTo(rhs) &lt;= 0;</span>
+      case &quot;==&quot;:
+<span class="fc bfc" id="L176" title="All 2 branches covered.">        return lhs == rhs;</span>
+      case &quot;&gt;=&quot;:
+<span class="pc bpc" id="L178" title="1 of 2 branches missed.">        return lhs.compareTo(rhs) &gt;= 0;</span>
+      case &quot;&gt;&quot;:
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">        return lhs.compareTo(rhs) &gt; 0;</span>
+      case &quot;!=&quot;:
+<span class="pc bpc" id="L182" title="1 of 2 branches missed.">        return lhs != rhs;</span>
+      case &quot;is nil&quot;:
+<span class="pc bpc" id="L184" title="1 of 2 branches missed.">        return lhs == null;</span>
+      case &quot;is not nil&quot;:
+<span class="pc bpc" id="L186" title="1 of 2 branches missed.">        return lhs != null;</span>
+      default:
+<span class="fc" id="L188">        System.err.format(&quot;Unsupported operator: %s\n&quot;, operator);</span>
+<span class="fc" id="L189">        return false;</span>
+    }
+  }
+
+  public static boolean compare(Integer lhs, Integer rhs, String operator) {
+<span class="pc bpc" id="L194" title="4 of 9 branches missed.">    switch (operator) {</span>
+      case &quot;&lt;&quot;:
+<span class="fc bfc" id="L196" title="All 2 branches covered.">        return lhs &lt; rhs;</span>
+      case &quot;&lt;=&quot;:
+<span class="fc bfc" id="L198" title="All 2 branches covered.">        return lhs &lt;= rhs;</span>
+      case &quot;==&quot;:
+<span class="fc bfc" id="L200" title="All 2 branches covered.">        return lhs.intValue() == rhs.intValue();</span>
+      case &quot;&gt;=&quot;:
+<span class="fc bfc" id="L202" title="All 2 branches covered.">        return lhs &gt;= rhs;</span>
+      case &quot;&gt;&quot;:
+<span class="fc bfc" id="L204" title="All 2 branches covered.">        return lhs &gt; rhs;</span>
+      case &quot;!=&quot;:
+<span class="nc bnc" id="L206" title="All 2 branches missed.">        return lhs.intValue() != rhs.intValue();</span>
+      case &quot;is nil&quot;:
+<span class="nc bnc" id="L208" title="All 2 branches missed.">        return lhs == null;</span>
+      case &quot;is not nil&quot;:
+<span class="nc bnc" id="L210" title="All 2 branches missed.">        return lhs != null;</span>
+      default:
+<span class="nc" id="L212">        System.err.format(&quot;Unsupported operator: %s\n&quot;, operator);</span>
+<span class="nc" id="L213">        return false;</span>
+    }
+  }
+
+  public static boolean compare(Code lhs, Code rhs, String operator) {
+<span class="pc bpc" id="L218" title="4 of 5 branches missed.">    switch (operator) {</span>
+      case &quot;==&quot;:
+<span class="fc" id="L220">        return lhs.equals(rhs);</span>
+      case &quot;!=&quot;:
+<span class="nc bnc" id="L222" title="All 2 branches missed.">        return !lhs.equals(rhs);</span>
+      case &quot;is nil&quot;:
+<span class="nc bnc" id="L224" title="All 2 branches missed.">        return lhs == null;</span>
+      case &quot;is not nil&quot;:
+<span class="nc bnc" id="L226" title="All 2 branches missed.">        return lhs != null;</span>
+      default:
+<span class="nc" id="L228">        System.err.format(&quot;Unsupported operator: %s\n&quot;, operator);</span>
+<span class="nc" id="L229">        return false;</span>
+    }
+  }
+
+  /**
+   * The version identifier from the current version of Synthea.
+   * Pulled from an autogenerated version file.
+   */
+<span class="fc" id="L237">  public static final String SYNTHEA_VERSION = getSyntheaVersion();</span>
+
+  private static String getSyntheaVersion() {
+<span class="fc" id="L240">    String version = &quot;synthea-java&quot;; // reasonable default if we can't find a better one</span>
+
+    try {
+      // see build.gradle for version.txt format
+<span class="fc" id="L244">      String text = readResource(&quot;version.txt&quot;);</span>
+<span class="pc bpc" id="L245" title="2 of 4 branches missed.">      if (text != null &amp;&amp; text.length() &gt; 0) {</span>
+<span class="nc" id="L246">        version = text;</span>
+      }
+<span class="nc" id="L248">    } catch (Exception e) {</span>
+      // don't crash if the file isn't there, or for any other reason
+<span class="nc" id="L250">      e.printStackTrace();</span>
+<span class="fc" id="L251">    }</span>
+<span class="fc" id="L252">    return version;</span>
+  }
+
+  /**
+   * Read the entire contents of a file in resources into a String.
+   * @param filename Path to the file, relative to src/main/resources.
+   * @return The entire text contents of the file.
+   * @throws IOException if any error occurs reading the file
+   */
+  public static final String readResource(String filename) throws IOException {
+<span class="fc" id="L262">    URL url = Resources.getResource(filename);</span>
+<span class="fc" id="L263">    return Resources.toString(url, Charsets.UTF_8);</span>
+  }
+
+  /**
+   * Get a Gson object, preconfigured to load the GMF modules into classes.
+   *
+   * @return Gson object to unmarshal GMF JSON into objects
+   */
+  public static Gson getGson() {
+<span class="fc" id="L272">    return new GsonBuilder()</span>
+<span class="fc" id="L273">      .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)</span>
+<span class="fc" id="L274">      .registerTypeAdapterFactory(InnerClassTypeAdapterFactory.of(Logic.class,&quot;condition_type&quot;))</span>
+<span class="fc" id="L275">      .registerTypeAdapterFactory(InnerClassTypeAdapterFactory.of(State.class, &quot;type&quot;))</span>
+<span class="fc" id="L276">      .create();</span>
+  }
+
+  /**
+   * Generate a random DICOM UID to uniquely identify an ImagingStudy, Series, or Instance.
+   * Optionally add series and/or instance numbers to the UID to enhance its uniqueness.
+   * Pass 0 for the series/instance number to omit it from the UID.
+   *
+   * @return a String DICOM UID
+   */
+  public static String randomDicomUid(int seriesNo, int instanceNo) {
+
+    // Add a random salt to increase uniqueness
+<span class="fc" id="L289">    String salt = randomDicomUidSalt();</span>
+
+<span class="fc" id="L291">    String now = String.valueOf(System.currentTimeMillis());</span>
+<span class="fc" id="L292">    String uid = &quot;1.2.840.99999999&quot;;  // 99999999 is an arbitrary organizational identifier</span>
+
+<span class="fc bfc" id="L294" title="All 2 branches covered.">    if (seriesNo &gt; 0) {</span>
+<span class="fc" id="L295">      uid += &quot;.&quot; + String.valueOf(seriesNo);</span>
+    }
+
+<span class="fc bfc" id="L298" title="All 2 branches covered.">    if (instanceNo &gt; 0) {</span>
+<span class="fc" id="L299">      uid += &quot;.&quot; + String.valueOf(instanceNo);</span>
+    }
+
+<span class="fc" id="L302">    return uid + &quot;.&quot; + salt + &quot;.&quot; + now;</span>
+  }
+
+  /**
+   * Generates a random string of 8 numbers to use as a salt for DICOM UIDs.
+   * @return The 8-digit numeric salt, as a String
+   */
+  private static String randomDicomUidSalt() {
+
+<span class="fc" id="L311">    final int MIN = 10000000;</span>
+<span class="fc" id="L312">    final int MAX = 99999999;</span>
+
+<span class="fc" id="L314">    Random rand = new Random();</span>
+<span class="fc" id="L315">    int saltInt = rand.nextInt(MAX - MIN + 1) + MIN;</span>
+<span class="fc" id="L316">    return String.valueOf(saltInt);</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

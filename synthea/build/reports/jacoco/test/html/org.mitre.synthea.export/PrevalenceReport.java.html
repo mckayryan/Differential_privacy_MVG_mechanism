@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PrevalenceReport.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.export</a> &gt; <span class="el_source">PrevalenceReport.java</span></div><h1>PrevalenceReport.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.export;
+
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+
+import org.mitre.synthea.engine.Generator;
+import org.mitre.synthea.helpers.SimpleCSV;
+import org.mitre.synthea.helpers.Utilities;
+
+<span class="nc" id="L19">public class PrevalenceReport {</span>
+
+  // These are the name of the columns in the CSV prevalence template
+  private static final String DIFFERENCE = &quot;DIFFERENCE&quot;;
+  private static final String ACTUAL_PREV_PERCENT = &quot;ACTUAL PREVALENCE PERCENT&quot;;
+  private static final String PREV_RATE = &quot;SYNTHEA PREVALENCE RATE&quot;;
+  private static final String PREV_PERCENT = &quot;SYNTHEA PREVALENCE PERCENT&quot;;
+  private static final String ITEM = &quot;ITEM&quot;;
+  private static final String GENDER = &quot;GENDER&quot;;
+  private static final String RACE = &quot;RACE&quot;;
+  private static final String AGE = &quot;AGE GROUP&quot;;
+  private static final String OCCUR = &quot;SYNTHEA OCCURRENCES&quot;;
+  private static final String POP = &quot;SYNTHEA POPULATION&quot;;
+  private static final String GIVEN_CON = &quot;GIVEN CONDITION&quot;;
+
+  private static final String ALL = &quot;*&quot;;
+
+  public static void export(Generator generator) throws Exception {
+<span class="nc bnc" id="L37" title="All 2 branches missed.">    if (generator.database == null) {</span>
+<span class="nc" id="L38">      System.err.println(</span>
+          &quot;Unable to generate Prevalence Report - No database exists to generate report from.&quot;);
+<span class="nc" id="L40">      return;</span>
+    }
+
+<span class="nc" id="L43">    String csvData = Utilities.readResource(&quot;prevalence_template.csv&quot;);</span>
+<span class="nc" id="L44">    List&lt;LinkedHashMap&lt;String, String&gt;&gt; data = SimpleCSV.parse(csvData);</span>
+
+<span class="nc" id="L46">    try (Connection connection = generator.database.getConnection()) {</span>
+
+<span class="nc bnc" id="L48" title="All 2 branches missed.">      for (LinkedHashMap&lt;String, String&gt; line : data) {</span>
+
+<span class="nc bnc" id="L50" title="All 2 branches missed.">        if (line.get(ITEM).isEmpty()) {</span>
+<span class="nc" id="L51">          continue;</span>
+        }
+
+<span class="nc bnc" id="L54" title="All 2 branches missed.">        if (line.get(GIVEN_CON).isEmpty()) {</span>
+<span class="nc" id="L55">          getPrev(connection, line);</span>
+        } else {
+<span class="nc" id="L57">          givenCondition(connection, line);</span>
+        }
+
+<span class="nc" id="L60">        getPop(connection, line);</span>
+<span class="nc" id="L61">        completeSyntheaFields(connection, line);</span>
+<span class="nc" id="L62">        completeDifferenceField(connection, line);</span>
+<span class="nc" id="L63">      }</span>
+
+<span class="nc" id="L65">      allConditions(connection, data);</span>
+    }
+
+<span class="nc" id="L68">    String newCsvData = SimpleCSV.unparse(data);</span>
+
+<span class="nc" id="L70">    File outDirectory = Exporter.getOutputFolder(&quot;prevalence&quot;, null);</span>
+
+<span class="nc" id="L72">    Path outFilePath = outDirectory.toPath()</span>
+<span class="nc" id="L73">        .resolve(&quot;prev_data&quot; + System.currentTimeMillis() + &quot;.csv&quot;);</span>
+
+<span class="nc" id="L75">    Files.write(outFilePath, Collections.singleton(newCsvData), StandardOpenOption.CREATE_NEW);</span>
+<span class="nc" id="L76">  }</span>
+
+  /**
+   * Uses a string builder to run a query dependent upon what is on each line of the CSV template.
+   * Executes the query after filling in the indexes. Inserts result of query into the occurrences
+   * column.
+   */
+  private static void getPrev(Connection connection, LinkedHashMap&lt;String, String&gt; line)
+      throws SQLException {
+
+<span class="nc" id="L86">    StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L87">    sb.append(&quot;SELECT COUNT(*) FROM PERSON p, CONDITION c, ATTRIBUTE a\n&quot; + &quot;WHERE \n&quot;</span>
+        + &quot;p.ID = c.PERSON_ID\n&quot; + &quot;AND c.PERSON_ID = a.PERSON_ID\n&quot; + &quot;AND (c.DISPLAY = ?)\n&quot;
+        + &quot;AND (p.DATE_OF_DEATH is null)\n&quot; + &quot;&quot;);
+
+<span class="nc" id="L91">    String gender = line.get(GENDER);</span>
+<span class="nc bnc" id="L92" title="All 2 branches missed.">    if (!gender.equals(ALL)) {</span>
+<span class="nc" id="L93">      sb.append(&quot;AND (p.GENDER = ?)\n&quot;);</span>
+    }
+
+<span class="nc" id="L96">    String race = line.get(RACE);</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">    if (!race.equals(ALL)) {</span>
+<span class="nc" id="L98">      sb.append(&quot;AND (p.RACE = ?)\n&quot;);</span>
+    }
+
+<span class="nc" id="L101">    String age = line.get(AGE);</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">    if (age.equals(&quot;adult&quot;)) {</span>
+<span class="nc" id="L103">      sb.append(&quot;AND (a.NAME = 'AGE' AND CAST(a.VALUE AS INT) &gt;= 18)\n&quot;);</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">    } else if (age.equals(&quot;child&quot;)) {</span>
+<span class="nc" id="L105">      sb.append(&quot;AND (a.NAME = 'AGE' AND CAST(a.VALUE AS INT) &lt; 18)\n&quot;);</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">    } else if (age.equals(&quot;senior&quot;)) {</span>
+<span class="nc" id="L107">      sb.append(&quot;AND (a.NAME = 'AGE' AND CAST(a.VALUE AS INT) &gt;= 65)\n&quot;);</span>
+    }
+
+<span class="nc" id="L110">    PreparedStatement stmt = connection.prepareStatement(sb.toString());</span>
+
+<span class="nc" id="L112">    int index = 1; // SQL begins at 1 not 0</span>
+<span class="nc" id="L113">    stmt.setString(index++, line.get(ITEM));</span>
+
+<span class="nc bnc" id="L115" title="All 2 branches missed.">    if (!gender.equals(ALL)) {</span>
+<span class="nc" id="L116">      stmt.setString(index++, gender);</span>
+    }
+
+<span class="nc bnc" id="L119" title="All 2 branches missed.">    if (!race.equals(ALL)) {</span>
+<span class="nc" id="L120">      stmt.setString(index++, race);</span>
+    }
+
+<span class="nc" id="L123">    ResultSet rs = stmt.executeQuery();</span>
+
+<span class="nc" id="L125">    rs.next();</span>
+
+<span class="nc" id="L127">    int countOccur = rs.getInt(1);</span>
+<span class="nc" id="L128">    line.put(OCCUR, Integer.toString(countOccur));</span>
+<span class="nc" id="L129">  }</span>
+
+  /**
+   * Uses a string builder to run a query dependent upon what is on each line of the CSV template.
+   * Executes the query after filling in the indexes. Inserts result of query into the population
+   * column.
+   */
+  private static void getPop(Connection connection, LinkedHashMap&lt;String, String&gt; line)
+      throws SQLException {
+
+<span class="nc" id="L139">    StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L140">    sb.append(&quot;SELECT COUNT(*) FROM PERSON p, ATTRIBUTE a\n&quot; + &quot;WHERE \n&quot; + &quot;p.ID = a.PERSON_ID\n&quot;</span>
+        + &quot;AND (p.DATE_OF_DEATH is null)\n&quot; + &quot;&quot;);
+
+<span class="nc" id="L143">    String gender = line.get(GENDER);</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">    if (!gender.equals(ALL)) {</span>
+<span class="nc" id="L145">      sb.append(&quot;AND (p.GENDER = ?)\n&quot;);</span>
+    }
+
+<span class="nc" id="L148">    String race = line.get(RACE);</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">    if (!race.equals(ALL)) {</span>
+<span class="nc" id="L150">      sb.append(&quot;AND (p.RACE = ?)\n&quot;);</span>
+    }
+
+<span class="nc" id="L153">    String age = line.get(AGE);</span>
+<span class="nc bnc" id="L154" title="All 2 branches missed.">    if (age.equals(&quot;adult&quot;)) {</span>
+<span class="nc" id="L155">      sb.append(&quot;AND (a.NAME = 'AGE' AND CAST(a.VALUE AS INT) &gt;= 18)\n&quot;);</span>
+<span class="nc bnc" id="L156" title="All 2 branches missed.">    } else if (age.equals(&quot;child&quot;)) {</span>
+<span class="nc" id="L157">      sb.append(&quot;AND (a.NAME = 'AGE' AND CAST(a.VALUE AS INT) &lt; 18)\n&quot;);</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">    } else if (age.equals(&quot;senior&quot;)) {</span>
+<span class="nc" id="L159">      sb.append(&quot;AND (a.NAME = 'AGE' AND CAST(a.VALUE AS INT) &gt; 65)\n&quot;);</span>
+    }
+
+<span class="nc" id="L162">    PreparedStatement stmt = connection.prepareStatement(sb.toString());</span>
+
+<span class="nc" id="L164">    int index = 1; // SQL begins at 1 not 0</span>
+
+<span class="nc bnc" id="L166" title="All 2 branches missed.">    if (!gender.equals(ALL)) {</span>
+<span class="nc" id="L167">      stmt.setString(index++, gender);</span>
+    }
+
+<span class="nc bnc" id="L170" title="All 2 branches missed.">    if (!race.equals(ALL)) {</span>
+<span class="nc" id="L171">      stmt.setString(index++, race);</span>
+    }
+
+<span class="nc" id="L174">    ResultSet rs = stmt.executeQuery();</span>
+<span class="nc" id="L175">    rs.next();</span>
+
+<span class="nc" id="L177">    int countPop = rs.getInt(1);</span>
+<span class="nc" id="L178">    line.put(POP, Integer.toString(countPop));</span>
+<span class="nc" id="L179">  }</span>
+
+  /**
+   * Calculates the prevalence rate and percent based on what is on that line of the report. Inserts
+   * result of calculation into the prevalence rate and percent columns.
+   */
+  private static void completeSyntheaFields(Connection connection,
+      LinkedHashMap&lt;String, String&gt; line) throws SQLException {
+
+<span class="nc bnc" id="L188" title="All 4 branches missed.">    if ((line.get(OCCUR).isEmpty()) || (line.get(POP).isEmpty())) {</span>
+<span class="nc" id="L189">      line.put(PREV_RATE, (null));</span>
+<span class="nc" id="L190">      line.put(PREV_PERCENT, (null));</span>
+    } else {
+<span class="nc" id="L192">      double occurr = Double.parseDouble(line.get(OCCUR));</span>
+<span class="nc" id="L193">      double pop = Double.parseDouble(line.get(POP));</span>
+
+<span class="nc bnc" id="L195" title="All 2 branches missed.">      if (pop != 0) {</span>
+<span class="nc" id="L196">        double prevRate = occurr / pop;</span>
+<span class="nc" id="L197">        double prevPercent = prevRate * 100;</span>
+<span class="nc" id="L198">        line.put(PREV_RATE, Double.toString(prevRate));</span>
+<span class="nc" id="L199">        line.put(PREV_PERCENT, Double.toString(prevPercent));</span>
+<span class="nc" id="L200">      } else {</span>
+<span class="nc" id="L201">        line.put(PREV_RATE, Double.toString(0));</span>
+<span class="nc" id="L202">        line.put(PREV_PERCENT, Double.toString(0));</span>
+      }
+    }
+<span class="nc" id="L205">  }</span>
+
+  /**
+   * Calculates the difference between the Synthea prevalence percent and actual percent based on
+   * what is on that line of the report. Inserts result of calculation into the difference column.
+   */
+  private static void completeDifferenceField(Connection connection,
+      LinkedHashMap&lt;String, String&gt; line) throws SQLException {
+<span class="nc bnc" id="L213" title="All 2 branches missed.">    if (line.get(ACTUAL_PREV_PERCENT).isEmpty()) {</span>
+<span class="nc" id="L214">      line.put(DIFFERENCE, (null));</span>
+    } else {
+<span class="nc" id="L216">      double actualPrev = Double.parseDouble(line.get(ACTUAL_PREV_PERCENT));</span>
+<span class="nc" id="L217">      double prevPercent = Double.parseDouble(line.get(PREV_PERCENT));</span>
+<span class="nc" id="L218">      double diff = (prevPercent - actualPrev);</span>
+<span class="nc" id="L219">      line.put(DIFFERENCE, Double.toString(diff));</span>
+    }
+<span class="nc" id="L221">  }</span>
+
+  /**
+   * Uses a string builder to run a query dependent upon what is on each line of the CSV template.
+   * Calculates the prevalence rate of one disease given another disease. Inserts result of query
+   * into the occurrences column.
+   */
+  private static void givenCondition(Connection connection, LinkedHashMap&lt;String, String&gt; line)
+      throws SQLException {
+<span class="nc" id="L230">    String query = &quot;SELECT COUNT(*) FROM PERSON p, CONDITION c1, CONDITION c2 &quot;</span>
+        + &quot;WHERE  p.ID = c1.PERSON_ID &quot; + &quot;AND c1.PERSON_ID = c2.PERSON_ID &quot;
+        + &quot;AND (p.DATE_OF_DEATH is null) &quot; + &quot;AND (c1.DISPLAY = ?) &quot; + &quot;AND (c2.DISPLAY = ?) &quot;;
+
+<span class="nc" id="L234">    PreparedStatement stmt = connection.prepareStatement(query);</span>
+<span class="nc" id="L235">    stmt.setString(1, line.get(ITEM));</span>
+<span class="nc" id="L236">    stmt.setString(2, line.get(GIVEN_CON));</span>
+
+<span class="nc" id="L238">    ResultSet rs = stmt.executeQuery();</span>
+<span class="nc" id="L239">    rs.next();</span>
+
+<span class="nc" id="L241">    int givenCondition = rs.getInt(1);</span>
+<span class="nc" id="L242">    line.put(OCCUR, Integer.toString(givenCondition));</span>
+<span class="nc" id="L243">  }</span>
+
+  /**
+   * Calculates the unique number of patients who have a distinct disease. Inserts result of query
+   * into the occurrences column. Calculates the total living population of patients. Inserts result
+   * into the population column. Calls for completeSyntheaFields to calculate the prevalence rate
+   * and percent.
+   */
+  private static void allConditions(Connection connection, List&lt;LinkedHashMap&lt;String, String&gt;&gt; data)
+      throws SQLException {
+
+<span class="nc" id="L254">    PreparedStatement stmt = connection</span>
+<span class="nc" id="L255">        .prepareStatement(&quot;select count(*) from person where person.DATE_OF_DEATH is null&quot;);</span>
+<span class="nc" id="L256">    ResultSet rs = stmt.executeQuery();</span>
+<span class="nc" id="L257">    rs.next();</span>
+<span class="nc" id="L258">    int totalPopulation = rs.getInt(1);</span>
+
+<span class="nc" id="L260">    stmt = connection.prepareStatement(</span>
+        &quot;select distinct c.display as DistinctDisplay, &quot;
+        + &quot;count(distinct c.person_id) as CountDisplay \n&quot;
+        + &quot;from condition c, person p\n&quot; 
+        + &quot;where c.person_id = p.id\n&quot;
+        + &quot;and p.date_of_death is null\n&quot; 
+        + &quot;group by c.display\n&quot; 
+        + &quot;order by c.display ASC&quot;);
+<span class="nc" id="L268">    rs = stmt.executeQuery();</span>
+<span class="nc bnc" id="L269" title="All 2 branches missed.">    while (rs.next()) {</span>
+<span class="nc" id="L270">      String disease = rs.getString(&quot;DistinctDisplay&quot;);</span>
+<span class="nc" id="L271">      int count = rs.getInt(&quot;CountDisplay&quot;);</span>
+<span class="nc" id="L272">      LinkedHashMap&lt;String, String&gt; line = new LinkedHashMap&lt;String, String&gt;();</span>
+<span class="nc" id="L273">      line.put(ITEM, disease);</span>
+<span class="nc" id="L274">      line.put(OCCUR, Integer.toString(count));</span>
+<span class="nc" id="L275">      line.put(POP, Integer.toString(totalPopulation));</span>
+<span class="nc" id="L276">      data.add(line);</span>
+<span class="nc" id="L277">      completeSyntheaFields(connection, line);</span>
+<span class="nc" id="L278">    }</span>
+<span class="nc" id="L279">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

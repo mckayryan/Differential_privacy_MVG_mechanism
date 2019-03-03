@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HospitalExporterR4.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.export</a> &gt; <span class="el_source">HospitalExporterR4.java</span></div><h1>HospitalExporterR4.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.export;
+
+import ca.uhn.fhir.context.FhirContext;
+import com.google.common.collect.Table;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.hl7.fhir.r4.model.Bundle;
+import org.hl7.fhir.r4.model.Bundle.BundleEntryComponent;
+import org.hl7.fhir.r4.model.Bundle.BundleType;
+import org.hl7.fhir.r4.model.Extension;
+import org.hl7.fhir.r4.model.IntegerType;
+import org.hl7.fhir.r4.model.Organization;
+
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.world.agents.Provider;
+
+<span class="nc" id="L27">public abstract class HospitalExporterR4 {</span>
+
+<span class="fc" id="L29">  private static final FhirContext FHIR_CTX = FhirContext.forR4();</span>
+
+  private static final String SYNTHEA_URI = &quot;http://synthetichealth.github.io/synthea/&quot;;
+
+  public static void export(long stop) {
+<span class="fc bfc" id="L34" title="All 2 branches covered.">    if (Boolean.parseBoolean(Config.get(&quot;exporter.hospital.fhir_r4.export&quot;))) {</span>
+
+<span class="fc" id="L36">      Bundle bundle = new Bundle();</span>
+<span class="pc bpc" id="L37" title="1 of 2 branches missed.">      if (Boolean.parseBoolean(Config.get(&quot;exporter.fhir.transaction_bundle&quot;))) {</span>
+<span class="fc" id="L38">        bundle.setType(BundleType.TRANSACTION);</span>
+      } else {
+<span class="nc" id="L40">        bundle.setType(BundleType.COLLECTION);</span>
+      }
+<span class="fc bfc" id="L42" title="All 2 branches covered.">      for (Provider h : Provider.getProviderList()) {</span>
+        // filter - exports only those hospitals in use
+<span class="fc" id="L44">        Table&lt;Integer, String, AtomicInteger&gt; utilization = h.getUtilization();</span>
+<span class="fc" id="L45">        int totalEncounters = utilization.column(Provider.ENCOUNTERS).values().stream()</span>
+<span class="fc" id="L46">            .mapToInt(ai -&gt; ai.get()).sum();</span>
+<span class="fc bfc" id="L47" title="All 2 branches covered.">        if (totalEncounters &gt; 0) {</span>
+<span class="fc" id="L48">          BundleEntryComponent entry = FhirR4.provider(bundle, h);</span>
+<span class="fc" id="L49">          addHospitalExtensions(h, (Organization) entry.getResource());</span>
+        }
+<span class="fc" id="L51">      }</span>
+
+<span class="fc" id="L53">      String bundleJson = FHIR_CTX.newJsonParser().setPrettyPrint(true)</span>
+<span class="fc" id="L54">          .encodeResourceToString(bundle);</span>
+
+      // get output folder
+<span class="fc" id="L57">      List&lt;String&gt; folders = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L58">      folders.add(&quot;fhir_r4&quot;);</span>
+<span class="fc" id="L59">      String baseDirectory = Config.get(&quot;exporter.baseDirectory&quot;);</span>
+<span class="fc" id="L60">      File f = Paths.get(baseDirectory, folders.toArray(new String[0])).toFile();</span>
+<span class="fc" id="L61">      f.mkdirs();</span>
+<span class="fc" id="L62">      Path outFilePath = f.toPath().resolve(&quot;hospitalInformation&quot; + stop + &quot;.json&quot;);</span>
+
+      try {
+<span class="fc" id="L65">        Files.write(outFilePath, Collections.singleton(bundleJson), StandardOpenOption.CREATE_NEW);</span>
+<span class="nc" id="L66">      } catch (IOException e) {</span>
+<span class="nc" id="L67">        e.printStackTrace();</span>
+<span class="fc" id="L68">      }</span>
+    }
+<span class="fc" id="L70">  }</span>
+
+  public static void addHospitalExtensions(Provider h, Organization organizationResource) {
+<span class="fc" id="L73">    Table&lt;Integer, String, AtomicInteger&gt; utilization = h.getUtilization();</span>
+    // calculate totals for utilization
+<span class="fc" id="L75">    int totalEncounters = utilization.column(Provider.ENCOUNTERS).values().stream()</span>
+<span class="fc" id="L76">        .mapToInt(ai -&gt; ai.get()).sum();</span>
+<span class="fc" id="L77">    Extension encountersExtension = new Extension(SYNTHEA_URI + &quot;utilization-encounters-extension&quot;);</span>
+<span class="fc" id="L78">    IntegerType encountersValue = new IntegerType(totalEncounters);</span>
+<span class="fc" id="L79">    encountersExtension.setValue(encountersValue);</span>
+<span class="fc" id="L80">    organizationResource.addExtension(encountersExtension);</span>
+
+<span class="fc" id="L82">    int totalProcedures = utilization.column(Provider.PROCEDURES).values().stream()</span>
+<span class="pc" id="L83">        .mapToInt(ai -&gt; ai.get()).sum();</span>
+<span class="fc" id="L84">    Extension proceduresExtension = new Extension(SYNTHEA_URI + &quot;utilization-procedures-extension&quot;);</span>
+<span class="fc" id="L85">    IntegerType proceduresValue = new IntegerType(totalProcedures);</span>
+<span class="fc" id="L86">    proceduresExtension.setValue(proceduresValue);</span>
+<span class="fc" id="L87">    organizationResource.addExtension(proceduresExtension);</span>
+
+<span class="pc" id="L89">    int totalLabs = utilization.column(Provider.LABS).values().stream().mapToInt(ai -&gt; ai.get())</span>
+<span class="fc" id="L90">        .sum();</span>
+<span class="fc" id="L91">    Extension labsExtension = new Extension(SYNTHEA_URI + &quot;utilization-labs-extension&quot;);</span>
+<span class="fc" id="L92">    IntegerType labsValue = new IntegerType(totalLabs);</span>
+<span class="fc" id="L93">    labsExtension.setValue(labsValue);</span>
+<span class="fc" id="L94">    organizationResource.addExtension(labsExtension);</span>
+
+<span class="fc" id="L96">    int totalPrescriptions = utilization.column(Provider.PRESCRIPTIONS).values().stream()</span>
+<span class="pc" id="L97">        .mapToInt(ai -&gt; ai.get()).sum();</span>
+<span class="fc" id="L98">    Extension prescriptionsExtension = new Extension(</span>
+        SYNTHEA_URI + &quot;utilization-prescriptions-extension&quot;);
+<span class="fc" id="L100">    IntegerType prescriptionsValue = new IntegerType(totalPrescriptions);</span>
+<span class="fc" id="L101">    prescriptionsExtension.setValue(prescriptionsValue);</span>
+<span class="fc" id="L102">    organizationResource.addExtension(prescriptionsExtension);</span>
+
+<span class="fc" id="L104">    Integer bedCount = h.getBedCount();</span>
+<span class="pc bpc" id="L105" title="1 of 2 branches missed.">    if (bedCount != null) {</span>
+<span class="nc" id="L106">      Extension bedCountExtension = new Extension(SYNTHEA_URI + &quot;bed-count-extension&quot;);</span>
+<span class="nc" id="L107">      IntegerType bedCountValue = new IntegerType(bedCount);</span>
+<span class="nc" id="L108">      bedCountExtension.setValue(bedCountValue);</span>
+<span class="nc" id="L109">      organizationResource.addExtension(bedCountExtension);</span>
+    }
+<span class="fc" id="L111">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.engine.TransitionTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:15:55" hostname="ryan-B250M-HD3" time="0.016">
+  <properties/>
+  <testcase name="testDistributedTransitionWithAttributes" classname="org.mitre.synthea.engine.TransitionTest" time="0.01"/>
+  <testcase name="testDistributedTransition" classname="org.mitre.synthea.engine.TransitionTest" time="0.006"/>
+  <system-out><![CDATA[Loading src/test/resources/generic/distributed_transition_with_attrs.json
+Loading src/test/resources/generic/distributed_transition.json
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

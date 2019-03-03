@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="org.mitre.synthea.helpers.TransitionMetricsTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2019-02-25T11:18:19" hostname="ryan-B250M-HD3" time="0.031">
+  <properties/>
+  <testcase name="testExampleModule" classname="org.mitre.synthea.helpers.TransitionMetricsTest" time="0.03"/>
+  <testcase name="testDurationStrings" classname="org.mitre.synthea.helpers.TransitionMetricsTest" time="0.0"/>
+  <system-out><![CDATA[Loading src/test/resources/generic/example_module.json
+EXAMPLITIS MODULE
+Terminal:
+ Total times entered: 1
+ Population that ever hit this state: 1 (100.00%)
+ Average # of hits per total population: 100.00
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 1 (100.00%)
+
+Initial:
+ Total times entered: 1
+ Population that ever hit this state: 1 (100.00%)
+ Average # of hits per total population: 100.00
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 0 (0.00%)
+ Transitioned to:
+ --> Terminal : 1 = 100.00%
+
+Examplitis: 
+ Never reached 
+
+
+End_Examplotomy_Encounter: 
+ Never reached 
+
+
+Examplotomy: 
+ Never reached 
+
+
+Age_Guard: 
+ Never reached 
+
+
+Pre_Examplotomy: 
+ Never reached 
+
+
+Examplotomy_Encounter: 
+ Never reached 
+
+
+Examplitol: 
+ Never reached 
+
+
+Death: 
+ Never reached 
+
+
+Pre_Examplitis: 
+ Never reached 
+
+
+Last_Days: 
+ Never reached 
+
+
+Wellness_Encounter: 
+ Never reached 
+
+
+
+
+EXAMPLITIS MODULE
+Terminal:
+ Total times entered: 3
+ Population that ever hit this state: 3 (100.00%)
+ Average # of hits per total population: 100.00
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 3 (100.00%)
+
+Examplitol:
+ Total times entered: 1
+ Population that ever hit this state: 1 (33.33%)
+ Average # of hits per total population: 33.33
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 0 (0.00%)
+ Transitioned to:
+ --> Terminal : 1 = 100.00%
+
+Wellness_Encounter:
+ Total times entered: 1
+ Population that ever hit this state: 1 (33.33%)
+ Average # of hits per total population: 33.33
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 0 (0.00%)
+ (duration metrics for wellness encounter omitted)
+ Transitioned to:
+ --> Examplitol : 1 = 100.00%
+
+Examplitis:
+ Total times entered: 1
+ Population that ever hit this state: 1 (33.33%)
+ Average # of hits per total population: 33.33
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 0 (0.00%)
+ Transitioned to:
+ --> Wellness_Encounter : 1 = 100.00%
+
+Pre_Examplitis:
+ Total times entered: 1
+ Population that ever hit this state: 1 (33.33%)
+ Average # of hits per total population: 33.33
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 0 (0.00%)
+ Total duration: 8 years 0 months
+ Average duration per time entered: 8 years 0 months
+ Average duration per person that ever entered state: 8 years 0 months
+ Transitioned to:
+ --> Examplitis : 1 = 100.00%
+
+Age_Guard:
+ Total times entered: 3
+ Population that ever hit this state: 3 (100.00%)
+ Average # of hits per total population: 100.00
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 0 (0.00%)
+ Total duration: 126 years 0 months
+ Average duration per time entered: 42 years 0 months
+ Average duration per person that ever entered state: 42 years 0 months
+ Transitioned to:
+ --> Pre_Examplitis : 1 = 33.33%
+ --> Terminal : 2 = 66.67%
+
+Initial:
+ Total times entered: 3
+ Population that ever hit this state: 3 (100.00%)
+ Average # of hits per total population: 100.00
+ Average # of hits per person that ever hit state: 100.00
+ Population currently in state: 0 (0.00%)
+ Transitioned to:
+ --> Age_Guard : 3 = 100.00%
+
+End_Examplotomy_Encounter: 
+ Never reached 
+
+
+Examplotomy: 
+ Never reached 
+
+
+Pre_Examplotomy: 
+ Never reached 
+
+
+Examplotomy_Encounter: 
+ Never reached 
+
+
+Death: 
+ Never reached 
+
+
+Last_Days: 
+ Never reached 
+
+
+
+
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CCDAExporter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">synthea</a> &gt; <a href="index.source.html" class="el_package">org.mitre.synthea.export</a> &gt; <span class="el_source">CCDAExporter.java</span></div><h1>CCDAExporter.java</h1><pre class="source lang-java linenums">package org.mitre.synthea.export;
+
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
+
+import java.io.StringWriter;
+import java.util.UUID;
+
+import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.concepts.HealthRecord.Encounter;
+import org.mitre.synthea.world.concepts.RaceAndEthnicity;
+
+/**
+ * Export C-CDA R2.1 files using Apache FreeMarker templates.
+ */
+<span class="nc" id="L17">public class CCDAExporter {</span>
+
+<span class="fc" id="L19">  private static final Configuration TEMPLATES = templateConfiguration();</span>
+  /**
+   * This is a dummy object for FreeMarker, because the library cannot access static class methods
+   * such as UUID.randomUUID()
+   */
+<span class="fc" id="L24">  private static final Object UUID_GEN = new Object() {</span>
+    public String toString() {
+<span class="fc" id="L26">      return UUID.randomUUID().toString();</span>
+    }
+  };
+
+  private static Configuration templateConfiguration() {
+<span class="fc" id="L31">    Configuration configuration = new Configuration(Configuration.VERSION_2_3_26);</span>
+<span class="fc" id="L32">    configuration.setDefaultEncoding(&quot;UTF-8&quot;);</span>
+<span class="fc" id="L33">    configuration.setLogTemplateExceptions(false);</span>
+    try {
+<span class="fc" id="L35">      configuration.setSetting(&quot;object_wrapper&quot;,</span>
+          &quot;DefaultObjectWrapper(2.3.26, forceLegacyNonListCollections=false, &quot;
+              + &quot;iterableSupport=true, exposeFields=true)&quot;);
+<span class="nc" id="L38">    } catch (TemplateException e) {</span>
+<span class="nc" id="L39">      e.printStackTrace();</span>
+<span class="fc" id="L40">    }</span>
+<span class="fc" id="L41">    configuration.setAPIBuiltinEnabled(true);</span>
+<span class="fc" id="L42">    configuration.setClassLoaderForTemplateLoading(ClassLoader.getSystemClassLoader(),</span>
+        &quot;templates/ccda&quot;);
+<span class="fc" id="L44">    return configuration;</span>
+  }
+
+  /**
+   * Export a CCDA R2.1 document for a Person at a given time.
+   *
+   * @param person
+   *          Person to export.
+   * @param time
+   *          Time the record should be generated. Any content in the record AFTER this time will
+   *          not be included.
+   * @return String of CCDA R2.1 XML.
+   */
+  public static String export(Person person, long time) {
+    // create a super encounter... this makes it easier to access
+    // all the Allergies (for example) in the export templates,
+    // instead of having to iterate through all the encounters.
+<span class="fc" id="L61">    Encounter superEncounter = person.record.new Encounter(time, &quot;super&quot;);</span>
+<span class="fc bfc" id="L62" title="All 2 branches covered.">    for (Encounter encounter : person.record.encounters) {</span>
+<span class="pc bpc" id="L63" title="1 of 2 branches missed.">      if (encounter.start &lt;= time) {</span>
+<span class="fc" id="L64">        superEncounter.observations.addAll(encounter.observations);</span>
+<span class="fc" id="L65">        superEncounter.reports.addAll(encounter.reports);</span>
+<span class="fc" id="L66">        superEncounter.conditions.addAll(encounter.conditions);</span>
+<span class="fc" id="L67">        superEncounter.allergies.addAll(encounter.allergies);</span>
+<span class="fc" id="L68">        superEncounter.procedures.addAll(encounter.procedures);</span>
+<span class="fc" id="L69">        superEncounter.immunizations.addAll(encounter.immunizations);</span>
+<span class="fc" id="L70">        superEncounter.medications.addAll(encounter.medications);</span>
+<span class="fc" id="L71">        superEncounter.careplans.addAll(encounter.careplans);</span>
+<span class="fc" id="L72">        superEncounter.imagingStudies.addAll(encounter.imagingStudies);</span>
+      } else {
+        break;
+      }
+<span class="fc" id="L76">    }</span>
+
+    // The export templates fill in the record by accessing the attributes
+    // of the Person, so we add a few attributes just for the purposes of export.
+<span class="fc" id="L80">    person.attributes.put(&quot;UUID&quot;, UUID_GEN);</span>
+<span class="fc" id="L81">    person.attributes.put(&quot;ehr_encounters&quot;, person.record.encounters);</span>
+<span class="fc" id="L82">    person.attributes.put(&quot;ehr_observations&quot;, superEncounter.observations);</span>
+<span class="fc" id="L83">    person.attributes.put(&quot;ehr_reports&quot;, superEncounter.reports);</span>
+<span class="fc" id="L84">    person.attributes.put(&quot;ehr_conditions&quot;, superEncounter.conditions);</span>
+<span class="fc" id="L85">    person.attributes.put(&quot;ehr_allergies&quot;, superEncounter.allergies);</span>
+<span class="fc" id="L86">    person.attributes.put(&quot;ehr_procedures&quot;, superEncounter.procedures);</span>
+<span class="fc" id="L87">    person.attributes.put(&quot;ehr_immunizations&quot;, superEncounter.immunizations);</span>
+<span class="fc" id="L88">    person.attributes.put(&quot;ehr_medications&quot;, superEncounter.medications);</span>
+<span class="fc" id="L89">    person.attributes.put(&quot;ehr_careplans&quot;, superEncounter.careplans);</span>
+<span class="fc" id="L90">    person.attributes.put(&quot;ehr_imaging_studies&quot;, superEncounter.imagingStudies);</span>
+<span class="fc" id="L91">    person.attributes.put(&quot;time&quot;, time);</span>
+<span class="fc" id="L92">    person.attributes.put(&quot;race_lookup&quot;, RaceAndEthnicity.LOOK_UP_CDC_RACE);</span>
+<span class="fc" id="L93">    person.attributes.put(&quot;ethnicity_lookup&quot;, RaceAndEthnicity.LOOK_UP_CDC_ETHNICITY_CODE);</span>
+<span class="fc" id="L94">    person.attributes.put(&quot;ethnicity_display_lookup&quot;,</span>
+        RaceAndEthnicity.LOOK_UP_CDC_ETHNICITY_DISPLAY);
+
+<span class="fc" id="L97">    StringWriter writer = new StringWriter();</span>
+    try {
+<span class="fc" id="L99">      Template template = TEMPLATES.getTemplate(&quot;ccda.ftl&quot;);</span>
+<span class="fc" id="L100">      template.process(person.attributes, writer);</span>
+<span class="nc" id="L101">    } catch (Exception e) {</span>
+<span class="nc" id="L102">      e.printStackTrace();</span>
+<span class="fc" id="L103">    }</span>
+<span class="fc" id="L104">    return writer.toString();</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.2.201808211720</span></div></body></html>
