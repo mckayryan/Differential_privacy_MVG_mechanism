@@ -1,3 +1,3 @@
-# perlin_hackathon_submission
-Ryan McKay's Submission for Perlin hackathon round 2 - AI, privacy and distributed computation
+# Perlin - Differential Privacy Pilot
+A Perlin differential privacy pilot using targeted directional noise on real valued data.
 
